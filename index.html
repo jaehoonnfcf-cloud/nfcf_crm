@@ -513,7 +513,7 @@
     googleLoginBtn.disabled = true;
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.href }
+      options: { redirectTo: window.location.origin + window.location.pathname }
     });
     if (error){
       googleLoginBtn.disabled = false;
@@ -534,6 +534,10 @@
 
   // 로그인은 됐지만 allowed_emails에 없는 계정은 즉시 로그아웃 처리
   async function handleSession(session){
+    // Google 로그인 후 주소에 남는 #access_token=... 같은 조각 제거
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
     const { data: allowed, error } = await sb.rpc('is_allowed_email');
     if (error || !allowed){
       await sb.auth.signOut();
@@ -546,6 +550,9 @@
   }
 
   function showLogin(){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
     loginScreen.style.display = 'flex';
     app.style.display = 'none';
     googleLoginBtn.disabled = false;
