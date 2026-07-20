@@ -93,6 +93,22 @@
   }
   .add-btn:hover{ opacity:.9; }
 
+  .search-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--ink); color:#fff; border:none;
+    padding:9px 16px 9px 14px; border-radius:999px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:opacity .15s, transform .1s;
+  }
+  .search-btn:hover{ opacity:.85; }
+  .search-btn:active{ transform:scale(0.97); }
+
+  .reset-btn{
+    background:#fff; color:var(--danger); border:1px solid #e8d3d0;
+    padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .reset-btn:hover{ background:#fdf1ef; }
+
   table{ width:100%; border-collapse:collapse; background:var(--panel);
     border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   thead th{
@@ -200,10 +216,13 @@
       <div class="page-head">
         <h1>고객 목록 <span class="count" id="countLabel"></span></h1>
         <div class="toolbar">
-          <input type="text" id="searchBox" placeholder="고객번호 또는 성명 검색" />
-          <button class="btn-secondary" id="searchBtn" style="padding:8px 16px;">검색</button>
-          <button class="btn-secondary" id="showAllBtn" style="padding:8px 16px;">전체고객 보기</button>
-          <button class="btn-secondary" id="resetBtn" style="padding:8px 16px;">초기화</button>
+          <input type="text" id="searchBox" placeholder="고객번호 · 성명 · 고객정보 검색" />
+          <button class="search-btn" id="searchBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            검색
+          </button>
+          <button class="btn-secondary" id="showAllBtn">전체고객 보기</button>
+          <button class="reset-btn" id="resetBtn">초기화</button>
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
       </div>
@@ -414,9 +433,9 @@
     let query = sb.from(TABLE_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
 
     if (/^\d+$/.test(safe)){
-      query = query.or(`name.ilike.%${safe}%,customer_no.eq.${safe}`);
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%,customer_no.eq.${safe}`);
     } else {
-      query = query.ilike('name', `%${safe}%`);
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%`);
     }
 
     const { data, error } = await query;
