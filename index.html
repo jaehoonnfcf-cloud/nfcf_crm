@@ -93,15 +93,18 @@
   .toolbar{ display:flex; gap:10px; align-items:center; }
   .toolbar input[type=text]{
     padding:8px 12px; border:1px solid var(--line); border-radius:8px;
-    font-size:13.5px; width:200px; background:#fff;
+    font-size:13.5px; width:230px; background:#fff;
   }
   .toolbar input[type=text]:focus{ outline:none; border-color:var(--accent); }
-  .add-btn{
-    background:var(--accent); color:#fff; border:none;
+  .add-btn, .csv-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    border:none; color:#fff;
     padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
+    cursor:pointer; white-space:nowrap; transition:opacity .15s;
   }
-  .add-btn:hover{ opacity:.9; }
+  .add-btn{ background:var(--accent); }
+  .csv-btn{ background:#2b5e9e; }
+  .add-btn:hover, .csv-btn:hover{ opacity:.9; }
 
   .search-btn{
     display:inline-flex; align-items:center; gap:6px;
@@ -279,7 +282,10 @@
           <button class="btn-secondary" id="showAllBtn">전체고객 보기</button>
           <button class="btn-secondary" id="trashBtn">휴지통</button>
           <button class="reset-btn" id="resetBtn">초기화</button>
-          <button class="btn-secondary" id="csvUploadBtn">CSV 업로드</button>
+          <button class="csv-btn" id="csvUploadBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            CSV 업로드
+          </button>
           <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
