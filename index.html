@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>고객정보 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1c2024;
+    --paper:#f7f7f5;
+    --panel:#ffffff;
+    --line:#e2e1dd;
+    --accent:#2f5d50;
+    --accent-soft:#e7efec;
+    --danger:#a4443a;
+    --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---------- 로그인 화면 ---------- */
+  .login-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:44px 40px; width:100%; max-width:360px; text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .login-mark{
+    width:40px;height:40px;border-radius:9px; background:var(--accent); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; color:#fff;font-weight:700;font-size:15px;
+  }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  #loginForm{ display:flex; flex-direction:column; gap:10px; }
+  .text-field{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
+    font-size:14px; font-family:inherit; background:#fff;
+  }
+  .text-field:focus{ outline:none; border-color:var(--accent); }
+  .primary-btn{
+    width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; font-size:14.5px; font-weight:600; cursor:pointer;
+    margin-top:2px;
+  }
+  .primary-btn:hover{ opacity:.9; }
+  .primary-btn:disabled{ opacity:.6; cursor:default; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  /* ---------- 앱 화면 ---------- */
+  #app{ display:none; }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:30px; height:30px; font-size:12px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
+  .signout-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer;
+  }
+  .signout-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; }
+
+  .page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:22px; flex-wrap:wrap; gap:12px;
+  }
+  .page-head h1{ font-size:20px; margin:0; letter-spacing:-0.01em; }
+  .page-head .count{ font-size:13px; color:var(--muted); margin-left:8px; font-weight:400; }
+
+  .toolbar{ display:flex; gap:10px; align-items:center; }
+  .toolbar input[type=text]{
+    padding:8px 12px; border:1px solid var(--line); border-radius:8px;
+    font-size:13.5px; width:200px; background:#fff;
+  }
+  .toolbar input[type=text]:focus{ outline:none; border-color:var(--accent); }
+  .add-btn{
+    background:var(--accent); color:#fff; border:none;
+    padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .add-btn:hover{ opacity:.9; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  thead th{
+    text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); font-weight:600; padding:12px 16px; border-bottom:1px solid var(--line);
+    background:#fafaf8;
+  }
+  tbody td{ padding:11px 16px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#fafaf9; }
+  tbody tr:nth-child(even){ background:#fcfcfb; }
+  td.no-col{ font-variant-numeric:tabular-nums; color:var(--muted); width:96px; font-weight:600; }
+  td.name-col{ width:150px; }
+  td input[type=text], td textarea{
+    display:block;
+    width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
+    font-size:14px; font-family:inherit; background:transparent; resize:vertical;
+    line-height:1.5; box-sizing:border-box;
+  }
+  td textarea{ overflow:hidden; min-height:26px; }
+  td input[type=text]:hover, td textarea:hover{ border-color:var(--line); }
+  td input[type=text]:focus, td textarea:focus{
+    outline:none; border-color:var(--accent); background:#fff;
+  }
+  .row-actions{ display:flex; gap:6px; white-space:nowrap; justify-content:flex-end; }
+  .icon-btn{
+    border:1px solid var(--line); background:#fff; border-radius:6px;
+    padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--ink);
+  }
+  .icon-btn.save{ border-color:var(--accent); color:var(--accent); }
+  .icon-btn.save:disabled{ opacity:.4; cursor:default; }
+  .icon-btn.del{ color:var(--danger); border-color:#e8d3d0; }
+  .icon-btn:hover{ background:#f2f1ee; }
+
+  .empty-state{ text-align:center; padding:48px 20px; color:var(--muted); font-size:13.5px; }
+  .status-line{ font-size:12px; color:var(--muted); margin-top:12px; min-height:16px; }
+  .saved-flash{ color:var(--accent); }
+  .err-flash{ color:var(--danger); }
+
+  /* ---- 추가 모달 ---- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(28,32,36,0.4);
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background:#fff; border-radius:14px; width:100%; max-width:420px;
+    padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18);
+  }
+  .modal h2{ font-size:16.5px; margin:0 0 4px; }
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; color:var(--ink); }
+  .field input[type=text], .field input[type=number], .field textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+    font-size:14px; font-family:inherit; background:#fff;
+  }
+  .field input:focus, .field textarea:focus{ outline:none; border-color:var(--accent); }
+  .field .hint{ font-size:11.5px; color:var(--danger); margin-top:4px; display:none; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .btn-secondary{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:9px 16px; border-radius:8px; font-size:13.5px; cursor:pointer;
+  }
+  .btn-secondary:hover{ background:#f2f1ee; }
+  .btn-primary{
+    border:none; background:var(--accent); color:#fff;
+    padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary:hover{ opacity:.9; }
+  .btn-primary:disabled{ opacity:.5; cursor:default; }
+</style>
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div class="login-wrap" id="loginScreen">
+    <div class="login-card">
+      <div class="login-mark">CX</div>
+      <h1>고객정보 관리</h1>
+      <p>승인된 계정으로 로그인 후<br/>고객 정보를 조회하고 수정할 수 있습니다.</p>
+      <form id="loginForm">
+        <input type="email" id="loginEmail" class="text-field" placeholder="이메일" required autocomplete="username" />
+        <input type="password" id="loginPassword" class="text-field" placeholder="비밀번호" required autocomplete="current-password" />
+        <button type="submit" class="primary-btn" id="passwordLoginBtn">로그인</button>
+      </form>
+      <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+    </div>
+  </div>
+
+  <!-- 메인 앱 -->
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="login-mark">CX</div>
+        <h2>고객정보 관리</h2>
+      </div>
+      <div class="user-box">
+        <span id="userEmail"></span>
+        <button class="signout-btn" id="signOutBtn">로그아웃</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="page-head">
+        <h1>고객 목록 <span class="count" id="countLabel"></span></h1>
+        <div class="toolbar">
+          <input type="text" id="searchBox" placeholder="고객번호 또는 성명 검색" />
+          <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:96px;">고객번호</th>
+            <th style="width:150px;">성명</th>
+            <th>고객정보</th>
+            <th style="width:130px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+
+      <div class="empty-state" id="emptyState" style="display:none;">등록된 고객 정보가 없습니다.</div>
+      <div class="status-line" id="statusLine"></div>
+    </main>
+  </div>
+
+  <!-- 고객 추가 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>고객 추가</h2>
+      <p class="sub">고객번호 · 성명 · 고객정보를 입력하세요.</p>
+      <form id="addForm">
+        <div class="field">
+          <label for="inNo">고객번호</label>
+          <input type="number" id="inNo" placeholder="예: 1001" required />
+          <div class="hint" id="hintNo">이미 존재하는 고객번호입니다.</div>
+        </div>
+        <div class="field">
+          <label for="inName">성명</label>
+          <input type="text" id="inName" placeholder="예: 홍길동" required />
+        </div>
+        <div class="field">
+          <label for="inInfo">고객정보</label>
+          <textarea id="inInfo" rows="3" placeholder="주소, 연락처, 메모 등"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelAddBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitAddBtn">추가</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  if (typeof supabase === 'undefined') {
+    document.body.innerHTML = '<div style="padding:24px;color:#a4443a;font-family:sans-serif;">Supabase 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.</div>';
+    throw new Error('supabase-js not loaded');
+  }
+
+  // ==== Supabase 연결 설정 ====
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const TABLE_NAME = "customers";
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---- DOM ----
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const loginForm = document.getElementById('loginForm');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const passwordLoginBtn = document.getElementById('passwordLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+
+  const tableBody = document.getElementById('tableBody');
+  const emptyState = document.getElementById('emptyState');
+  const statusLine = document.getElementById('statusLine');
+  const countLabel = document.getElementById('countLabel');
+  const searchBox = document.getElementById('searchBox');
+
+  const modalOverlay = document.getElementById('modalOverlay');
+  const openAddBtn = document.getElementById('openAddBtn');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const addForm = document.getElementById('addForm');
+  const inNo = document.getElementById('inNo');
+  const inName = document.getElementById('inName');
+  const inInfo = document.getElementById('inInfo');
+  const hintNo = document.getElementById('hintNo');
+  const submitAddBtn = document.getElementById('submitAddBtn');
+
+  let allRows = [];
+
+  // ---- 로그인 / 로그아웃 ----
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.style.display = 'none';
+    passwordLoginBtn.disabled = true;
+    passwordLoginBtn.textContent = '로그인 중...';
+
+    const { error } = await sb.auth.signInWithPassword({
+      email: loginEmail.value.trim(),
+      password: loginPassword.value
+    });
+
+    passwordLoginBtn.disabled = false;
+    passwordLoginBtn.textContent = '로그인';
+
+    if (error){
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut();
+    showLogin();
+  });
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (session) showApp(session); else showLogin();
+  });
+
+  function showLogin(){
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+  }
+  function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    userEmail.textContent = session.user.email;
+    loadCustomers();
+  }
+
+  function setStatus(text, cls){
+    statusLine.textContent = text;
+    statusLine.className = 'status-line ' + (cls || '');
+  }
+  function escapeHtml(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function autoResize(el){
+    requestAnimationFrame(() => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    });
+  }
+
+  // ---- 데이터 로드 ----
+  async function loadCustomers(){
+    setStatus('불러오는 중...', '');
+    const { data, error } = await sb.from(TABLE_NAME).select('*').order('customer_no', { ascending: true });
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      tableBody.innerHTML = '';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '접근 권한이 없거나 데이터를 불러올 수 없습니다. 관리자에게 문의하세요.';
+      countLabel.textContent = '';
+      return;
+    }
+    allRows = data || [];
+    countLabel.textContent = `총 ${allRows.length}건`;
+    renderTable(allRows);
+    setStatus('', '');
+  }
+
+  function renderTable(rows){
+    tableBody.innerHTML = '';
+    emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+    if (rows.length === 0) emptyState.textContent = '등록된 고객 정보가 없습니다.';
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="no-col">${row.customer_no}</td>
+        <td class="name-col"><input type="text" class="name-input" value="${escapeHtml(row.name)}" /></td>
+        <td><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn save" disabled>저장</button>
+            <button class="icon-btn del">삭제</button>
+          </div>
+        </td>`;
+
+      const nameInput = tr.querySelector('.name-input');
+      const infoInput = tr.querySelector('.info-input');
+      const saveBtn = tr.querySelector('.save');
+      const delBtn = tr.querySelector('.del');
+      const markDirty = () => { saveBtn.disabled = false; };
+      nameInput.addEventListener('input', markDirty);
+      infoInput.addEventListener('input', () => { markDirty(); autoResize(infoInput); });
+
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '저장중';
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ name: nameInput.value, customer_info: infoInput.value })
+          .eq('customer_no', row.customer_no)
+          .select();
+        saveBtn.textContent = '저장';
+        if (error){
+          setStatus('저장 실패: ' + error.message, 'err-flash');
+          saveBtn.disabled = false;
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          saveBtn.disabled = false;
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
+          row.name = nameInput.value;
+          row.customer_info = infoInput.value;
+        }
+      });
+
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name}) 정보를 삭제할까요?`)) return;
+        const { error } = await sb.from(TABLE_NAME).delete().eq('customer_no', row.customer_no);
+        if (error){
+          setStatus('삭제 실패: ' + error.message, 'err-flash');
+        } else {
+          allRows = allRows.filter(r => r.customer_no !== row.customer_no);
+          countLabel.textContent = `총 ${allRows.length}건`;
+          renderTable(filterRows(searchBox.value));
+          setStatus(`고객번호 ${row.customer_no} 삭제 완료`, 'saved-flash');
+        }
+      });
+
+      tableBody.appendChild(tr);
+      autoResize(infoInput);
+    });
+  }
+
+  function filterRows(keyword){
+    const k = (keyword || '').trim().toLowerCase();
+    if (!k) return allRows;
+    return allRows.filter(r => String(r.customer_no).includes(k) || (r.name || '').toLowerCase().includes(k));
+  }
+  searchBox.addEventListener('input', () => renderTable(filterRows(searchBox.value)));
+
+  // ---- 추가 모달 ----
+  function openModal(){
+    addForm.reset();
+    hintNo.style.display = 'none';
+    modalOverlay.classList.add('open');
+    setTimeout(() => inNo.focus(), 50);
+  }
+  function closeModal(){ modalOverlay.classList.remove('open'); }
+
+  openAddBtn.addEventListener('click', openModal);
+  cancelAddBtn.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+  inNo.addEventListener('blur', async () => {
+    hintNo.style.display = 'none';
+    const no = Number(inNo.value);
+    if (!no) return;
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', no).maybeSingle();
+    if (dup) hintNo.style.display = 'block';
+  });
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hintNo.style.display = 'none';
+
+    const no = Number(inNo.value);
+    const name = inName.value.trim();
+    const info = inInfo.value.trim();
+
+    if (!no || !name){
+      setStatus('고객번호와 성명은 필수입니다', 'err-flash');
+      return;
+    }
+
+    submitAddBtn.disabled = true;
+    submitAddBtn.textContent = '확인 중...';
+
+    const { data: dup, error: dupError } = await sb
+      .from(TABLE_NAME)
+      .select('customer_no')
+      .eq('customer_no', no)
+      .maybeSingle();
+
+    if (dupError){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '추가';
+      setStatus('중복 확인 실패: ' + dupError.message, 'err-flash');
+      return;
+    }
+    if (dup){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '추가';
+      hintNo.style.display = 'block';
+      inNo.focus();
+      return;
+    }
+
+    submitAddBtn.textContent = '추가 중...';
+
+    const { data, error } = await sb
+      .from(TABLE_NAME)
+      .insert({ customer_no: no, name, customer_info: info })
+      .select();
+
+    submitAddBtn.disabled = false;
+    submitAddBtn.textContent = '추가';
+
+    if (error){
+      if (error.code === '23505'){
+        hintNo.style.display = 'block';
+        inNo.focus();
+      } else {
+        setStatus('추가 실패: ' + error.message, 'err-flash');
+      }
+      return;
+    }
+    allRows.push(data[0]);
+    allRows.sort((a,b) => Number(a.customer_no) - Number(b.customer_no));
+    countLabel.textContent = `총 ${allRows.length}건`;
+    renderTable(filterRows(searchBox.value));
+    setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
+    closeModal();
+  });
+
+  // ---- 시작: 세션 확인 ----
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) showApp(session); else showLogin();
+  });
+</script>
+</body>
+</html>
