@@ -239,6 +239,49 @@
   .csv-badge.dup{ background:#eaf1fb; color:#2b5e9e; }
   .csv-badge.trash{ background:#fdf1e0; color:#a3690f; }
   .csv-badge.invalid{ background:#fbeceb; color:var(--danger); }
+
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* ---------- 모바일 대응 ---------- */
+  @media (max-width: 720px){
+    .login-card{ padding:32px 22px; }
+
+    header{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
+    .brand h2{ font-size:14.5px; }
+    .user-box{ gap:8px; font-size:12px; }
+    .user-box span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    main{ padding:18px 14px 40px; }
+
+    .page-head{ flex-direction:column; align-items:stretch; gap:10px; }
+    .page-head h1{ font-size:17px; }
+
+    .toolbar{ flex-wrap:wrap; gap:8px; }
+    .toolbar input[type=text]{ flex:1 1 100%; width:auto; order:1; }
+    .search-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    #showAllBtn{ flex:1 1 calc(50% - 4px); order:2; }
+    #trashBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    .reset-btn{ flex:1 1 calc(50% - 4px); order:3; }
+    .csv-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:4; }
+    .add-btn{ flex:1 1 100%; justify-content:center; order:5; }
+
+    table{ min-width:640px; } /* 좁은 화면에서는 가로 스크롤로 대응 */
+
+    .modal{ max-width:94vw !important; padding:22px 18px; max-height:88vh; overflow-y:auto; }
+    .modal-actions{ flex-wrap:wrap; }
+    .modal-actions button{ flex:1 1 auto; }
+
+    .pagination{ gap:8px; }
+    .pagination select{ flex:1 1 100%; order:1; }
+    .page-indicator{ order:2; }
+
+    .csv-preview-table thead th{ font-size:10px; padding:6px 6px; }
+    .csv-preview-table tbody td{ padding:6px 6px; font-size:11.5px; }
+  }
+
+  @media (max-width: 420px){
+    .search-btn, #showAllBtn, #trashBtn, .reset-btn, .csv-btn{ flex:1 1 100%; }
+  }
 </style>
 </head>
 <body>
@@ -293,17 +336,19 @@
 
       <div class="empty-state" id="idleState">검색어를 입력해 검색하거나, "전체고객 보기"를 눌러 전체 목록을 불러오세요.</div>
 
-      <table id="customerTable" style="display:none;">
-        <thead>
-          <tr>
-            <th style="width:96px;">고객번호</th>
-            <th style="width:150px;">성명</th>
-            <th>고객정보</th>
-            <th style="width:170px;"></th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table id="customerTable" style="display:none;">
+          <thead>
+            <tr>
+              <th style="width:96px;">고객번호</th>
+              <th style="width:150px;">성명</th>
+              <th>고객정보</th>
+              <th style="width:170px;"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
 
       <div class="empty-state" id="emptyState" style="display:none;">등록된 고객 정보가 없습니다.</div>
 
