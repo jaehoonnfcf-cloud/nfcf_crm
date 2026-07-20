@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>고객정보 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --ink:#1c2024;
@@ -219,6 +220,22 @@
   .history-item .h-diff .field-name{ color:var(--muted); margin-right:4px; }
   .history-item .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
   .history-item .h-diff ins{ color:var(--accent); text-decoration:none; }
+
+  .csv-preview-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .csv-preview-table thead th{
+    position:sticky; top:0; background:#fafaf8; text-align:left; padding:8px 10px;
+    border-bottom:1px solid var(--line); font-size:11px; color:var(--muted);
+  }
+  .csv-preview-table tbody td{ padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .csv-preview-table tbody tr:last-child td{ border-bottom:none; }
+  .csv-preview-table .csv-no{ font-variant-numeric:tabular-nums; color:var(--muted); font-weight:600; }
+  .csv-preview-table .csv-new-val{ color:var(--ink); }
+  .csv-preview-table .csv-old-val{ color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .csv-badge{ font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .csv-badge.new{ background:var(--accent-soft); color:var(--accent); }
+  .csv-badge.dup{ background:#eaf1fb; color:#2b5e9e; }
+  .csv-badge.trash{ background:#fdf1e0; color:#a3690f; }
+  .csv-badge.invalid{ background:#fbeceb; color:var(--danger); }
 </style>
 </head>
 <body>
@@ -262,6 +279,8 @@
           <button class="btn-secondary" id="showAllBtn">전체고객 보기</button>
           <button class="btn-secondary" id="trashBtn">휴지통</button>
           <button class="reset-btn" id="resetBtn">초기화</button>
+          <button class="btn-secondary" id="csvUploadBtn">CSV 업로드</button>
+          <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
       </div>
@@ -334,6 +353,38 @@
     </div>
   </div>
 
+  <!-- CSV 업로드 미리보기 모달 -->
+  <div class="modal-overlay" id="csvModalOverlay">
+    <div class="modal" style="max-width:820px;">
+      <h2>CSV 업로드 미리보기</h2>
+      <p class="sub" id="csvSummary">CSV 파일을 분석하고 있습니다...</p>
+
+      <div id="csvQuickActions" style="display:none; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" id="csvSelectAllDup" style="padding:6px 12px; font-size:12.5px;">중복 전체 선택(덮어쓰기)</button>
+        <button type="button" class="btn-secondary" id="csvDeselectAllDup" style="padding:6px 12px; font-size:12.5px;">중복 전체 해제</button>
+      </div>
+
+      <div id="csvTableWrap" style="max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:10px;">
+        <table class="csv-preview-table">
+          <thead>
+            <tr>
+              <th style="width:36px;"></th>
+              <th style="width:80px;">고객번호</th>
+              <th>성명 / 고객정보 (CSV → 기존)</th>
+              <th style="width:100px;">상태</th>
+            </tr>
+          </thead>
+          <tbody id="csvTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelCsvBtn">취소</button>
+        <button type="button" class="btn-primary" id="applyCsvBtn">선택 항목 적용</button>
+      </div>
+    </div>
+  </div>
+
 <script>
   if (typeof supabase === 'undefined') {
     document.body.innerHTML = '<div style="padding:24px;color:#a4443a;font-family:sans-serif;">Supabase 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.</div>';
@@ -378,6 +429,17 @@
   const historyTitle = document.getElementById('historyTitle');
   const historyList = document.getElementById('historyList');
   const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+
+  const csvUploadBtn = document.getElementById('csvUploadBtn');
+  const csvFileInput = document.getElementById('csvFileInput');
+  const csvModalOverlay = document.getElementById('csvModalOverlay');
+  const csvSummary = document.getElementById('csvSummary');
+  const csvQuickActions = document.getElementById('csvQuickActions');
+  const csvSelectAllDup = document.getElementById('csvSelectAllDup');
+  const csvDeselectAllDup = document.getElementById('csvDeselectAllDup');
+  const csvTableBody = document.getElementById('csvTableBody');
+  const cancelCsvBtn = document.getElementById('cancelCsvBtn');
+  const applyCsvBtn = document.getElementById('applyCsvBtn');
   const openAddBtn = document.getElementById('openAddBtn');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const addForm = document.getElementById('addForm');
@@ -815,6 +877,221 @@
   closeHistoryBtn.addEventListener('click', closeHistory);
   historyModalOverlay.addEventListener('click', (e) => { if (e.target === historyModalOverlay) closeHistory(); });
 
+  // ==================== CSV 업로드 ====================
+  const NO_ALIASES = ['customer_no', '고객번호', '번호', 'id'];
+  const NAME_ALIASES = ['name', '성명', '이름'];
+  const INFO_ALIASES = ['customer_info', '고객정보', '정보', '메모', '비고'];
+
+  let csvParsedRows = []; // { no, name, info, status, valid }
+
+  function findColumn(headers, aliases){
+    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    for (const alias of aliases){
+      const idx = norm.indexOf(alias.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  csvUploadBtn.addEventListener('click', () => csvFileInput.click());
+
+  csvFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    csvSummary.textContent = 'CSV 파일을 분석하고 있습니다...';
+    csvTableBody.innerHTML = '';
+    csvQuickActions.style.display = 'none';
+    csvModalOverlay.classList.add('open');
+
+    Papa.parse(file, {
+      header: false,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      complete: async (results) => {
+        const rows = results.data;
+        if (!rows || rows.length < 2){
+          csvSummary.textContent = 'CSV에 데이터가 없습니다.';
+          return;
+        }
+        const headers = rows[0];
+        const noIdx = findColumn(headers, NO_ALIASES);
+        const nameIdx = findColumn(headers, NAME_ALIASES);
+        const infoIdx = findColumn(headers, INFO_ALIASES);
+
+        if (noIdx === -1 || nameIdx === -1){
+          csvSummary.innerHTML = `필수 열을 찾을 수 없습니다. 첫 줄(헤더)에 <b>고객번호</b>(customer_no)와 <b>성명</b>(name) 열이 있어야 합니다.<br/>지금 헤더: ${escapeHtml(headers.join(', '))}`;
+          return;
+        }
+
+        const parsed = rows.slice(1).map(r => {
+          const noRaw = (r[noIdx] || '').toString().trim();
+          const name = (r[nameIdx] || '').toString().trim();
+          const info = infoIdx !== -1 ? (r[infoIdx] || '').toString().trim() : '';
+          const no = Number(noRaw);
+          const valid = noRaw !== '' && !isNaN(no) && name !== '';
+          return { no: valid ? no : noRaw, name, info, valid, status: 'unknown' };
+        });
+
+        await matchAgainstDb(parsed);
+      },
+      error: (err) => {
+        csvSummary.textContent = 'CSV 파싱 실패: ' + err.message;
+      }
+    });
+
+    csvFileInput.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+  });
+
+  async function matchAgainstDb(parsed){
+    csvSummary.textContent = '기존 데이터와 대조하는 중...';
+    const validNos = [...new Set(parsed.filter(r => r.valid).map(r => r.no))];
+
+    // 너무 많으면 나눠서 조회 (URL 길이/요청 크기 안전)
+    const existingMap = new Map();
+    const CHUNK = 300;
+    for (let i = 0; i < validNos.length; i += CHUNK){
+      const chunk = validNos.slice(i, i + CHUNK);
+      const { data, error } = await sb
+        .from(TABLE_NAME)
+        .select('customer_no, name, customer_info, is_deleted')
+        .in('customer_no', chunk);
+      if (error){
+        csvSummary.textContent = '기존 데이터 조회 실패: ' + error.message;
+        return;
+      }
+      (data || []).forEach(row => existingMap.set(row.customer_no, row));
+    }
+
+    csvParsedRows = parsed.map(r => {
+      if (!r.valid) return { ...r, status: 'invalid', existing: null };
+      const existing = existingMap.get(r.no);
+      if (!existing) return { ...r, status: 'new', existing: null };
+      if (existing.is_deleted) return { ...r, status: 'trash', existing };
+      return { ...r, status: 'dup', existing };
+    });
+
+    renderCsvPreview();
+  }
+
+  function csvBadge(status){
+    const map = {
+      new: ['new', '신규'],
+      dup: ['dup', '중복'],
+      trash: ['trash', '휴지통'],
+      invalid: ['invalid', '오류']
+    };
+    const [cls, label] = map[status] || ['invalid', status];
+    return `<span class="csv-badge ${cls}">${label}</span>`;
+  }
+
+  function renderCsvPreview(){
+    const newCount = csvParsedRows.filter(r => r.status === 'new').length;
+    const dupCount = csvParsedRows.filter(r => r.status === 'dup').length;
+    const trashCount = csvParsedRows.filter(r => r.status === 'trash').length;
+    const invalidCount = csvParsedRows.filter(r => r.status === 'invalid').length;
+
+    csvSummary.innerHTML =
+      `총 ${csvParsedRows.length}건 — 신규 ${newCount}건, 기존 중복 ${dupCount}건, 휴지통 중복 ${trashCount}건` +
+      (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명 누락, 자동 제외)</span>` : '');
+
+    csvQuickActions.style.display = (dupCount + trashCount) > 0 ? 'flex' : 'none';
+
+    csvTableBody.innerHTML = '';
+    csvParsedRows.forEach((row, idx) => {
+      if (row.status === 'invalid') return; // 화면 목록이 너무 길어지지 않도록 오류 건은 요약 문구로만 안내
+      const tr = document.createElement('tr');
+      const checked = row.status === 'new' ? 'checked' : '';
+      const oldValHtml = row.existing
+        ? `<div class="csv-old-val">기존: ${escapeHtml(row.existing.name)} / ${escapeHtml(row.existing.customer_info || '')}</div>`
+        : '';
+      tr.innerHTML = `
+        <td><input type="checkbox" class="csv-row-check" data-idx="${idx}" ${checked} /></td>
+        <td class="csv-no">${escapeHtml(String(row.no))}</td>
+        <td>
+          <div class="csv-new-val">${escapeHtml(row.name)} / ${escapeHtml(row.info)}</div>
+          ${oldValHtml}
+        </td>
+        <td>${csvBadge(row.status)}</td>
+      `;
+      csvTableBody.appendChild(tr);
+    });
+  }
+
+  csvSelectAllDup.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('.csv-row-check').forEach(cb => {
+      const row = csvParsedRows[Number(cb.dataset.idx)];
+      if (row.status === 'dup' || row.status === 'trash') cb.checked = true;
+    });
+  });
+  csvDeselectAllDup.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('.csv-row-check').forEach(cb => {
+      const row = csvParsedRows[Number(cb.dataset.idx)];
+      if (row.status === 'dup' || row.status === 'trash') cb.checked = false;
+    });
+  });
+
+  function closeCsvModal(){
+    csvModalOverlay.classList.remove('open');
+    csvParsedRows = [];
+    csvTableBody.innerHTML = '';
+  }
+  cancelCsvBtn.addEventListener('click', closeCsvModal);
+  csvModalOverlay.addEventListener('click', (e) => { if (e.target === csvModalOverlay) closeCsvModal(); });
+
+  applyCsvBtn.addEventListener('click', async () => {
+    const checkedIdx = new Set();
+    csvTableBody.querySelectorAll('.csv-row-check:checked').forEach(cb => checkedIdx.add(Number(cb.dataset.idx)));
+
+    const toInsert = [];
+    const toUpsert = [];
+    csvParsedRows.forEach((row, idx) => {
+      if (!checkedIdx.has(idx)) return;
+      if (row.status === 'new'){
+        toInsert.push({ customer_no: row.no, name: row.name, customer_info: row.info });
+      } else if (row.status === 'dup' || row.status === 'trash'){
+        toUpsert.push({ customer_no: row.no, name: row.name, customer_info: row.info, is_deleted: false, deleted_at: null, deleted_by: null });
+      }
+    });
+
+    if (toInsert.length === 0 && toUpsert.length === 0){
+      setStatus('적용할 항목을 선택해주세요', 'err-flash');
+      return;
+    }
+
+    applyCsvBtn.disabled = true;
+    applyCsvBtn.textContent = '적용 중...';
+
+    let insertedCount = 0, upsertedCount = 0;
+    const errors = [];
+    const BATCH = 300;
+
+    for (let i = 0; i < toInsert.length; i += BATCH){
+      const batch = toInsert.slice(i, i + BATCH);
+      const { error, count } = await sb.from(TABLE_NAME).insert(batch);
+      if (error) errors.push(`신규 등록 중 오류: ${error.message}`);
+      else insertedCount += batch.length;
+    }
+    for (let i = 0; i < toUpsert.length; i += BATCH){
+      const batch = toUpsert.slice(i, i + BATCH);
+      const { error } = await sb.from(TABLE_NAME).upsert(batch, { onConflict: 'customer_no' });
+      if (error) errors.push(`갱신 중 오류: ${error.message}`);
+      else upsertedCount += batch.length;
+    }
+
+    applyCsvBtn.disabled = false;
+    applyCsvBtn.textContent = '선택 항목 적용';
+
+    if (errors.length){
+      setStatus(`일부 실패: ${errors.join(' / ')}`, 'err-flash');
+    } else {
+      setStatus(`CSV 적용 완료 — 신규 ${insertedCount}건, 갱신 ${upsertedCount}건`, 'saved-flash');
+    }
+
+    closeCsvModal();
+    if (currentMode === 'none') showIdle();
+    else await refreshCurrentView();
+  });
+
   openAddBtn.addEventListener('click', openModal);
   cancelAddBtn.addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
@@ -906,4 +1183,3 @@
 </script>
 </body>
 </html>
-
