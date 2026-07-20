@@ -153,6 +153,7 @@
   .icon-btn:hover{ background:#f2f1ee; }
 
   .empty-state{ text-align:center; padding:48px 20px; color:var(--muted); font-size:13.5px; }
+  .deleted-meta{ font-size:11.5px; color:var(--muted); margin-top:4px; }
 
   .pagination{
     display:flex; align-items:center; justify-content:center; gap:10px;
@@ -259,6 +260,7 @@
             검색
           </button>
           <button class="btn-secondary" id="showAllBtn">전체고객 보기</button>
+          <button class="btn-secondary" id="trashBtn">휴지통</button>
           <button class="reset-btn" id="resetBtn">초기화</button>
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
@@ -363,6 +365,7 @@
   const searchBox = document.getElementById('searchBox');
   const searchBtn = document.getElementById('searchBtn');
   const showAllBtn = document.getElementById('showAllBtn');
+  const trashBtn = document.getElementById('trashBtn');
   const pagination = document.getElementById('pagination');
   const pageSizeSelect = document.getElementById('pageSizeSelect');
   const prevPageBtn = document.getElementById('prevPageBtn');
@@ -483,6 +486,7 @@
     const { data, error, count } = await sb
       .from(TABLE_NAME)
       .select('*', { count: 'exact' })
+      .eq('is_deleted', false)
       .order('customer_no', { ascending: true })
       .range(from, to);
     if (error){
@@ -504,7 +508,7 @@
   }
 
   function updatePagination(){
-    if (currentMode !== 'all' || totalCount === 0){
+    if ((currentMode !== 'all' && currentMode !== 'trash') || totalCount === 0){
       pagination.style.display = 'none';
       return;
     }
@@ -513,6 +517,37 @@
     pageIndicator.textContent = `${currentPage} / ${totalPages} 페이지`;
     prevPageBtn.disabled = currentPage <= 1;
     nextPageBtn.disabled = currentPage >= totalPages;
+  }
+
+  // ---- 휴지통(삭제된 고객) 조회 ----
+  async function loadTrash(page){
+    page = page || 1;
+    showResultView();
+    setStatus('휴지통을 불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await sb
+      .from(TABLE_NAME)
+      .select('*', { count: 'exact' })
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false })
+      .range(from, to);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '휴지통을 불러올 수 없습니다.';
+      return;
+    }
+    currentMode = 'trash';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `총 ${totalCount}건 (휴지통)`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
   }
 
   // ---- 검색 ----
@@ -527,7 +562,7 @@
 
     // 필터 문법에 영향을 주는 특수문자는 제거
     const safe = keyword.replace(/[,()%]/g, '');
-    let query = sb.from(TABLE_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
+    let query = sb.from(TABLE_NAME).select('*').eq('is_deleted', false).order('customer_no', { ascending: true }).limit(1000);
 
     if (/^\d+$/.test(safe)){
       query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%,customer_no.eq.${safe}`);
@@ -556,6 +591,7 @@
   // ---- 변경 후 현재 보던 화면 다시 불러오기 ----
   function refreshCurrentView(){
     if (currentMode === 'all') return loadAllCustomers(currentPage);
+    if (currentMode === 'trash') return loadTrash(currentPage);
     if (currentMode === 'search') return searchCustomers(currentKeyword);
     return Promise.resolve();
   }
@@ -564,10 +600,52 @@
     tableBody.innerHTML = '';
     customerTable.style.display = rows.length === 0 ? 'none' : 'table';
     emptyState.style.display = rows.length === 0 ? 'block' : 'none';
-    if (rows.length === 0) emptyState.textContent = '조건에 맞는 고객 정보가 없습니다.';
+    if (rows.length === 0){
+      emptyState.textContent = currentMode === 'trash' ? '휴지통이 비어 있습니다.' : '조건에 맞는 고객 정보가 없습니다.';
+    }
+
+    const isTrash = currentMode === 'trash';
 
     rows.forEach(row => {
       const tr = document.createElement('tr');
+
+      if (isTrash){
+        tr.innerHTML = `
+          <td class="no-col">${row.customer_no}</td>
+          <td class="name-col">${escapeHtml(row.name)}</td>
+          <td>
+            ${escapeHtml(row.customer_info)}
+            <div class="deleted-meta">삭제됨: ${fmtDate(row.deleted_at)} · ${escapeHtml(row.deleted_by || '알 수 없음')}</div>
+          </td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn hist">이력</button>
+              <button class="icon-btn restore">복구</button>
+            </div>
+          </td>`;
+
+        tr.querySelector('.hist').addEventListener('click', () => openHistory(row.customer_no, row.name));
+        tr.querySelector('.restore').addEventListener('click', async () => {
+          if (!confirm(`고객번호 ${row.customer_no} (${row.name})을(를) 복구할까요?`)) return;
+          const { data, error } = await sb
+            .from(TABLE_NAME)
+            .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+            .eq('customer_no', row.customer_no)
+            .select();
+          if (error){
+            setStatus('복구 실패: ' + error.message, 'err-flash');
+          } else if (!data || data.length === 0){
+            setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          } else {
+            setStatus(`고객번호 ${row.customer_no} 복구 완료`, 'saved-flash');
+            refreshCurrentView();
+          }
+        });
+
+        tableBody.appendChild(tr);
+        return;
+      }
+
       tr.innerHTML = `
         <td class="no-col">${row.customer_no}</td>
         <td class="name-col"><input type="text" class="name-input" value="${escapeHtml(row.name)}" /></td>
@@ -612,12 +690,20 @@
       });
 
       delBtn.addEventListener('click', async () => {
-        if (!confirm(`고객번호 ${row.customer_no} (${row.name}) 정보를 삭제할까요?`)) return;
-        const { error } = await sb.from(TABLE_NAME).delete().eq('customer_no', row.customer_no);
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name}) 정보를 삭제할까요?\n(휴지통으로 이동하며, 나중에 복구할 수 있습니다)`)) return;
+        const session = await sb.auth.getSession();
+        const email = session?.data?.session?.user?.email || null;
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: email })
+          .eq('customer_no', row.customer_no)
+          .select();
         if (error){
           setStatus('삭제 실패: ' + error.message, 'err-flash');
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
         } else {
-          setStatus(`고객번호 ${row.customer_no} 삭제 완료`, 'saved-flash');
+          setStatus(`고객번호 ${row.customer_no} 삭제 완료 (휴지통으로 이동)`, 'saved-flash');
           refreshCurrentView();
         }
       });
@@ -633,6 +719,7 @@
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
   showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(1); });
+  trashBtn.addEventListener('click', () => { searchBox.value = ''; loadTrash(1); });
   resetBtn.addEventListener('click', () => { searchBox.value = ''; showIdle(); });
 
   pageSizeSelect.value = String(pageSize);
@@ -736,8 +823,13 @@
     hintNo.style.display = 'none';
     const no = Number(inNo.value);
     if (!no) return;
-    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', no).maybeSingle();
-    if (dup) hintNo.style.display = 'block';
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, is_deleted').eq('customer_no', no).maybeSingle();
+    if (dup){
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
+      hintNo.style.display = 'block';
+    }
   });
 
   addForm.addEventListener('submit', async (e) => {
@@ -758,7 +850,7 @@
 
     const { data: dup, error: dupError } = await sb
       .from(TABLE_NAME)
-      .select('customer_no')
+      .select('customer_no, is_deleted')
       .eq('customer_no', no)
       .maybeSingle();
 
@@ -771,6 +863,9 @@
     if (dup){
       submitAddBtn.disabled = false;
       submitAddBtn.textContent = '추가';
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
       hintNo.style.display = 'block';
       inNo.focus();
       return;
@@ -811,3 +906,4 @@
 </script>
 </body>
 </html>
+
