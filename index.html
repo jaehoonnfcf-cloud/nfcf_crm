@@ -202,11 +202,14 @@
         <div class="toolbar">
           <input type="text" id="searchBox" placeholder="고객번호 또는 성명 검색" />
           <button class="btn-secondary" id="searchBtn" style="padding:8px 16px;">검색</button>
+          <button class="btn-secondary" id="showAllBtn" style="padding:8px 16px;">전체고객 보기</button>
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
       </div>
 
-      <table>
+      <div class="empty-state" id="idleState">검색어를 입력해 검색하거나, "전체고객 보기"를 눌러 전체 목록을 불러오세요.</div>
+
+      <table id="customerTable" style="display:none;">
         <thead>
           <tr>
             <th style="width:96px;">고객번호</th>
@@ -276,11 +279,14 @@
   const userEmail = document.getElementById('userEmail');
 
   const tableBody = document.getElementById('tableBody');
+  const customerTable = document.getElementById('customerTable');
+  const idleState = document.getElementById('idleState');
   const emptyState = document.getElementById('emptyState');
   const statusLine = document.getElementById('statusLine');
   const countLabel = document.getElementById('countLabel');
   const searchBox = document.getElementById('searchBox');
   const searchBtn = document.getElementById('searchBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
 
   const modalOverlay = document.getElementById('modalOverlay');
   const openAddBtn = document.getElementById('openAddBtn');
@@ -292,7 +298,9 @@
   const hintNo = document.getElementById('hintNo');
   const submitAddBtn = document.getElementById('submitAddBtn');
 
-  let allRows = [];
+  let currentRows = [];
+  let currentMode = 'none'; // 'none' | 'search' | 'all'
+  let currentKeyword = '';
 
   // ---- 로그인 / 로그아웃 ----
   loginForm.addEventListener('submit', async (e) => {
@@ -332,7 +340,7 @@
     loginScreen.style.display = 'none';
     app.style.display = 'block';
     userEmail.textContent = session.user.email;
-    loadCustomers();
+    showIdle();
   }
 
   function setStatus(text, cls){
@@ -349,28 +357,91 @@
     });
   }
 
-  // ---- 데이터 로드 ----
-  async function loadCustomers(){
-    setStatus('불러오는 중...', '');
-    const { data, error } = await sb.from(TABLE_NAME).select('*').order('customer_no', { ascending: true });
+  // ---- 화면 상태 전환 ----
+  function showIdle(){
+    currentMode = 'none';
+    idleState.style.display = 'block';
+    emptyState.style.display = 'none';
+    customerTable.style.display = 'none';
+    countLabel.textContent = '';
+    setStatus('', '');
+  }
+
+  function showResultView(){
+    idleState.style.display = 'none';
+  }
+
+  // ---- 전체 고객 조회 ----
+  async function loadAllCustomers(){
+    showResultView();
+    setStatus('전체 고객을 불러오는 중...', '');
+    const { data, error } = await sb
+      .from(TABLE_NAME)
+      .select('*')
+      .order('customer_no', { ascending: true })
+      .limit(5000);
     if (error){
       setStatus('불러오기 실패: ' + error.message, 'err-flash');
-      tableBody.innerHTML = '';
+      customerTable.style.display = 'none';
       emptyState.style.display = 'block';
       emptyState.textContent = '접근 권한이 없거나 데이터를 불러올 수 없습니다. 관리자에게 문의하세요.';
-      countLabel.textContent = '';
       return;
     }
-    allRows = data || [];
-    countLabel.textContent = `총 ${allRows.length}건`;
-    renderTable(allRows);
+    currentMode = 'all';
+    currentRows = data || [];
+    countLabel.textContent = `총 ${currentRows.length}건 (전체)`;
+    renderTable(currentRows);
     setStatus('', '');
+  }
+
+  // ---- 검색 ----
+  async function searchCustomers(rawKeyword){
+    const keyword = (rawKeyword || '').trim();
+    if (!keyword){
+      setStatus('검색어를 입력해주세요', 'err-flash');
+      return;
+    }
+    showResultView();
+    setStatus('검색 중...', '');
+
+    // 필터 문법에 영향을 주는 특수문자는 제거
+    const safe = keyword.replace(/[,()%]/g, '');
+    let query = sb.from(TABLE_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
+
+    if (/^\d+$/.test(safe)){
+      query = query.or(`name.ilike.%${safe}%,customer_no.eq.${safe}`);
+    } else {
+      query = query.ilike('name', `%${safe}%`);
+    }
+
+    const { data, error } = await query;
+    if (error){
+      setStatus('검색 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '검색 중 오류가 발생했습니다.';
+      return;
+    }
+    currentMode = 'search';
+    currentKeyword = keyword;
+    currentRows = data || [];
+    countLabel.textContent = `총 ${currentRows.length}건 (검색: "${keyword}")`;
+    renderTable(currentRows);
+    setStatus('', '');
+  }
+
+  // ---- 변경 후 현재 보던 화면 다시 불러오기 ----
+  function refreshCurrentView(){
+    if (currentMode === 'all') return loadAllCustomers();
+    if (currentMode === 'search') return searchCustomers(currentKeyword);
+    return Promise.resolve();
   }
 
   function renderTable(rows){
     tableBody.innerHTML = '';
+    customerTable.style.display = rows.length === 0 ? 'none' : 'table';
     emptyState.style.display = rows.length === 0 ? 'block' : 'none';
-    if (rows.length === 0) emptyState.textContent = '등록된 고객 정보가 없습니다.';
+    if (rows.length === 0) emptyState.textContent = '조건에 맞는 고객 정보가 없습니다.';
 
     rows.forEach(row => {
       const tr = document.createElement('tr');
@@ -421,10 +492,8 @@
         if (error){
           setStatus('삭제 실패: ' + error.message, 'err-flash');
         } else {
-          allRows = allRows.filter(r => r.customer_no !== row.customer_no);
-          countLabel.textContent = `총 ${allRows.length}건`;
-          renderTable(filterRows(searchBox.value));
           setStatus(`고객번호 ${row.customer_no} 삭제 완료`, 'saved-flash');
+          refreshCurrentView();
         }
       });
 
@@ -433,14 +502,10 @@
     });
   }
 
-  function filterRows(keyword){
-    const k = (keyword || '').trim().toLowerCase();
-    if (!k) return allRows;
-    return allRows.filter(r => String(r.customer_no).includes(k) || (r.name || '').toLowerCase().includes(k));
-  }
-  function runSearch(){ renderTable(filterRows(searchBox.value)); }
+  function runSearch(){ searchCustomers(searchBox.value); }
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(); });
 
   // ---- 추가 모달 ----
   function openModal(){
@@ -518,12 +583,13 @@
       }
       return;
     }
-    allRows.push(data[0]);
-    allRows.sort((a,b) => Number(a.customer_no) - Number(b.customer_no));
-    countLabel.textContent = `총 ${allRows.length}건`;
-    renderTable(filterRows(searchBox.value));
-    setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
     closeModal();
+    if (currentMode === 'none'){
+      showIdle();
+    } else {
+      await refreshCurrentView();
+    }
+    setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
   });
 
   // ---- 시작: 세션 확인 ----
