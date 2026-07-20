@@ -203,6 +203,7 @@
           <input type="text" id="searchBox" placeholder="고객번호 또는 성명 검색" />
           <button class="btn-secondary" id="searchBtn" style="padding:8px 16px;">검색</button>
           <button class="btn-secondary" id="showAllBtn" style="padding:8px 16px;">전체고객 보기</button>
+          <button class="btn-secondary" id="resetBtn" style="padding:8px 16px;">초기화</button>
           <button class="add-btn" id="openAddBtn">+ 고객 추가</button>
         </div>
       </div>
@@ -287,6 +288,7 @@
   const searchBox = document.getElementById('searchBox');
   const searchBtn = document.getElementById('searchBtn');
   const showAllBtn = document.getElementById('showAllBtn');
+  const resetBtn = document.getElementById('resetBtn');
 
   const modalOverlay = document.getElementById('modalOverlay');
   const openAddBtn = document.getElementById('openAddBtn');
@@ -360,6 +362,9 @@
   // ---- 화면 상태 전환 ----
   function showIdle(){
     currentMode = 'none';
+    currentRows = [];
+    currentKeyword = '';
+    tableBody.innerHTML = '';
     idleState.style.display = 'block';
     emptyState.style.display = 'none';
     customerTable.style.display = 'none';
@@ -506,6 +511,7 @@
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
   showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(); });
+  resetBtn.addEventListener('click', () => { searchBox.value = ''; showIdle(); });
 
   // ---- 추가 모달 ----
   function openModal(){
