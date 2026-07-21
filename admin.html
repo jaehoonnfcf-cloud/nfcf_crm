@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>관리자 페이지</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --ink:#1c2024;
@@ -152,7 +153,12 @@
   .modal-overlay.open{ display:flex; }
   .modal{ background:#fff; border-radius:14px; width:100%; max-width:420px; padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18); }
   .modal h2{ font-size:16.5px; margin:0 0 4px; }
-  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; }
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; line-height:1.7; }
+  .modal .sub code{
+    background:var(--accent-soft); color:var(--accent); padding:1px 6px; border-radius:5px;
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:11.5px;
+  }
+  .modal .sub b{ color:var(--danger); }
   .field{ margin-bottom:14px; }
   .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
   .field input[type=text]{
@@ -222,6 +228,7 @@
         <button class="tab-btn" data-tab="login-history">🔑 접속이력</button>
         <button class="tab-btn" data-tab="edit-history">📝 수정이력</button>
         <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
+        <button class="tab-btn" data-tab="members">🏅 조합원 관리</button>
       </div>
 
       <!-- ===== 대시보드 ===== -->
@@ -312,7 +319,38 @@
         </table>
         <div class="empty-note" id="csvHistoryEmpty" style="display:none;">기록이 없습니다.</div>
       </div>
+
+      <!-- ===== 조합원 관리 ===== -->
+      <div class="tab-panel" id="panel-members">
+        <h1 class="page-title">🏅 조합원 관리</h1>
+        <p class="page-sub">조합원 고객번호 명단을 관리합니다. 업로드하면 <b>기존 명단은 전부 지워지고 새 명단으로 완전히 교체</b>됩니다.</p>
+        <div class="stat-grid" style="margin-bottom:20px;">
+          <div class="stat-card"><div class="num" id="memberCount">-</div><div class="label">🏅 현재 등록된 조합원 수</div></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="memberUploadBtn">📤 조합원 명단 CSV 업로드</button>
+          <input type="file" id="memberFileInput" accept=".csv" style="display:none;" />
+        </div>
+        <div class="status-line" id="memberStatus"></div>
+      </div>
     </main>
+  </div>
+
+  <!-- 조합원 CSV 업로드 안내/확인 모달 -->
+  <div class="modal-overlay" id="memberGuideModalOverlay">
+    <div class="modal" style="max-width:460px;">
+      <h2 id="memberGuideTitle">🏅 조합원 명단 업로드</h2>
+      <div id="memberGuideBody">
+        <p class="sub" style="margin-bottom:14px;">
+          CSV 첫 줄(헤더)에 고객번호 열이 있어야 해요: <code>customer_no</code> 또는 <code>고객번호</code> / <code>번호</code>.<br/><br/>
+          <b>주의:</b> 업로드하면 기존 조합원 명단은 전부 삭제되고, 이 CSV 내용으로 완전히 교체됩니다.
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-outline" id="cancelMemberGuideBtn">취소</button>
+        <button type="button" class="btn" id="proceedMemberGuideBtn">📁 파일 선택하기</button>
+      </div>
+    </div>
   </div>
 
   <!-- 사용자 추가 모달 -->
@@ -447,6 +485,7 @@
       if (btn.dataset.tab === 'users') loadUsers();
       if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
       if (btn.dataset.tab === 'csv-history') loadCsvHistory();
+      if (btn.dataset.tab === 'members') loadMemberCount();
     });
   });
 
@@ -769,6 +808,121 @@
       csvHistoryBody.appendChild(tr);
     });
   }
+
+  // ==================== 조합원 관리 ====================
+  const memberCount = document.getElementById('memberCount');
+  const memberUploadBtn = document.getElementById('memberUploadBtn');
+  const memberFileInput = document.getElementById('memberFileInput');
+  const memberStatus = document.getElementById('memberStatus');
+  const memberGuideModalOverlay = document.getElementById('memberGuideModalOverlay');
+  const memberGuideTitle = document.getElementById('memberGuideTitle');
+  const memberGuideBody = document.getElementById('memberGuideBody');
+  const cancelMemberGuideBtn = document.getElementById('cancelMemberGuideBtn');
+  const proceedMemberGuideBtn = document.getElementById('proceedMemberGuideBtn');
+
+  const MEMBER_NO_ALIASES = ['customer_no', '고객번호', '번호', 'id'];
+
+  function setMemberStatus(text, cls){
+    memberStatus.textContent = text;
+    memberStatus.className = 'status-line ' + (cls || '');
+  }
+
+  async function loadMemberCount(){
+    const { count, error } = await sb.from('members').select('*', { count: 'exact', head: true });
+    memberCount.textContent = error ? '오류' : (count ?? 0).toLocaleString();
+  }
+
+  function findMemberNoColumn(headers){
+    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    for (const alias of MEMBER_NO_ALIASES){
+      const idx = norm.indexOf(alias.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  // 1단계: 안내 모달
+  memberUploadBtn.addEventListener('click', () => {
+    memberGuideTitle.textContent = '🏅 조합원 명단 업로드';
+    memberGuideBody.innerHTML = `
+      <p class="sub">
+        CSV 첫 줄(헤더)에 고객번호 열이 있어야 해요: <code>customer_no</code> 또는 <code>고객번호</code> / <code>번호</code>.<br/><br/>
+        <b>주의:</b> 업로드하면 기존 조합원 명단은 전부 삭제되고, 이 CSV 내용으로 완전히 교체됩니다.
+      </p>
+    `;
+    proceedMemberGuideBtn.textContent = '📁 파일 선택하기';
+    proceedMemberGuideBtn.onclick = () => {
+      memberGuideModalOverlay.classList.remove('open');
+      memberFileInput.click();
+    };
+    memberGuideModalOverlay.classList.add('open');
+  });
+  cancelMemberGuideBtn.addEventListener('click', () => memberGuideModalOverlay.classList.remove('open'));
+  memberGuideModalOverlay.addEventListener('click', (e) => { if (e.target === memberGuideModalOverlay) memberGuideModalOverlay.classList.remove('open'); });
+
+  // 2단계: 파일 선택 -> 파싱 -> 확인 모달로 전환
+  memberFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    memberFileInput.value = '';
+    if (!file) return;
+
+    setMemberStatus('CSV 분석 중...', '');
+
+    Papa.parse(file, {
+      header: false,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      complete: (results) => {
+        const rows = results.data;
+        if (!rows || rows.length < 2){
+          setMemberStatus('CSV에 데이터가 없습니다.', 'err-flash');
+          return;
+        }
+        const headers = rows[0];
+        const noIdx = findMemberNoColumn(headers);
+        if (noIdx === -1){
+          setMemberStatus('고객번호 열을 찾을 수 없습니다. 헤더를 확인해주세요: ' + headers.join(', '), 'err-flash');
+          return;
+        }
+        const nos = rows.slice(1)
+          .map(r => Number((r[noIdx] || '').toString().trim()))
+          .filter(n => !isNaN(n) && n > 0);
+
+        if (nos.length === 0){
+          setMemberStatus('유효한 고객번호가 없습니다.', 'err-flash');
+          return;
+        }
+
+        // 3단계: 최종 확인 모달
+        memberGuideTitle.textContent = '🏅 조합원 명단 교체 확인';
+        memberGuideBody.innerHTML = `
+          <p class="sub">
+            CSV에서 <b>${nos.length.toLocaleString()}건</b>의 고객번호를 찾았습니다.<br/><br/>
+            <b>확인을 누르면 기존 조합원 명단은 전부 삭제되고, 이 ${nos.length.toLocaleString()}건으로 완전히 교체됩니다.</b><br/>
+            되돌릴 수 없으니 신중히 진행해주세요.
+          </p>
+        `;
+        proceedMemberGuideBtn.textContent = '✅ 교체 확정';
+        proceedMemberGuideBtn.onclick = async () => {
+          proceedMemberGuideBtn.disabled = true;
+          proceedMemberGuideBtn.textContent = '⏳ 처리 중...';
+          const { data, error } = await sb.rpc('replace_all_members', { p_customer_nos: nos });
+          proceedMemberGuideBtn.disabled = false;
+          proceedMemberGuideBtn.textContent = '✅ 교체 확정';
+          if (error){
+            setMemberStatus('교체 실패: ' + error.message, 'err-flash');
+            return;
+          }
+          memberGuideModalOverlay.classList.remove('open');
+          setMemberStatus(`조합원 명단 교체 완료 (${data ?? nos.length}건)`, 'saved-flash');
+          loadMemberCount();
+        };
+        memberGuideModalOverlay.classList.add('open');
+        setMemberStatus('', '');
+      },
+      error: (err) => setMemberStatus('CSV 파싱 실패: ' + err.message, 'err-flash')
+    });
+  });
 
   // ---- 시작: 세션 확인 ----
   sb.auth.getSession().then(({ data: { session } }) => {
