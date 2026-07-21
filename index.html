@@ -429,6 +429,16 @@
       <h2>📤 CSV 업로드 미리보기</h2>
       <p class="sub" id="csvSummary">CSV 파일을 분석하고 있습니다...</p>
 
+      <div id="csvMergeModeRow" style="display:none; align-items:center; gap:16px; margin-bottom:10px; font-size:13px; flex-wrap:wrap;">
+        <span style="color:var(--muted);">중복 건 고객정보 처리:</span>
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="radio" name="csvMergeMode" value="overwrite" checked /> 덮어쓰기
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="radio" name="csvMergeMode" value="append" /> 기존 내용 뒤에 이어붙이기
+        </label>
+      </div>
+
       <div id="csvQuickActions" style="display:none; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
         <button type="button" class="btn-secondary" id="csvSelectAllDup" style="padding:6px 12px; font-size:12.5px;">✅ 중복 전체 선택(덮어쓰기)</button>
         <button type="button" class="btn-secondary" id="csvDeselectAllDup" style="padding:6px 12px; font-size:12.5px;">⬜ 중복 전체 해제</button>
@@ -505,6 +515,7 @@
   const csvModalOverlay = document.getElementById('csvModalOverlay');
   const csvSummary = document.getElementById('csvSummary');
   const csvQuickActions = document.getElementById('csvQuickActions');
+  const csvMergeModeRow = document.getElementById('csvMergeModeRow');
   const csvSelectAllDup = document.getElementById('csvSelectAllDup');
   const csvDeselectAllDup = document.getElementById('csvDeselectAllDup');
   const csvTableBody = document.getElementById('csvTableBody');
@@ -994,6 +1005,7 @@
     csvSummary.textContent = 'CSV 파일을 분석하고 있습니다...';
     csvTableBody.innerHTML = '';
     csvQuickActions.style.display = 'none';
+    csvMergeModeRow.style.display = 'none';
     csvModalOverlay.classList.add('open');
 
     Papa.parse(file, {
@@ -1088,6 +1100,7 @@
       (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명 누락, 자동 제외)</span>` : '');
 
     csvQuickActions.style.display = (dupCount + trashCount) > 0 ? 'flex' : 'none';
+    csvMergeModeRow.style.display = (dupCount + trashCount) > 0 ? 'flex' : 'none';
 
     csvTableBody.innerHTML = '';
     csvParsedRows.forEach((row, idx) => {
@@ -1135,6 +1148,9 @@
     const checkedIdx = new Set();
     csvTableBody.querySelectorAll('.csv-row-check:checked').forEach(cb => checkedIdx.add(Number(cb.dataset.idx)));
 
+    const mergeModeEl = document.querySelector('input[name="csvMergeMode"]:checked');
+    const mergeMode = mergeModeEl ? mergeModeEl.value : 'overwrite';
+
     const toInsert = [];
     const toUpsert = [];
     csvParsedRows.forEach((row, idx) => {
@@ -1142,7 +1158,11 @@
       if (row.status === 'new'){
         toInsert.push({ customer_no: row.no, name: row.name, customer_info: row.info });
       } else if (row.status === 'dup' || row.status === 'trash'){
-        toUpsert.push({ customer_no: row.no, name: row.name, customer_info: row.info, is_deleted: false, deleted_at: null, deleted_by: null });
+        let finalInfo = row.info;
+        if (mergeMode === 'append' && row.existing && row.existing.customer_info){
+          finalInfo = row.existing.customer_info + ' / ' + row.info;
+        }
+        toUpsert.push({ customer_no: row.no, name: row.name, customer_info: finalInfo, is_deleted: false, deleted_at: null, deleted_by: null });
       }
     });
 
@@ -1276,4 +1296,3 @@
 </script>
 </body>
 </html>
-
