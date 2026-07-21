@@ -293,6 +293,7 @@
               <th>이메일</th>
               <th style="width:140px;">이름</th>
               <th style="width:90px;">관리자</th>
+              <th style="width:150px;">마지막 로그인</th>
               <th>메모</th>
               <th style="width:120px;"></th>
             </tr>
@@ -588,19 +589,33 @@
 
   async function loadUsers(){
     setUsersStatus('불러오는 중...', '');
-    const { data, error } = await sb.from('allowed_emails').select('*').order('created_at', { ascending: true });
+    const [usersRes, loginRes] = await Promise.all([
+      sb.from('allowed_emails').select('*').order('created_at', { ascending: true }),
+      sb.from('login_history').select('email, created_at').eq('success', true).order('created_at', { ascending: false }).limit(3000)
+    ]);
+    const { data, error } = usersRes;
     if (error){
       setUsersStatus('불러오기 실패: ' + error.message, 'err-flash');
       return;
     }
+    // 이메일별 가장 최근 로그인 시각 (내림차순으로 가져왔으니 처음 나오는 게 최신)
+    const lastLoginMap = {};
+    if (loginRes.data){
+      loginRes.data.forEach(r => {
+        if (!lastLoginMap[r.email]) lastLoginMap[r.email] = r.created_at;
+      });
+    }
+
     usersBody.innerHTML = '';
     usersEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
     (data || []).forEach(u => {
+      const lastLogin = lastLoginMap[u.email];
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td data-label="이메일">${escapeHtml(u.email)}</td>
         <td data-label="이름"><input type="text" class="inline-input u-name" value="${escapeHtml(u.name || '')}" /></td>
         <td data-label="관리자" style="text-align:center;"><input type="checkbox" class="u-admin" ${u.is_admin ? 'checked' : ''} /></td>
+        <td data-label="마지막 로그인" style="white-space:nowrap; color:var(--muted); font-size:12.5px;">${lastLogin ? fmtDate(lastLogin) : '기록 없음'}</td>
         <td data-label="메모"><input type="text" class="inline-input u-memo" value="${escapeHtml(u.memo || '')}" /></td>
         <td data-label="">
           <button class="btn-outline u-save" style="margin-right:6px;">저장</button>
