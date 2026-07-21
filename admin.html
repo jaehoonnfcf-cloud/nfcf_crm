@@ -294,7 +294,6 @@
               <th style="width:140px;">이름</th>
               <th style="width:90px;">관리자</th>
               <th style="width:150px;">마지막 로그인</th>
-              <th>메모</th>
               <th style="width:120px;"></th>
             </tr>
           </thead>
@@ -403,10 +402,6 @@
         <div class="field">
           <label for="newUserName">이름</label>
           <input type="text" id="newUserName" placeholder="예: 홍길동" required />
-        </div>
-        <div class="field">
-          <label for="newUserMemo">메모 (선택)</label>
-          <input type="text" id="newUserMemo" placeholder="예: 본점 담당" />
         </div>
         <div class="field checkbox-field">
           <input type="checkbox" id="newUserIsAdmin" />
@@ -578,7 +573,6 @@
   const addUserForm = document.getElementById('addUserForm');
   const newUserEmail = document.getElementById('newUserEmail');
   const newUserName = document.getElementById('newUserName');
-  const newUserMemo = document.getElementById('newUserMemo');
   const newUserIsAdmin = document.getElementById('newUserIsAdmin');
   const submitAddUserBtn = document.getElementById('submitAddUserBtn');
 
@@ -616,7 +610,6 @@
         <td data-label="이름"><input type="text" class="inline-input u-name" value="${escapeHtml(u.name || '')}" /></td>
         <td data-label="관리자" style="text-align:center;"><input type="checkbox" class="u-admin" ${u.is_admin ? 'checked' : ''} /></td>
         <td data-label="마지막 로그인" style="white-space:nowrap; color:var(--muted); font-size:12.5px;">${lastLogin ? fmtDate(lastLogin) : '기록 없음'}</td>
-        <td data-label="메모"><input type="text" class="inline-input u-memo" value="${escapeHtml(u.memo || '')}" /></td>
         <td data-label="">
           <button class="btn-outline u-save" style="margin-right:6px;">저장</button>
           <button class="btn-outline btn-danger u-del">삭제</button>
@@ -624,10 +617,9 @@
       `;
       const nameInput = tr.querySelector('.u-name');
       const adminCheck = tr.querySelector('.u-admin');
-      const memoInput = tr.querySelector('.u-memo');
       tr.querySelector('.u-save').addEventListener('click', async () => {
         const { error } = await sb.from('allowed_emails')
-          .update({ name: nameInput.value, memo: memoInput.value, is_admin: adminCheck.checked })
+          .update({ name: nameInput.value, is_admin: adminCheck.checked })
           .eq('email', u.email);
         setUsersStatus(error ? '저장 실패: ' + error.message : `${u.email} 저장 완료`, error ? 'err-flash' : 'saved-flash');
       });
@@ -656,7 +648,6 @@
     const { error } = await sb.from('allowed_emails').insert({
       email: newUserEmail.value.trim(),
       name: newUserName.value.trim(),
-      memo: newUserMemo.value.trim(),
       is_admin: newUserIsAdmin.checked
     });
     submitAddUserBtn.disabled = false;
