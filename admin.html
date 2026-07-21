@@ -326,6 +326,7 @@
         <p class="page-sub">조합원 고객번호 명단을 관리합니다. 업로드하면 <b>기존 명단은 전부 지워지고 새 명단으로 완전히 교체</b>됩니다.</p>
         <div class="stat-grid" style="margin-bottom:20px;">
           <div class="stat-card"><div class="num" id="memberCount">-</div><div class="label">🏅 현재 등록된 조합원 수</div></div>
+          <div class="stat-card"><div class="num" id="memberUpdatedAt" style="font-size:15px;">-</div><div class="label">🕘 마지막 업데이트</div></div>
         </div>
         <div class="toolbar">
           <button class="btn" id="memberUploadBtn">📤 조합원 명단 CSV 업로드</button>
@@ -811,6 +812,7 @@
 
   // ==================== 조합원 관리 ====================
   const memberCount = document.getElementById('memberCount');
+  const memberUpdatedAt = document.getElementById('memberUpdatedAt');
   const memberUploadBtn = document.getElementById('memberUploadBtn');
   const memberFileInput = document.getElementById('memberFileInput');
   const memberStatus = document.getElementById('memberStatus');
@@ -828,8 +830,12 @@
   }
 
   async function loadMemberCount(){
-    const { count, error } = await sb.from('members').select('*', { count: 'exact', head: true });
-    memberCount.textContent = error ? '오류' : (count ?? 0).toLocaleString();
+    const [countRes, latestRes] = await Promise.all([
+      sb.from('members').select('*', { count: 'exact', head: true }),
+      sb.from('members').select('updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle()
+    ]);
+    memberCount.textContent = countRes.error ? '오류' : (countRes.count ?? 0).toLocaleString();
+    memberUpdatedAt.textContent = (latestRes.error || !latestRes.data) ? '기록 없음' : fmtDate(latestRes.data.updated_at);
   }
 
   function findMemberNoColumn(headers){
