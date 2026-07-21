@@ -135,6 +135,12 @@
   tbody tr:nth-child(even){ background:#fcfcfb; }
   td.no-col{ font-variant-numeric:tabular-nums; color:var(--muted); width:112px; font-weight:600; }
   td.name-col{ width:150px; }
+  .name-cell-wrap{ display:flex; align-items:center; gap:6px; }
+  .name-cell-wrap .name-input{ flex:1; min-width:0; }
+  .member-badge{
+    flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap;
+    background:#fdf1e0; color:#a3690f; padding:2px 7px; border-radius:999px;
+  }
   td input[type=text], td textarea{
     display:block;
     width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
@@ -577,6 +583,16 @@
   let currentPage = 1;
   let pageSize = 500;
   let totalCount = 0;
+  let memberSet = new Set(); // 현재 화면에 보이는 고객들 중 조합원인 고객번호 집합
+
+  // 화면에 보이는 고객번호들만 모아서 조합원 여부 대조 (전체 명단을 매번 불러오지 않음)
+  async function refreshMemberSet(customerNos){
+    const nos = [...new Set((customerNos || []).filter(n => n !== null && n !== undefined))];
+    if (nos.length === 0){ memberSet = new Set(); return; }
+    const { data, error } = await sb.from('members').select('customer_no').in('customer_no', nos);
+    if (error){ console.error('조합원 여부 조회 실패:', error); memberSet = new Set(); return; }
+    memberSet = new Set((data || []).map(r => r.customer_no));
+  }
 
   // ---- 로그인 / 로그아웃 ----
   googleLoginBtn.addEventListener('click', async () => {
@@ -706,6 +722,7 @@
     totalCount = count || 0;
     currentRows = data || [];
     countLabel.textContent = `📊 총 ${totalCount}건 (전체)`;
+    await refreshMemberSet(currentRows.map(r => r.customer_no));
     renderTable(currentRows);
     updatePagination();
     setStatus('', '');
@@ -787,6 +804,7 @@
     currentKeyword = keyword;
     currentRows = data || [];
     countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${keyword}")`;
+    await refreshMemberSet(currentRows.map(r => r.customer_no));
     renderTable(currentRows);
     pagination.style.display = 'none';
     setStatus('', '');
@@ -852,7 +870,12 @@
 
       tr.innerHTML = `
         <td class="no-col">${row.customer_no}</td>
-        <td class="name-col"><input type="text" class="name-input" value="${escapeHtml(row.name)}" /></td>
+        <td class="name-col">
+          <div class="name-cell-wrap">
+            <input type="text" class="name-input" value="${escapeHtml(row.name)}" />
+            ${memberSet.has(row.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}
+          </div>
+        </td>
         <td class="info-col"><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
         <td class="actions-col">
           <div class="row-actions">
