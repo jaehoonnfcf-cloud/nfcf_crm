@@ -408,6 +408,7 @@
 
       <div class="pagination" id="pagination" style="display:none;">
         <select id="pageSizeSelect">
+          <option value="100">100명씩 보기</option>
           <option value="500">500명씩 보기</option>
           <option value="1000">1000명씩 보기</option>
         </select>
@@ -594,7 +595,7 @@
   let currentMode = 'none'; // 'none' | 'search' | 'all'
   let currentKeyword = '';
   let currentPage = 1;
-  let pageSize = 500;
+  let pageSize = 100;
   let totalCount = 0;
   let membersOnly = false; // "조합원만 보기" 필터 상태
 
