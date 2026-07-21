@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>관리자 페이지</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1c2024;
+    --paper:#f7f7f5;
+    --panel:#ffffff;
+    --line:#e2e1dd;
+    --accent:#2f5d50;
+    --accent-soft:#e7efec;
+    --danger:#a4443a;
+    --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---- 로그인 화면 ---- */
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:44px 40px; width:100%; max-width:360px; text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .login-mark{
+    width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:22px;
+  }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%; padding:11px 16px; border-radius:9px;
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    font-size:14.5px; font-weight:600; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .google-btn:disabled{ opacity:.6; cursor:default; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+  .denied-box{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:40px; max-width:400px; text-align:center; margin:0 auto;
+  }
+
+  /* ---- 앱 화면 ---- */
+  #app{ display:none; }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
+  .link-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none;
+    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+  }
+  .link-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap; border-bottom:1px solid var(--line); }
+  .tab-btn{
+    border:none; background:none; padding:10px 16px; font-size:13.5px; font-weight:600;
+    color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  h1.page-title{ font-size:20px; margin:0 0 4px; }
+  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; }
+
+  /* ---- 통계 카드 ---- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px; margin-bottom:26px; }
+  .stat-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+  }
+  .stat-card .num{ font-size:26px; font-weight:700; color:var(--ink); }
+  .stat-card .label{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+
+  .section-title{ font-size:14px; font-weight:700; margin:24px 0 10px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  thead th{
+    text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
+  }
+  tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#fafaf9; }
+
+  .badge{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .badge.ok{ background:var(--accent-soft); color:var(--accent); }
+  .badge.fail{ background:#fbeceb; color:var(--danger); }
+  .badge.admin{ background:#fdf1e0; color:#a3690f; }
+
+  .toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .toolbar input[type=text]{
+    padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; width:220px; background:#fff;
+  }
+  .toolbar select{
+    padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff;
+  }
+  .btn{
+    border:none; background:var(--accent); color:#fff; padding:9px 16px; border-radius:8px;
+    font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .btn:hover{ opacity:.9; }
+  .btn-outline{
+    border:1px solid var(--line); background:#fff; color:var(--ink); padding:7px 12px; border-radius:7px;
+    font-size:12.5px; cursor:pointer;
+  }
+  .btn-outline:hover{ background:#f2f1ee; }
+  .btn-danger{ color:var(--danger); border-color:#e8d3d0; }
+
+  input[type=text].inline-input{
+    border:1px solid transparent; border-radius:6px; padding:5px 7px; font-size:13.5px; width:100%; background:transparent;
+  }
+  input[type=text].inline-input:hover{ border-color:var(--line); }
+  input[type=text].inline-input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+
+  .empty-note{ text-align:center; padding:36px 20px; color:var(--muted); font-size:13px; }
+  .status-line{ font-size:12px; color:var(--muted); margin-top:10px; min-height:16px; }
+  .saved-flash{ color:var(--accent); }
+  .err-flash{ color:var(--danger); }
+
+  .pagination{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; }
+  .page-indicator{ font-size:13px; color:var(--muted); }
+
+  /* ---- 이력 diff ---- */
+  .h-diff{ font-size:12px; line-height:1.6; }
+  .h-diff .field-name{ color:var(--muted); margin-right:4px; }
+  .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
+  .h-diff ins{ color:var(--accent); text-decoration:none; }
+
+  /* ---- 모달 ---- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(28,32,36,0.4);
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{ background:#fff; border-radius:14px; width:100%; max-width:420px; padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18); }
+  .modal h2{ font-size:16.5px; margin:0 0 4px; }
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
+  .field input[type=text]{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff;
+  }
+  .field input:focus{ outline:none; border-color:var(--accent); }
+  .field.checkbox-field{ display:flex; align-items:center; gap:8px; }
+  .field.checkbox-field label{ margin:0; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+
+  @media (max-width:720px){
+    main{ padding:20px 16px 40px; }
+    header{ padding:14px 16px; }
+    .toolbar{ flex-direction:column; align-items:stretch; }
+    .toolbar input[type=text], .toolbar select{ width:100%; }
+    table, thead, tbody, tr, td{ display:block; width:100%; }
+    thead{ display:none; }
+    tbody tr{ border:1px solid var(--line); border-radius:12px; margin-bottom:10px; padding:10px 12px; background:#fff; }
+    tbody td{ border:none; padding:4px 0; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div class="login-wrap" id="loginScreen">
+    <div class="login-card">
+      <div class="login-mark">⚙️</div>
+      <h1>관리자 페이지</h1>
+      <p>관리자로 등록된 Google 계정으로<br/>로그인해주세요.</p>
+      <button class="google-btn" id="googleLoginBtn">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 16 3 9.1 7.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.6 2.4-7.2 2.4-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9 40.4 15.9 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C40.9 36.3 45 30.7 45 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
+        Google 계정으로 로그인
+      </button>
+      <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+    </div>
+  </div>
+
+  <!-- 접근 거부 화면 -->
+  <div class="login-wrap" id="deniedScreen" style="display:none;">
+    <div class="denied-box">
+      <div class="login-mark" style="margin:0 auto 16px;">🔒</div>
+      <h1 style="font-size:17px; margin:0 0 8px;">관리자 권한이 없습니다</h1>
+      <p style="font-size:13px; color:var(--muted); margin:0 0 20px;">이 계정은 관리자로 등록되어 있지 않습니다.<br/>일반 업무 화면으로 이동해주세요.</p>
+      <a href="index.html" class="google-btn" style="text-decoration:none; display:inline-flex;">🗂️ 고객정보 관리로 이동</a>
+    </div>
+  </div>
+
+  <!-- 메인 앱 -->
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="login-mark">⚙️</div>
+        <h2>관리자 페이지</h2>
+      </div>
+      <div class="user-box">
+        <span id="userEmail"></span>
+        <a href="index.html" class="link-btn">🗂️ 고객정보 관리</a>
+        <button class="link-btn" id="signOutBtn">🚪 로그아웃</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="dashboard">📊 대시보드</button>
+        <button class="tab-btn" data-tab="users">👤 사용자 관리</button>
+        <button class="tab-btn" data-tab="login-history">🔑 접속이력</button>
+        <button class="tab-btn" data-tab="edit-history">📝 수정이력</button>
+        <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
+      </div>
+
+      <!-- ===== 대시보드 ===== -->
+      <div class="tab-panel active" id="panel-dashboard">
+        <h1 class="page-title">📊 대시보드</h1>
+        <p class="page-sub">전체 현황을 한눈에 확인합니다.</p>
+        <div class="stat-grid" id="statGrid">
+          <div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>
+        </div>
+        <div class="section-title">🏅 사용자별 변경 건수 (최근 2000건 기준)</div>
+        <table>
+          <thead><tr><th>이름</th><th style="width:120px;">변경 건수</th></tr></thead>
+          <tbody id="activityBody"></tbody>
+        </table>
+      </div>
+
+      <!-- ===== 사용자 관리 ===== -->
+      <div class="tab-panel" id="panel-users">
+        <h1 class="page-title">👤 사용자 관리</h1>
+        <p class="page-sub">고객정보 관리 페이지에 접근 가능한 계정을 관리합니다.</p>
+        <div class="toolbar">
+          <button class="btn" id="openAddUserBtn">➕ 사용자 추가</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>이메일</th>
+              <th style="width:140px;">이름</th>
+              <th style="width:90px;">관리자</th>
+              <th>메모</th>
+              <th style="width:120px;"></th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+        <div class="empty-note" id="usersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
+        <div class="status-line" id="usersStatus"></div>
+      </div>
+
+      <!-- ===== 접속이력 ===== -->
+      <div class="tab-panel" id="panel-login-history">
+        <h1 class="page-title">🔑 접속이력</h1>
+        <p class="page-sub">로그인 성공/실패(비인가 접근 시도) 기록입니다.</p>
+        <div class="toolbar">
+          <select id="loginFilter">
+            <option value="all">전체</option>
+            <option value="success">성공만</option>
+            <option value="fail">실패(비인가)만</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr><th style="width:170px;">시각</th><th>이름/이메일</th><th style="width:100px;">결과</th><th>비고</th></tr></thead>
+          <tbody id="loginHistoryBody"></tbody>
+        </table>
+        <div class="empty-note" id="loginHistoryEmpty" style="display:none;">기록이 없습니다.</div>
+        <div class="pagination" id="loginPagination" style="display:none;">
+          <button class="btn-outline" id="loginPrevBtn">‹ 이전</button>
+          <span class="page-indicator" id="loginPageIndicator"></span>
+          <button class="btn-outline" id="loginNextBtn">다음 ›</button>
+        </div>
+      </div>
+
+      <!-- ===== 수정이력 ===== -->
+      <div class="tab-panel" id="panel-edit-history">
+        <h1 class="page-title">📝 수정이력</h1>
+        <p class="page-sub">전체 고객의 등록/수정/삭제/복구 기록입니다.</p>
+        <div class="toolbar">
+          <input type="text" id="editHistorySearch" placeholder="고객번호로 검색" />
+          <button class="btn" id="editHistorySearchBtn">🔍 검색</button>
+          <button class="btn-outline" id="editHistoryAllBtn">📋 전체 보기</button>
+        </div>
+        <div id="editHistoryList"></div>
+        <div class="empty-note" id="editHistoryEmpty" style="display:none;">검색어를 입력하거나 "전체 보기"를 눌러주세요.</div>
+        <div class="pagination" id="editPagination" style="display:none;">
+          <button class="btn-outline" id="editPrevBtn">‹ 이전</button>
+          <span class="page-indicator" id="editPageIndicator"></span>
+          <button class="btn-outline" id="editNextBtn">다음 ›</button>
+        </div>
+      </div>
+
+      <!-- ===== CSV 업로드 이력 ===== -->
+      <div class="tab-panel" id="panel-csv-history">
+        <h1 class="page-title">📤 CSV 업로드 이력</h1>
+        <p class="page-sub">누가 언제 CSV로 몇 건을 업로드/갱신했는지 기록입니다.</p>
+        <table>
+          <thead><tr><th style="width:170px;">시각</th><th>업로드한 사람</th><th>내용</th></tr></thead>
+          <tbody id="csvHistoryBody"></tbody>
+        </table>
+        <div class="empty-note" id="csvHistoryEmpty" style="display:none;">기록이 없습니다.</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 사용자 추가 모달 -->
+  <div class="modal-overlay" id="addUserModalOverlay">
+    <div class="modal">
+      <h2>➕ 사용자 추가</h2>
+      <p class="sub">고객정보 관리 페이지에 접근할 수 있는 계정을 추가합니다.</p>
+      <form id="addUserForm">
+        <div class="field">
+          <label for="newUserEmail">이메일</label>
+          <input type="text" id="newUserEmail" placeholder="example@gmail.com" required />
+        </div>
+        <div class="field">
+          <label for="newUserName">이름</label>
+          <input type="text" id="newUserName" placeholder="예: 홍길동" required />
+        </div>
+        <div class="field">
+          <label for="newUserMemo">메모 (선택)</label>
+          <input type="text" id="newUserMemo" placeholder="예: 본점 담당" />
+        </div>
+        <div class="field checkbox-field">
+          <input type="checkbox" id="newUserIsAdmin" />
+          <label for="newUserIsAdmin">이 사용자를 관리자로 지정</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" id="cancelAddUserBtn">취소</button>
+          <button type="submit" class="btn" id="submitAddUserBtn">추가</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  if (typeof supabase === 'undefined') {
+    document.body.innerHTML = '<div style="padding:24px;color:#a4443a;font-family:sans-serif;">Supabase 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.</div>';
+    throw new Error('supabase-js not loaded');
+  }
+
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---- DOM ----
+  const loginScreen = document.getElementById('loginScreen');
+  const deniedScreen = document.getElementById('deniedScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fmtDate(iso){
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ---- 로그인 ----
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut();
+    showLogin();
+  });
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (session) handleSession(session); else showLogin();
+  });
+
+  async function handleSession(session){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    const { data: isAdmin, error } = await sb.rpc('is_admin');
+    if (error || !isAdmin){
+      showDenied();
+      return;
+    }
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    loginScreen.style.display = 'flex';
+    deniedScreen.style.display = 'none';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+  function showDenied(){
+    loginScreen.style.display = 'none';
+    deniedScreen.style.display = 'flex';
+    app.style.display = 'none';
+  }
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    deniedScreen.style.display = 'none';
+    app.style.display = 'block';
+    const { data: name } = await sb.rpc('current_user_name');
+    userEmail.textContent = name || session.user.email;
+    loadDashboard();
+  }
+
+  // ---- 탭 전환 ----
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+
+      if (btn.dataset.tab === 'dashboard') loadDashboard();
+      if (btn.dataset.tab === 'users') loadUsers();
+      if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
+      if (btn.dataset.tab === 'csv-history') loadCsvHistory();
+    });
+  });
+
+  // ==================== 대시보드 ====================
+  const statGrid = document.getElementById('statGrid');
+  const activityBody = document.getElementById('activityBody');
+
+  async function loadDashboard(){
+    statGrid.innerHTML = '<div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>';
+
+    const [customersRes, trashRes, usersRes, historyRes] = await Promise.all([
+      sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
+      sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', true),
+      sb.from('allowed_emails').select('*', { count: 'exact', head: true }),
+      sb.from('customer_history').select('changed_by').order('changed_at', { ascending: false }).limit(2000)
+    ]);
+
+    const customerCount = customersRes.count ?? 0;
+    const trashCount = trashRes.count ?? 0;
+    const userCount = usersRes.count ?? 0;
+
+    statGrid.innerHTML = `
+      <div class="stat-card"><div class="num">${customerCount.toLocaleString()}</div><div class="label">📇 활성 고객 수</div></div>
+      <div class="stat-card"><div class="num">${trashCount.toLocaleString()}</div><div class="label">🗑️ 휴지통 고객 수</div></div>
+      <div class="stat-card"><div class="num">${userCount.toLocaleString()}</div><div class="label">👤 등록된 사용자 수</div></div>
+    `;
+
+    activityBody.innerHTML = '';
+    if (historyRes.data && historyRes.data.length){
+      const counts = {};
+      historyRes.data.forEach(r => {
+        const name = r.changed_by || '알 수 없음';
+        counts[name] = (counts[name] || 0) + 1;
+      });
+      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 15);
+      sorted.forEach(([name, count]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(name)}</td><td>${count}건</td>`;
+        activityBody.appendChild(tr);
+      });
+    } else {
+      activityBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--muted);">데이터가 없습니다.</td></tr>';
+    }
+  }
+
+  // ==================== 사용자 관리 ====================
+  const usersBody = document.getElementById('usersBody');
+  const usersEmpty = document.getElementById('usersEmpty');
+  const usersStatus = document.getElementById('usersStatus');
+  const openAddUserBtn = document.getElementById('openAddUserBtn');
+  const addUserModalOverlay = document.getElementById('addUserModalOverlay');
+  const cancelAddUserBtn = document.getElementById('cancelAddUserBtn');
+  const addUserForm = document.getElementById('addUserForm');
+  const newUserEmail = document.getElementById('newUserEmail');
+  const newUserName = document.getElementById('newUserName');
+  const newUserMemo = document.getElementById('newUserMemo');
+  const newUserIsAdmin = document.getElementById('newUserIsAdmin');
+  const submitAddUserBtn = document.getElementById('submitAddUserBtn');
+
+  function setUsersStatus(text, cls){
+    usersStatus.textContent = text;
+    usersStatus.className = 'status-line ' + (cls || '');
+  }
+
+  async function loadUsers(){
+    setUsersStatus('불러오는 중...', '');
+    const { data, error } = await sb.from('allowed_emails').select('*').order('created_at', { ascending: true });
+    if (error){
+      setUsersStatus('불러오기 실패: ' + error.message, 'err-flash');
+      return;
+    }
+    usersBody.innerHTML = '';
+    usersEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
+    (data || []).forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(u.email)}</td>
+        <td><input type="text" class="inline-input u-name" value="${escapeHtml(u.name || '')}" /></td>
+        <td style="text-align:center;"><input type="checkbox" class="u-admin" ${u.is_admin ? 'checked' : ''} /></td>
+        <td><input type="text" class="inline-input u-memo" value="${escapeHtml(u.memo || '')}" /></td>
+        <td>
+          <button class="btn-outline u-save" style="margin-right:6px;">저장</button>
+          <button class="btn-outline btn-danger u-del">삭제</button>
+        </td>
+      `;
+      const nameInput = tr.querySelector('.u-name');
+      const adminCheck = tr.querySelector('.u-admin');
+      const memoInput = tr.querySelector('.u-memo');
+      tr.querySelector('.u-save').addEventListener('click', async () => {
+        const { error } = await sb.from('allowed_emails')
+          .update({ name: nameInput.value, memo: memoInput.value, is_admin: adminCheck.checked })
+          .eq('email', u.email);
+        setUsersStatus(error ? '저장 실패: ' + error.message : `${u.email} 저장 완료`, error ? 'err-flash' : 'saved-flash');
+      });
+      tr.querySelector('.u-del').addEventListener('click', async () => {
+        if (!confirm(`${u.email} (${u.name || ''}) 계정의 접근 권한을 삭제할까요?`)) return;
+        const { error } = await sb.from('allowed_emails').delete().eq('email', u.email);
+        if (error){ setUsersStatus('삭제 실패: ' + error.message, 'err-flash'); return; }
+        setUsersStatus(`${u.email} 삭제 완료`, 'saved-flash');
+        loadUsers();
+      });
+      usersBody.appendChild(tr);
+    });
+    setUsersStatus('', '');
+  }
+
+  function openAddUserModal(){ addUserForm.reset(); addUserModalOverlay.classList.add('open'); }
+  function closeAddUserModal(){ addUserModalOverlay.classList.remove('open'); }
+  openAddUserBtn.addEventListener('click', openAddUserModal);
+  cancelAddUserBtn.addEventListener('click', closeAddUserModal);
+  addUserModalOverlay.addEventListener('click', (e) => { if (e.target === addUserModalOverlay) closeAddUserModal(); });
+
+  addUserForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitAddUserBtn.disabled = true;
+    submitAddUserBtn.textContent = '추가 중...';
+    const { error } = await sb.from('allowed_emails').insert({
+      email: newUserEmail.value.trim(),
+      name: newUserName.value.trim(),
+      memo: newUserMemo.value.trim(),
+      is_admin: newUserIsAdmin.checked
+    });
+    submitAddUserBtn.disabled = false;
+    submitAddUserBtn.textContent = '추가';
+    if (error){
+      setUsersStatus('추가 실패: ' + error.message, 'err-flash');
+      return;
+    }
+    closeAddUserModal();
+    setUsersStatus('사용자 추가 완료', 'saved-flash');
+    loadUsers();
+  });
+
+  // ==================== 접속이력 ====================
+  const loginHistoryBody = document.getElementById('loginHistoryBody');
+  const loginHistoryEmpty = document.getElementById('loginHistoryEmpty');
+  const loginFilter = document.getElementById('loginFilter');
+  const loginPagination = document.getElementById('loginPagination');
+  const loginPageIndicator = document.getElementById('loginPageIndicator');
+  const loginPrevBtn = document.getElementById('loginPrevBtn');
+  const loginNextBtn = document.getElementById('loginNextBtn');
+
+  let loginPage = 1;
+  const LOGIN_PAGE_SIZE = 50;
+  let loginTotalCount = 0;
+
+  async function loadLoginHistory(page){
+    loginPage = page || 1;
+    const from = (loginPage - 1) * LOGIN_PAGE_SIZE;
+    const to = from + LOGIN_PAGE_SIZE - 1;
+
+    let query = sb.from('login_history').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
+    if (loginFilter.value === 'success') query = query.eq('success', true);
+    if (loginFilter.value === 'fail') query = query.eq('success', false);
+
+    const { data, error, count } = await query;
+    loginHistoryBody.innerHTML = '';
+    if (error){
+      loginHistoryEmpty.style.display = 'block';
+      loginHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
+      loginPagination.style.display = 'none';
+      return;
+    }
+    loginTotalCount = count || 0;
+    loginHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
+    (data || []).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${fmtDate(r.created_at)}</td>
+        <td>${escapeHtml(r.name || r.email || '알 수 없음')}</td>
+        <td>${r.success ? '<span class="badge ok">성공</span>' : '<span class="badge fail">실패</span>'}</td>
+        <td>${escapeHtml(r.reason === 'not_allowed' ? '비인가 계정 접근 시도' : (r.reason || ''))}</td>
+      `;
+      loginHistoryBody.appendChild(tr);
+    });
+
+    const totalPages = Math.max(1, Math.ceil(loginTotalCount / LOGIN_PAGE_SIZE));
+    loginPagination.style.display = loginTotalCount > 0 ? 'flex' : 'none';
+    loginPageIndicator.textContent = `📄 ${loginPage} / ${totalPages} 페이지`;
+    loginPrevBtn.disabled = loginPage <= 1;
+    loginNextBtn.disabled = loginPage >= totalPages;
+  }
+  loginFilter.addEventListener('change', () => loadLoginHistory(1));
+  loginPrevBtn.addEventListener('click', () => { if (loginPage > 1) loadLoginHistory(loginPage - 1); });
+  loginNextBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(loginTotalCount / LOGIN_PAGE_SIZE));
+    if (loginPage < totalPages) loadLoginHistory(loginPage + 1);
+  });
+
+  // ==================== 수정이력 ====================
+  const editHistorySearch = document.getElementById('editHistorySearch');
+  const editHistorySearchBtn = document.getElementById('editHistorySearchBtn');
+  const editHistoryAllBtn = document.getElementById('editHistoryAllBtn');
+  const editHistoryList = document.getElementById('editHistoryList');
+  const editHistoryEmpty = document.getElementById('editHistoryEmpty');
+  const editPagination = document.getElementById('editPagination');
+  const editPageIndicator = document.getElementById('editPageIndicator');
+  const editPrevBtn = document.getElementById('editPrevBtn');
+  const editNextBtn = document.getElementById('editNextBtn');
+
+  let editPage = 1;
+  const EDIT_PAGE_SIZE = 30;
+  let editTotalCount = 0;
+  let editKeyword = '';
+
+  const ACTION_LABEL = {
+    insert: '🆕 등록', update: '✏️ 수정', delete: '🗑️ 삭제',
+    soft_delete: '🗑️ 삭제', restore: '♻️ 복구', hard_delete: '💥 영구삭제'
+  };
+
+  function renderEditHistoryRow(row){
+    let diffHtml = '';
+    if (row.action === 'insert'){
+      const d = row.new_data || {};
+      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+    } else if (row.action === 'delete' || row.action === 'soft_delete' || row.action === 'hard_delete'){
+      const d = row.old_data || {};
+      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+    } else if (row.action === 'restore'){
+      const d = row.new_data || {};
+      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+    } else {
+      const o = row.old_data || {}, n = row.new_data || {};
+      const parts = [];
+      if (o.name !== n.name) parts.push(`<span class="field-name">성명:</span> <del>${escapeHtml(o.name)}</del> <ins>${escapeHtml(n.name)}</ins>`);
+      if (o.customer_info !== n.customer_info) parts.push(`<span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins>`);
+      diffHtml = parts.join(' · ') || '변경된 값 없음';
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap;">${fmtDate(row.changed_at)}</td>
+      <td style="white-space:nowrap;">🔢 ${row.customer_no}</td>
+      <td>${ACTION_LABEL[row.action] || row.action}</td>
+      <td>${escapeHtml(row.changed_by || '알 수 없음')}</td>
+      <td class="h-diff">${diffHtml}</td>
+    `;
+    return tr;
+  }
+
+  async function loadEditHistory(page){
+    editPage = page || 1;
+    const from = (editPage - 1) * EDIT_PAGE_SIZE;
+    const to = from + EDIT_PAGE_SIZE - 1;
+
+    let query = sb.from('customer_history').select('*', { count: 'exact' }).order('changed_at', { ascending: false }).range(from, to);
+    if (editKeyword) query = query.eq('customer_no', Number(editKeyword));
+
+    const { data, error, count } = await query;
+    if (error){
+      editHistoryList.innerHTML = '';
+      editHistoryEmpty.style.display = 'block';
+      editHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
+      editPagination.style.display = 'none';
+      return;
+    }
+    editTotalCount = count || 0;
+    editHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
+    if (data && data.length){
+      editHistoryEmpty.textContent = '검색 결과가 없습니다.';
+      const table = document.createElement('table');
+      table.innerHTML = `
+        <thead><tr><th style="width:150px;">시각</th><th style="width:90px;">고객번호</th><th style="width:90px;">구분</th><th style="width:120px;">변경자</th><th>내용</th></tr></thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector('tbody');
+      data.forEach(row => tbody.appendChild(renderEditHistoryRow(row)));
+      editHistoryList.innerHTML = '';
+      editHistoryList.appendChild(table);
+    } else {
+      editHistoryList.innerHTML = '';
+    }
+
+    const totalPages = Math.max(1, Math.ceil(editTotalCount / EDIT_PAGE_SIZE));
+    editPagination.style.display = editTotalCount > 0 ? 'flex' : 'none';
+    editPageIndicator.textContent = `📄 ${editPage} / ${totalPages} 페이지`;
+    editPrevBtn.disabled = editPage <= 1;
+    editNextBtn.disabled = editPage >= totalPages;
+  }
+
+  editHistorySearchBtn.addEventListener('click', () => {
+    const kw = editHistorySearch.value.trim();
+    if (!kw || isNaN(Number(kw))){
+      editHistoryList.innerHTML = '';
+      editHistoryEmpty.style.display = 'block';
+      editHistoryEmpty.textContent = '숫자로 된 고객번호를 입력해주세요.';
+      editPagination.style.display = 'none';
+      return;
+    }
+    editKeyword = kw;
+    loadEditHistory(1);
+  });
+  editHistorySearch.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); editHistorySearchBtn.click(); } });
+  editHistoryAllBtn.addEventListener('click', () => { editKeyword = ''; editHistorySearch.value = ''; loadEditHistory(1); });
+  editPrevBtn.addEventListener('click', () => { if (editPage > 1) loadEditHistory(editPage - 1); });
+  editNextBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(editTotalCount / EDIT_PAGE_SIZE));
+    if (editPage < totalPages) loadEditHistory(editPage + 1);
+  });
+
+  // ==================== CSV 업로드 이력 ====================
+  const csvHistoryBody = document.getElementById('csvHistoryBody');
+  const csvHistoryEmpty = document.getElementById('csvHistoryEmpty');
+
+  async function loadCsvHistory(){
+    const { data, error } = await sb.from('csv_upload_history').select('*').order('created_at', { ascending: false }).limit(200);
+    csvHistoryBody.innerHTML = '';
+    if (error){
+      csvHistoryEmpty.style.display = 'block';
+      csvHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
+      return;
+    }
+    csvHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
+    (data || []).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${fmtDate(r.created_at)}</td>
+        <td>${escapeHtml(r.uploaded_by || '알 수 없음')}</td>
+        <td>${escapeHtml(r.file_summary || '')}</td>
+      `;
+      csvHistoryBody.appendChild(tr);
+    });
+  }
+
+  // ---- 시작: 세션 확인 ----
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session); else showLogin();
+  });
+</script>
+</body>
+</html>
