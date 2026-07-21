@@ -115,6 +115,15 @@
   .search-btn:hover{ opacity:.85; }
   .search-btn:active{ transform:scale(0.97); }
 
+  .member-filter-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; color:#a3690f; border:1px solid #f0d9ae;
+    padding:9px 16px; border-radius:999px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+  }
+  .member-filter-btn:hover{ background:#fdf1e0; }
+  .member-filter-btn.active{ background:#a3690f; color:#fff; border-color:#a3690f; }
+
   .reset-btn{
     background:#fff; color:var(--danger); border:1px solid #e8d3d0;
     padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:600;
@@ -284,11 +293,12 @@
     .toolbar{ flex-wrap:wrap; gap:8px; }
     .toolbar input[type=text]{ flex:1 1 100%; width:auto; order:1; }
     .search-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
-    #showAllBtn{ flex:1 1 calc(50% - 4px); order:2; }
+    .member-filter-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    #showAllBtn{ flex:1 1 calc(50% - 4px); order:3; }
     #trashBtn{ flex:1 1 calc(50% - 4px); order:3; }
-    .reset-btn{ flex:1 1 calc(50% - 4px); order:3; }
-    .csv-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:4; }
-    .add-btn{ flex:1 1 100%; justify-content:center; order:5; }
+    .reset-btn{ flex:1 1 calc(50% - 4px); order:4; }
+    .csv-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:5; }
+    .add-btn{ flex:1 1 100%; justify-content:center; order:6; }
 
     .table-scroll{ overflow-x:visible; }
 
@@ -328,7 +338,7 @@
   }
 
   @media (max-width: 420px){
-    .search-btn, #showAllBtn, #trashBtn, .reset-btn, .csv-btn{ flex:1 1 100%; }
+    .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, .reset-btn, .csv-btn{ flex:1 1 100%; }
   }
 </style>
 </head>
@@ -368,6 +378,7 @@
         <div class="toolbar">
           <input type="text" id="searchBox" placeholder="🔍 고객번호 · 성명 · 고객정보 검색" autocomplete="off" name="search-no-autofill-1" />
           <button class="search-btn" id="searchBtn">🔍 검색</button>
+          <button class="member-filter-btn" id="membersOnlyBtn">🏅 조합원만 보기</button>
           <button class="btn-secondary" id="showAllBtn">📋 전체고객 보기</button>
           <button class="btn-secondary" id="trashBtn">🗑️ 휴지통</button>
           <button class="reset-btn" id="resetBtn">🧹 초기화</button>
@@ -517,6 +528,7 @@
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const TABLE_NAME = "customers";
+  const VIEW_NAME = "customers_with_membership"; // 조합원 여부까지 포함된 조회 전용 뷰
 
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -538,6 +550,7 @@
   const countLabel = document.getElementById('countLabel');
   const searchBox = document.getElementById('searchBox');
   const searchBtn = document.getElementById('searchBtn');
+  const membersOnlyBtn = document.getElementById('membersOnlyBtn');
   const showAllBtn = document.getElementById('showAllBtn');
   const trashBtn = document.getElementById('trashBtn');
   const pagination = document.getElementById('pagination');
@@ -583,16 +596,7 @@
   let currentPage = 1;
   let pageSize = 500;
   let totalCount = 0;
-  let memberSet = new Set(); // 현재 화면에 보이는 고객들 중 조합원인 고객번호 집합
-
-  // 화면에 보이는 고객번호들만 모아서 조합원 여부 대조 (전체 명단을 매번 불러오지 않음)
-  async function refreshMemberSet(customerNos){
-    const nos = [...new Set((customerNos || []).filter(n => n !== null && n !== undefined))];
-    if (nos.length === 0){ memberSet = new Set(); return; }
-    const { data, error } = await sb.from('members').select('customer_no').in('customer_no', nos);
-    if (error){ console.error('조합원 여부 조회 실패:', error); memberSet = new Set(); return; }
-    memberSet = new Set((data || []).map(r => r.customer_no));
-  }
+  let membersOnly = false; // "조합원만 보기" 필터 상태
 
   // ---- 로그인 / 로그아웃 ----
   googleLoginBtn.addEventListener('click', async () => {
@@ -710,12 +714,13 @@
     setStatus('불러오는 중...', '');
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
-    const { data, error, count } = await sb
-      .from(TABLE_NAME)
+    let query = sb
+      .from(VIEW_NAME)
       .select('*', { count: 'exact' })
-      .eq('is_deleted', false)
       .order('customer_no', { ascending: true })
       .range(from, to);
+    if (membersOnly) query = query.eq('membership', '조합원');
+    const { data, error, count } = await query;
     if (error){
       setStatus('불러오기 실패: ' + error.message, 'err-flash');
       customerTable.style.display = 'none';
@@ -728,8 +733,7 @@
     currentPage = page;
     totalCount = count || 0;
     currentRows = data || [];
-    countLabel.textContent = `📊 총 ${totalCount}건 (전체)`;
-    await refreshMemberSet(currentRows.map(r => r.customer_no));
+    countLabel.textContent = `📊 총 ${totalCount}건 (전체${membersOnly ? ' · 조합원만' : ''})`;
     renderTable(currentRows);
     updatePagination();
     setStatus('', '');
@@ -790,13 +794,14 @@
 
     // 필터 문법에 영향을 주는 특수문자는 제거
     const safe = keyword.replace(/[,()%]/g, '');
-    let query = sb.from(TABLE_NAME).select('*').eq('is_deleted', false).order('customer_no', { ascending: true }).limit(1000);
+    let query = sb.from(VIEW_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
 
     if (/^\d+$/.test(safe)){
       query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%,customer_no.eq.${safe}`);
     } else {
       query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%`);
     }
+    if (membersOnly) query = query.eq('membership', '조합원');
 
     const { data, error } = await query;
     if (error){
@@ -810,8 +815,7 @@
     currentMode = 'search';
     currentKeyword = keyword;
     currentRows = data || [];
-    countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${keyword}")`;
-    await refreshMemberSet(currentRows.map(r => r.customer_no));
+    countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${keyword}"${membersOnly ? ' · 조합원만' : ''})`;
     renderTable(currentRows);
     pagination.style.display = 'none';
     setStatus('', '');
@@ -880,7 +884,7 @@
         <td class="name-col">
           <div class="name-cell-wrap">
             <input type="text" class="name-input" value="${escapeHtml(row.name)}" />
-            ${memberSet.has(row.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}
+            ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
           </div>
         </td>
         <td class="info-col"><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
@@ -964,9 +968,20 @@
   function runSearch(){ searchCustomers(searchBox.value); }
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  membersOnlyBtn.addEventListener('click', () => {
+    membersOnly = !membersOnly;
+    membersOnlyBtn.classList.toggle('active', membersOnly);
+    if (currentMode === 'all') loadAllCustomers(1);
+    else if (currentMode === 'search') searchCustomers(currentKeyword);
+  });
   showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(1); });
   trashBtn.addEventListener('click', () => { searchBox.value = ''; loadTrash(1); });
-  resetBtn.addEventListener('click', () => { searchBox.value = ''; showIdle(); });
+  resetBtn.addEventListener('click', () => {
+    searchBox.value = '';
+    membersOnly = false;
+    membersOnlyBtn.classList.remove('active');
+    showIdle();
+  });
 
   pageSizeSelect.value = String(pageSize);
   pageSizeSelect.addEventListener('change', () => {
