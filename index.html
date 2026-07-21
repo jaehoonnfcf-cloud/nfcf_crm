@@ -611,14 +611,16 @@
     }
     const { data: allowed, error } = await sb.rpc('is_allowed_email');
     if (error || !allowed){
-      sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' }); // 접속이력에 비인가 시도 기록
+      const { error: logErr } = await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' }); // 접속이력에 비인가 시도 기록
+      if (logErr) console.error('log_login(실패기록) 오류:', logErr);
       await sb.auth.signOut();
       showLogin();
       loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
       loginError.style.display = 'block';
       return;
     }
-    sb.rpc('log_login', { p_success: true }); // 접속이력에 정상 로그인 기록
+    const { error: logErr2 } = await sb.rpc('log_login', { p_success: true }); // 접속이력에 정상 로그인 기록
+    if (logErr2) console.error('log_login(성공기록) 오류:', logErr2);
     showApp(session);
   }
 
@@ -1260,11 +1262,12 @@
       setStatus(`일부 실패: ${errors.join(' / ')}`, 'err-flash');
     } else {
       setStatus(`CSV 적용 완료 — 신규 ${insertedCount}건, 갱신 ${upsertedCount}건`, 'saved-flash');
-      sb.rpc('log_csv_upload', {
+      const { error: csvLogErr } = await sb.rpc('log_csv_upload', {
         p_inserted: insertedCount,
         p_updated: upsertedCount,
         p_summary: `신규 ${insertedCount}건, 갱신 ${upsertedCount}건`
       });
+      if (csvLogErr) console.error('log_csv_upload 오류:', csvLogErr);
     }
 
     closeCsvModal();
