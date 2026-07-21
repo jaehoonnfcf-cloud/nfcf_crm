@@ -467,10 +467,10 @@
       <div id="csvMergeModeRow" style="display:none; align-items:center; gap:16px; margin-bottom:10px; font-size:13px; flex-wrap:wrap;">
         <span style="color:var(--muted);">중복 건 고객정보 처리:</span>
         <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-          <input type="radio" name="csvMergeMode" value="overwrite" checked /> 덮어쓰기
+          <input type="radio" name="csvMergeMode" value="overwrite" /> 덮어쓰기
         </label>
         <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-          <input type="radio" name="csvMergeMode" value="append" /> 기존 내용 뒤에 이어붙이기
+          <input type="radio" name="csvMergeMode" value="append" checked /> 기존 내용 뒤에 이어붙이기
         </label>
       </div>
 
@@ -1050,6 +1050,8 @@
     csvTableBody.innerHTML = '';
     csvQuickActions.style.display = 'none';
     csvMergeModeRow.style.display = 'none';
+    const appendRadio = document.querySelector('input[name="csvMergeMode"][value="append"]');
+    if (appendRadio) appendRadio.checked = true;
     csvModalOverlay.classList.add('open');
 
     Papa.parse(file, {
