@@ -351,6 +351,7 @@
       </div>
       <div class="user-box">
         <span id="userEmail"></span>
+        <a href="admin.html" class="signout-btn" id="adminLinkBtn" style="display:none; text-decoration:none;">⚙️ 관리자</a>
         <button class="signout-btn" id="signOutBtn">🚪 로그아웃</button>
       </div>
     </header>
@@ -520,6 +521,7 @@
   const googleLoginBtn = document.getElementById('googleLoginBtn');
   const loginError = document.getElementById('loginError');
   const signOutBtn = document.getElementById('signOutBtn');
+  const adminLinkBtn = document.getElementById('adminLinkBtn');
   const userEmail = document.getElementById('userEmail');
 
   const tableBody = document.getElementById('tableBody');
@@ -609,12 +611,14 @@
     }
     const { data: allowed, error } = await sb.rpc('is_allowed_email');
     if (error || !allowed){
+      sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' }); // 접속이력에 비인가 시도 기록
       await sb.auth.signOut();
       showLogin();
       loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
       loginError.style.display = 'block';
       return;
     }
+    sb.rpc('log_login', { p_success: true }); // 접속이력에 정상 로그인 기록
     showApp(session);
   }
 
@@ -635,6 +639,10 @@
     const { data: name } = await sb.rpc('current_user_name');
     currentUserName = name || session.user.email;
     userEmail.textContent = currentUserName;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    adminLinkBtn.style.display = admin ? 'inline-flex' : 'none';
+
     showIdle();
   }
 
@@ -1252,6 +1260,11 @@
       setStatus(`일부 실패: ${errors.join(' / ')}`, 'err-flash');
     } else {
       setStatus(`CSV 적용 완료 — 신규 ${insertedCount}건, 갱신 ${upsertedCount}건`, 'saved-flash');
+      sb.rpc('log_csv_upload', {
+        p_inserted: insertedCount,
+        p_updated: upsertedCount,
+        p_summary: `신규 ${insertedCount}건, 갱신 ${upsertedCount}건`
+      });
     }
 
     closeCsvModal();
