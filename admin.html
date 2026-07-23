@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>관리자 페이지</title>
+<title>고객정보 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
@@ -19,13 +19,17 @@
   }
   *{ box-sizing:border-box; }
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
     font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
     min-height:100vh;
   }
 
-  /* ---- 로그인 화면 ---- */
-  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  /* ---------- 로그인 화면 ---------- */
+  .login-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
   .login-card{
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
     padding:44px 40px; width:100%; max-width:360px; text-align:center;
@@ -37,6 +41,19 @@
   }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  #loginForm{ display:flex; flex-direction:column; gap:10px; }
+  .text-field{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px;
+    font-size:14px; font-family:inherit; background:#fff;
+  }
+  .text-field:focus{ outline:none; border-color:var(--accent); }
+  .primary-btn{
+    width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; font-size:14.5px; font-weight:600; cursor:pointer;
+    margin-top:2px;
+  }
+  .primary-btn:hover{ opacity:.9; }
+  .primary-btn:disabled{ opacity:.6; cursor:default; }
   .google-btn{
     display:flex;align-items:center;justify-content:center;gap:10px;
     width:100%; padding:11px 16px; border-radius:9px;
@@ -47,12 +64,8 @@
   .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
   .google-btn:disabled{ opacity:.6; cursor:default; }
   .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
-  .denied-box{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px;
-    padding:40px; max-width:400px; text-align:center; margin:0 auto;
-  }
 
-  /* ---- 앱 화면 ---- */
+  /* ---------- 앱 화면 ---------- */
   #app{ display:none; }
   header{
     display:flex; align-items:center; justify-content:space-between;
@@ -62,182 +75,270 @@
   .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
   .brand h2{ font-size:16px; margin:0; }
   .user-box{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
-  .link-btn{
-    border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none;
-    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+  .signout-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer;
   }
-  .link-btn:hover{ background:#f2f1ee; }
+  .signout-btn:hover{ background:#f2f1ee; }
 
-  main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
+  main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; }
 
-  .tabs{ display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap; border-bottom:1px solid var(--line); }
-  .tab-btn{
-    border:none; background:none; padding:10px 16px; font-size:13.5px; font-weight:600;
-    color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  .page-head{
+    display:flex; flex-direction:column; align-items:flex-start;
+    margin-bottom:18px; gap:12px;
   }
-  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
-  .tab-panel{ display:none; }
-  .tab-panel.active{ display:block; }
+  .page-head h1{ font-size:20px; margin:0; letter-spacing:-0.01em; }
+  .page-head .count{ font-size:13px; color:var(--muted); margin-left:8px; font-weight:400; }
 
-  h1.page-title{ font-size:20px; margin:0 0 4px; }
-  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; }
-
-  /* ---- 통계 카드 ---- */
-  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px; margin-bottom:26px; }
-  .stat-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+  .toolbar{ display:flex; gap:10px; align-items:center; }
+  .toolbar input[type=text]{
+    padding:8px 12px; border:1px solid var(--line); border-radius:8px;
+    font-size:13.5px; width:230px; background:#fff;
   }
-  .stat-card .num{ font-size:26px; font-weight:700; color:var(--ink); }
-  .stat-card .label{ font-size:12.5px; color:var(--muted); margin-top:4px; }
-
-  .section-title{ font-size:14px; font-weight:700; margin:24px 0 10px; }
-
-  .chart-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:20px 20px 10px; margin-bottom:8px;
-    display:flex; align-items:flex-end; justify-content:space-between; gap:8px;
-    height:140px;
+  .toolbar input[type=text]:focus{ outline:none; border-color:var(--accent); }
+  .add-btn, .csv-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    border:none; color:#fff;
+    padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:opacity .15s;
   }
-  .chart-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
-  .chart-bar{
-    width:60%; max-width:36px; background:var(--accent); border-radius:5px 5px 0 0;
-    transition:height .2s; min-height:2px;
-  }
-  .chart-bar-count{ font-size:11px; color:var(--ink); font-weight:700; margin-bottom:3px; }
-  .chart-bar-label{ font-size:10.5px; color:var(--muted); margin-top:6px; white-space:nowrap; }
+  .add-btn{ background:var(--accent); }
+  .csv-btn{ background:#2b5e9e; }
+  .add-btn:hover, .csv-btn:hover{ opacity:.9; }
 
-  .recent-edit-item{
-    background:var(--panel); border:1px solid var(--line); border-radius:10px;
-    padding:10px 14px; margin-bottom:8px; font-size:12.5px;
+  .search-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--ink); color:#fff; border:none;
+    padding:9px 16px 9px 14px; border-radius:999px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:opacity .15s, transform .1s;
   }
-  .recent-edit-item .re-top{ display:flex; justify-content:space-between; gap:10px; margin-bottom:4px; }
-  .recent-edit-item .re-meta{ color:var(--muted); font-size:11.5px; }
+  .search-btn:hover{ opacity:.85; }
+  .search-btn:active{ transform:scale(0.97); }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .member-filter-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; color:#a3690f; border:1px solid #f0d9ae;
+    padding:9px 16px; border-radius:999px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+  }
+  .member-filter-btn:hover{ background:#fdf1e0; }
+  .member-filter-btn.active{ background:#a3690f; color:#fff; border-color:#a3690f; }
+
+  .reset-btn{
+    background:#fff; color:var(--danger); border:1px solid #e8d3d0;
+    padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .reset-btn:hover{ background:#fdf1ef; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
+    color:var(--muted); font-weight:600; padding:12px 14px; border-bottom:1px solid var(--line);
+    background:#fafaf8; white-space:nowrap;
   }
-  tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody td{ padding:11px 16px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:#fafaf9; }
+  tbody tr:nth-child(even){ background:#fcfcfb; }
+  td.no-col{ font-variant-numeric:tabular-nums; color:var(--muted); width:112px; font-weight:600; }
+  td.name-col{ width:150px; }
+  .name-cell-wrap{ display:flex; align-items:center; gap:6px; }
+  .name-cell-wrap .name-input{ flex:1; min-width:0; }
+  .member-badge{
+    flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap;
+    background:#fdf1e0; color:#a3690f; padding:2px 7px; border-radius:999px;
+  }
+  td input[type=text], td textarea{
+    display:block;
+    width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
+    font-size:14px; font-family:inherit; background:transparent; resize:vertical;
+    line-height:1.5; box-sizing:border-box;
+  }
+  td textarea{ overflow:hidden; min-height:26px; }
+  td input[type=text]:hover, td textarea:hover{ border-color:var(--line); }
+  td input[type=text]:focus, td textarea:focus{
+    outline:none; border-color:var(--accent); background:#fff;
+  }
+  .row-actions{ display:flex; gap:6px; white-space:nowrap; justify-content:flex-end; }
+  .icon-btn{
+    border:1px solid var(--line); background:#fff; border-radius:6px;
+    padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--ink);
+  }
+  .icon-btn.save{ border-color:var(--accent); color:var(--accent); }
+  .icon-btn.save:disabled{ opacity:.4; cursor:default; }
+  .icon-btn.del{ color:var(--danger); border-color:#e8d3d0; }
+  .icon-btn:hover{ background:#f2f1ee; }
 
-  .badge{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
-  .badge.ok{ background:var(--accent-soft); color:var(--accent); }
-  .badge.fail{ background:#fbeceb; color:var(--danger); }
-  .badge.admin{ background:#fdf1e0; color:#a3690f; }
+  .empty-state{ text-align:center; padding:48px 20px; color:var(--muted); font-size:13.5px; }
+  .deleted-meta{ font-size:11.5px; color:var(--muted); margin-top:4px; }
 
-  .toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
-  .toolbar input[type=text]{
-    padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; width:220px; background:#fff;
+  .pagination{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin-top:18px; flex-wrap:wrap;
   }
-  .toolbar select{
-    padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff;
+  .pagination select{
+    padding:7px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:13px; background:#fff; color:var(--ink); font-family:inherit;
   }
-  .btn{
-    border:none; background:var(--accent); color:#fff; padding:9px 16px; border-radius:8px;
-    font-size:13.5px; font-weight:600; cursor:pointer;
-  }
-  .btn:hover{ opacity:.9; }
-  .btn-outline{
-    border:1px solid var(--line); background:#fff; color:var(--ink); padding:7px 12px; border-radius:7px;
-    font-size:12.5px; cursor:pointer;
-  }
-  .btn-outline:hover{ background:#f2f1ee; }
-  .btn-danger{ color:var(--danger); border-color:#e8d3d0; }
-
-  input[type=text].inline-input{
-    border:1px solid transparent; border-radius:6px; padding:5px 7px; font-size:13.5px; width:100%; background:transparent;
-  }
-  input[type=text].inline-input:hover{ border-color:var(--line); }
-  input[type=text].inline-input:focus{ outline:none; border-color:var(--accent); background:#fff; }
-
-  .empty-note{ text-align:center; padding:36px 20px; color:var(--muted); font-size:13px; }
-  .status-line{ font-size:12px; color:var(--muted); margin-top:10px; min-height:16px; }
+  .pagination select:focus{ outline:none; border-color:var(--accent); }
+  .pagination .btn-secondary{ padding:7px 14px; font-size:13px; }
+  .pagination .btn-secondary:disabled{ opacity:.4; cursor:default; }
+  .page-indicator{ font-size:13px; color:var(--muted); min-width:90px; text-align:center; }
+  .status-line{ font-size:12px; color:var(--muted); margin-top:12px; min-height:16px; }
   .saved-flash{ color:var(--accent); }
   .err-flash{ color:var(--danger); }
 
-  .pagination{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; }
-  .page-indicator{ font-size:13px; color:var(--muted); }
-
-  /* ---- 이력 diff ---- */
-  .h-diff{ font-size:12px; line-height:1.6; }
-  .h-diff .field-name{ color:var(--muted); margin-right:4px; }
-  .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
-  .h-diff ins{ color:var(--accent); text-decoration:none; }
-
-  /* ---- 모달 ---- */
+  /* ---- 추가 모달 ---- */
   .modal-overlay{
     display:none; position:fixed; inset:0; background:rgba(28,32,36,0.4);
     align-items:center; justify-content:center; z-index:50; padding:20px;
   }
   .modal-overlay.open{ display:flex; }
-  .modal{ background:#fff; border-radius:14px; width:100%; max-width:420px; padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18); }
+  .modal{
+    background:#fff; border-radius:14px; width:100%; max-width:420px;
+    padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18);
+  }
   .modal h2{ font-size:16.5px; margin:0 0 4px; }
-  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; line-height:1.7; }
-  .modal .sub code{
+
+  .guide-box{ margin:16px 0 4px; }
+  .guide-title{ font-size:13px; font-weight:700; color:var(--ink); margin:14px 0 4px; }
+  .guide-title:first-child{ margin-top:0; }
+  .guide-text{ font-size:12.5px; color:var(--muted); line-height:1.7; margin:0 0 4px; }
+  .guide-text code{
     background:var(--accent-soft); color:var(--accent); padding:1px 6px; border-radius:5px;
     font-family:'SFMono-Regular', Consolas, monospace; font-size:11.5px;
   }
-  .modal .sub b{ color:var(--danger); }
+  .guide-text b{ color:var(--danger); }
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; }
   .field{ margin-bottom:14px; }
-  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
-  .field input[type=text]{
-    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff;
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; color:var(--ink); }
+  .field input[type=text], .field input[type=number], .field textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+    font-size:14px; font-family:inherit; background:#fff;
   }
-  .field input:focus{ outline:none; border-color:var(--accent); }
-  .field.checkbox-field{ display:flex; align-items:center; gap:8px; }
-  .field.checkbox-field label{ margin:0; }
+  .field input:focus, .field textarea:focus{ outline:none; border-color:var(--accent); }
+  .field .hint{ font-size:11.5px; color:var(--danger); margin-top:4px; display:none; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .btn-secondary{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:9px 16px; border-radius:8px; font-size:13.5px; cursor:pointer;
+  }
+  .btn-secondary:hover{ background:#f2f1ee; }
+  .btn-primary{
+    border:none; background:var(--accent); color:#fff;
+    padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary:hover{ opacity:.9; }
+  .btn-primary:disabled{ opacity:.5; cursor:default; }
 
-  @media (max-width:720px){
-    main{ padding:18px 14px 40px; }
+  .history-item{
+    border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px;
+  }
+  .history-item .h-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .history-item .h-action{
+    font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:999px;
+  }
+  .history-item .h-action.insert{ background:var(--accent-soft); color:var(--accent); }
+  .history-item .h-action.update{ background:#eaf1fb; color:#2b5e9e; }
+  .history-item .h-action.delete, .history-item .h-action.soft_delete{ background:#fbeceb; color:var(--danger); }
+  .history-item .h-action.restore{ background:#fdf1e0; color:#a3690f; }
+  .history-item .h-action.hard_delete{ background:#2b2b2b; color:#fff; }
+  .history-item .h-meta{ font-size:11.5px; color:var(--muted); }
+  .history-item .h-diff{ font-size:12.5px; line-height:1.6; }
+  .history-item .h-diff .field-name{ color:var(--muted); margin-right:4px; }
+  .history-item .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
+  .history-item .h-diff ins{ color:var(--accent); text-decoration:none; }
+
+  .csv-preview-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .csv-preview-table thead th{
+    position:sticky; top:0; background:#fafaf8; text-align:left; padding:8px 10px;
+    border-bottom:1px solid var(--line); font-size:11px; color:var(--muted);
+  }
+  .csv-preview-table tbody td{ padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .csv-preview-table tbody tr:last-child td{ border-bottom:none; }
+  .csv-preview-table .csv-no{ font-variant-numeric:tabular-nums; color:var(--muted); font-weight:600; }
+  .csv-preview-table .csv-new-val{ color:var(--ink); }
+  .csv-preview-table .csv-old-val{ color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .csv-badge{ font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .csv-badge.new{ background:var(--accent-soft); color:var(--accent); }
+  .csv-badge.dup{ background:#eaf1fb; color:#2b5e9e; }
+  .csv-badge.trash{ background:#fdf1e0; color:#a3690f; }
+  .csv-badge.invalid{ background:#fbeceb; color:var(--danger); }
+
+  .csv-mode-radios{ margin-top:5px; display:flex; flex-direction:column; gap:2px; }
+  .csv-mode-radios label{
+    display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted);
+    cursor:pointer; white-space:nowrap;
+  }
+  .csv-mode-radios input[type=radio]{ margin:0; width:11px; height:11px; }
+
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* ---------- 모바일 대응 ---------- */
+  @media (max-width: 720px){
+    .login-card{ padding:32px 22px; }
 
     header{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
     .brand h2{ font-size:14.5px; }
-    .user-box{ gap:8px; font-size:12px; flex-wrap:wrap; }
-    .user-box span{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .user-box{ gap:8px; font-size:12px; }
+    .user-box span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-    .tabs{
-      flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
-      padding-bottom:2px; margin-bottom:18px;
+    main{ padding:18px 14px 40px; }
+
+    .page-head{ flex-direction:column; align-items:stretch; gap:10px; }
+    .page-head h1{ font-size:17px; }
+
+    .toolbar{ flex-wrap:wrap; gap:8px; }
+    .toolbar input[type=text]{ flex:1 1 100%; width:auto; order:1; }
+    .search-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    .member-filter-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    #showAllBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    #trashBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    .reset-btn{ flex:1 1 calc(50% - 4px); order:4; }
+    .csv-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:5; }
+    .add-btn{ flex:1 1 100%; justify-content:center; order:6; }
+
+    .table-scroll{ overflow-x:visible; }
+
+    #customerTable{ background:transparent; border:none; border-radius:0; }
+    #customerTable thead{ display:none; }
+    #customerTable tbody{ display:block; }
+    #customerTable tr{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      grid-template-areas: "no name" "info info" "actions actions";
+      align-items:center;
+      gap:5px 10px;
+      background:var(--panel); border:1px solid var(--line); border-radius:12px;
+      padding:12px 14px; margin-bottom:10px;
     }
-    .tab-btn{ flex:0 0 auto; padding:10px 12px; font-size:12.5px; white-space:nowrap; }
-
-    .chart-card{ height:120px; padding:16px 12px 8px; }
-    .chart-bar-label{ font-size:9.5px; }
-    .recent-edit-item .re-top{ flex-direction:column; gap:2px; }
-
-    .page-title{ font-size:17px; }
-    .stat-grid{ grid-template-columns:1fr 1fr; gap:10px; }
-    .stat-card{ padding:14px 14px; }
-    .stat-card .num{ font-size:20px; }
-
-    .toolbar{ flex-direction:column; align-items:stretch; }
-    .toolbar input[type=text], .toolbar select, .toolbar .btn, .toolbar .btn-outline{ width:100%; }
-
-    table{ background:transparent; border:none; border-radius:0; }
-    table thead{ display:none; }
-    table tbody{ display:block; }
-    table tbody tr{
-      display:block; border:1px solid var(--line); border-radius:12px;
-      margin-bottom:10px; padding:12px 14px; background:var(--panel);
-    }
-    table tbody td{ display:block; border:none; padding:5px 0; width:auto; text-align:left !important; }
-    table tbody td[data-label]:not([data-label=""])::before{
-      content: attr(data-label);
-      display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em;
-      color:var(--muted); font-weight:700; margin-bottom:2px;
-    }
-
-    .pagination{ flex-wrap:wrap; }
+    #customerTable tbody tr:nth-child(even){ background:var(--panel); } /* 줄무늬 배경 무효화 */
+    #customerTable tbody tr:hover{ background:var(--panel); }
+    #customerTable td{ border:none; padding:0; }
+    #customerTable td.no-col{ grid-area:no; font-size:12px; align-self:center; line-height:1; padding-top:1px; }
+    #customerTable td.name-col{ grid-area:name; width:auto; align-self:center; }
+    #customerTable td.name-col .name-input{ padding-top:6px; padding-bottom:6px; }
+    #customerTable td.info-col{ grid-area:info; }
+    #customerTable td.actions-col{ grid-area:actions; margin-top:6px; }
+    #customerTable .row-actions{ justify-content:flex-start; flex-wrap:wrap; }
+    #customerTable .name-input, #customerTable .info-input{ width:100%; }
 
     .modal{ max-width:94vw !important; padding:22px 18px; max-height:88vh; overflow-y:auto; }
     .modal-actions{ flex-wrap:wrap; }
     .modal-actions button{ flex:1 1 auto; }
 
-    #panel-members .toolbar{ flex-direction:row; flex-wrap:wrap; }
-    #panel-members .toolbar .btn{ width:auto; flex:1 1 auto; }
+    .pagination{ gap:8px; }
+    .pagination select{ flex:1 1 100%; order:1; }
+    .page-indicator{ order:2; }
+
+    .csv-preview-table thead th{ font-size:10px; padding:6px 6px; }
+    .csv-preview-table tbody td{ padding:6px 6px; font-size:11.5px; }
+  }
+
+  @media (max-width: 420px){
+    .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, .reset-btn, .csv-btn{ flex:1 1 100%; }
   }
 </style>
 </head>
@@ -246,9 +347,9 @@
   <!-- 로그인 화면 -->
   <div class="login-wrap" id="loginScreen">
     <div class="login-card">
-      <div class="login-mark">⚙️</div>
-      <h1>관리자 페이지</h1>
-      <p>관리자로 등록된 Google 계정으로<br/>로그인해주세요.</p>
+      <div class="login-mark">🗂️</div>
+      <h1>고객정보 관리</h1>
+      <p>🔒 승인된 Google 계정으로 로그인 후<br/>고객 정보를 조회하고 수정할 수 있습니다.</p>
       <button class="google-btn" id="googleLoginBtn">
         <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 16 3 9.1 7.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.6 2.4-7.2 2.4-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9 40.4 15.9 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C40.9 36.3 45 30.7 45 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
         Google 계정으로 로그인
@@ -257,197 +358,164 @@
     </div>
   </div>
 
-  <!-- 접근 거부 화면 -->
-  <div class="login-wrap" id="deniedScreen" style="display:none;">
-    <div class="denied-box">
-      <div class="login-mark" style="margin:0 auto 16px;">🔒</div>
-      <h1 style="font-size:17px; margin:0 0 8px;">관리자 권한이 없습니다</h1>
-      <p style="font-size:13px; color:var(--muted); margin:0 0 20px;">이 계정은 관리자로 등록되어 있지 않습니다.<br/>일반 업무 화면으로 이동해주세요.</p>
-      <a href="index.html" class="google-btn" style="text-decoration:none; display:inline-flex;">🗂️ 고객정보 관리로 이동</a>
-    </div>
-  </div>
-
   <!-- 메인 앱 -->
   <div id="app">
     <header>
       <div class="brand">
-        <div class="login-mark">⚙️</div>
-        <h2>관리자 페이지</h2>
+        <div class="login-mark">🗂️</div>
+        <h2>고객정보 관리</h2>
       </div>
       <div class="user-box">
         <span id="userEmail"></span>
-        <a href="index.html" class="link-btn">🗂️ 고객정보 관리</a>
-        <button class="link-btn" id="signOutBtn">🚪 로그아웃</button>
+        <a href="admin.html" class="signout-btn" id="adminLinkBtn" style="display:none; text-decoration:none;">⚙️ 관리자</a>
+        <button class="signout-btn" id="signOutBtn">🚪 로그아웃</button>
       </div>
     </header>
 
     <main>
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="dashboard">📊 대시보드</button>
-        <button class="tab-btn" data-tab="users">👤 사용자 관리</button>
-        <button class="tab-btn" data-tab="login-history">🔑 접속이력</button>
-        <button class="tab-btn" data-tab="edit-history">📝 수정이력</button>
-        <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
-        <button class="tab-btn" data-tab="members">🏅 조합원 관리</button>
-      </div>
-
-      <!-- ===== 대시보드 ===== -->
-      <div class="tab-panel active" id="panel-dashboard">
-        <h1 class="page-title">📊 대시보드</h1>
-        <p class="page-sub">전체 현황을 한눈에 확인합니다.</p>
-        <div class="stat-grid" id="statGrid">
-          <div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>
-        </div>
-
-        <div class="section-title">📈 최근 7일 일별 변경 건수</div>
-        <div class="chart-card" id="trendChart">
-          <div class="empty-note">불러오는 중...</div>
-        </div>
-
-        <div class="section-title">🕘 최근 수정이력 (5건)</div>
-        <div id="recentEditList">
-          <div class="empty-note">불러오는 중...</div>
-        </div>
-
-        <div class="section-title">🏅 사용자별 변경 건수 (최근 2000건 기준)</div>
-        <table>
-          <thead><tr><th>이름</th><th style="width:120px;">변경 건수</th></tr></thead>
-          <tbody id="activityBody"></tbody>
-        </table>
-      </div>
-
-      <!-- ===== 사용자 관리 ===== -->
-      <div class="tab-panel" id="panel-users">
-        <h1 class="page-title">👤 사용자 관리</h1>
-        <p class="page-sub">고객정보 관리 페이지에 접근 가능한 계정을 관리합니다.</p>
+      <div class="page-head">
+        <h1>🗂️ 고객 목록 <span class="count" id="countLabel"></span></h1>
         <div class="toolbar">
-          <button class="btn" id="openAddUserBtn">➕ 사용자 추가</button>
+          <input type="text" id="searchBox" placeholder="🔍 고객번호 · 성명 · 고객정보 검색" autocomplete="off" name="search-no-autofill-1" />
+          <button class="search-btn" id="searchBtn">🔍 검색</button>
+          <button class="member-filter-btn" id="membersOnlyBtn">🏅 조합원만 보기</button>
+          <button class="btn-secondary" id="showAllBtn">📋 전체고객 보기</button>
+          <button class="btn-secondary" id="trashBtn">🗑️ 휴지통</button>
+          <button class="reset-btn" id="resetBtn">🧹 초기화</button>
+          <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
+          <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+          <button class="add-btn" id="openAddBtn">➕ 고객 추가</button>
         </div>
-        <table>
+      </div>
+
+      <div class="empty-state" id="idleState">🔍 검색어를 입력해 검색하거나, "📋 전체고객 보기"를 눌러 전체 목록을 불러오세요.</div>
+
+      <div class="table-scroll">
+        <table id="customerTable" style="display:none;">
           <thead>
             <tr>
-              <th>이메일</th>
-              <th style="width:140px;">이름</th>
-              <th style="width:90px;">관리자</th>
-              <th style="width:150px;">마지막 로그인</th>
-              <th style="width:120px;"></th>
+              <th style="width:112px;">🔢 고객번호</th>
+              <th style="width:150px;">🙍 성명</th>
+              <th>📝 고객정보</th>
+              <th style="width:170px;"></th>
             </tr>
           </thead>
-          <tbody id="usersBody"></tbody>
+          <tbody id="tableBody"></tbody>
         </table>
-        <div class="empty-note" id="usersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
-        <div class="status-line" id="usersStatus"></div>
       </div>
 
-      <!-- ===== 접속이력 ===== -->
-      <div class="tab-panel" id="panel-login-history">
-        <h1 class="page-title">🔑 접속이력</h1>
-        <p class="page-sub">로그인 성공/실패(비인가 접근 시도) 기록입니다.</p>
-        <div class="toolbar">
-          <select id="loginFilter">
-            <option value="all">전체</option>
-            <option value="success">성공만</option>
-            <option value="fail">실패(비인가)만</option>
-          </select>
-        </div>
-        <table>
-          <thead><tr><th style="width:170px;">시각</th><th>이름/이메일</th><th style="width:100px;">결과</th><th>비고</th></tr></thead>
-          <tbody id="loginHistoryBody"></tbody>
-        </table>
-        <div class="empty-note" id="loginHistoryEmpty" style="display:none;">기록이 없습니다.</div>
-        <div class="pagination" id="loginPagination" style="display:none;">
-          <button class="btn-outline" id="loginPrevBtn">‹ 이전</button>
-          <span class="page-indicator" id="loginPageIndicator"></span>
-          <button class="btn-outline" id="loginNextBtn">다음 ›</button>
-        </div>
-      </div>
+      <div class="empty-state" id="emptyState" style="display:none;">📭 등록된 고객 정보가 없습니다.</div>
 
-      <!-- ===== 수정이력 ===== -->
-      <div class="tab-panel" id="panel-edit-history">
-        <h1 class="page-title">📝 수정이력</h1>
-        <p class="page-sub">전체 고객의 등록/수정/삭제/복구 기록입니다.</p>
-        <div class="toolbar">
-          <input type="text" id="editHistorySearch" placeholder="고객번호로 검색" />
-          <button class="btn" id="editHistorySearchBtn">🔍 검색</button>
-          <button class="btn-outline" id="editHistoryAllBtn">📋 전체 보기</button>
-        </div>
-        <div id="editHistoryList"></div>
-        <div class="empty-note" id="editHistoryEmpty" style="display:none;">검색어를 입력하거나 "전체 보기"를 눌러주세요.</div>
-        <div class="pagination" id="editPagination" style="display:none;">
-          <button class="btn-outline" id="editPrevBtn">‹ 이전</button>
-          <span class="page-indicator" id="editPageIndicator"></span>
-          <button class="btn-outline" id="editNextBtn">다음 ›</button>
-        </div>
+      <div class="pagination" id="pagination" style="display:none;">
+        <select id="pageSizeSelect">
+          <option value="100">100명씩 보기</option>
+          <option value="500">500명씩 보기</option>
+          <option value="1000">1000명씩 보기</option>
+        </select>
+        <button class="btn-secondary" id="prevPageBtn">‹ 이전</button>
+        <span id="pageIndicator" class="page-indicator"></span>
+        <button class="btn-secondary" id="nextPageBtn">다음 ›</button>
       </div>
-
-      <!-- ===== CSV 업로드 이력 ===== -->
-      <div class="tab-panel" id="panel-csv-history">
-        <h1 class="page-title">📤 CSV 업로드 이력</h1>
-        <p class="page-sub">누가 언제 CSV로 몇 건을 업로드/갱신했는지 기록입니다.</p>
-        <table>
-          <thead><tr><th style="width:170px;">시각</th><th>업로드한 사람</th><th>내용</th></tr></thead>
-          <tbody id="csvHistoryBody"></tbody>
-        </table>
-        <div class="empty-note" id="csvHistoryEmpty" style="display:none;">기록이 없습니다.</div>
-      </div>
-
-      <!-- ===== 조합원 관리 ===== -->
-      <div class="tab-panel" id="panel-members">
-        <h1 class="page-title">🏅 조합원 관리</h1>
-        <p class="page-sub">조합원 고객번호 명단을 관리합니다. 업로드하면 <b>기존 명단은 전부 지워지고 새 명단으로 완전히 교체</b>됩니다.</p>
-        <div class="stat-grid" style="margin-bottom:20px;">
-          <div class="stat-card"><div class="num" id="memberCount">-</div><div class="label">🏅 현재 등록된 조합원 수</div></div>
-          <div class="stat-card"><div class="num" id="memberUpdatedAt" style="font-size:15px;">-</div><div class="label">🕘 마지막 업데이트</div></div>
-        </div>
-        <div class="toolbar">
-          <button class="btn" id="memberUploadBtn">📤 조합원 명단 CSV 업로드</button>
-          <input type="file" id="memberFileInput" accept=".csv" style="display:none;" />
-        </div>
-        <div class="status-line" id="memberStatus"></div>
-      </div>
+      <div class="status-line" id="statusLine"></div>
     </main>
   </div>
 
-  <!-- 조합원 CSV 업로드 안내/확인 모달 -->
-  <div class="modal-overlay" id="memberGuideModalOverlay">
-    <div class="modal" style="max-width:460px;">
-      <h2 id="memberGuideTitle">🏅 조합원 명단 업로드</h2>
-      <div id="memberGuideBody">
-        <p class="sub" style="margin-bottom:14px;">
-          CSV 첫 줄(헤더)에 고객번호 열이 있어야 해요: <code>customer_no</code> 또는 <code>고객번호</code> / <code>번호</code>.<br/><br/>
-          <b>주의:</b> 업로드하면 기존 조합원 명단은 전부 삭제되고, 이 CSV 내용으로 완전히 교체됩니다.
-        </p>
-      </div>
+  <!-- 고객 추가 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>➕ 고객 추가</h2>
+      <p class="sub">고객번호 · 성명 · 고객정보를 입력하세요.</p>
+      <form id="addForm">
+        <div class="field">
+          <label for="inNo">🔢 고객번호</label>
+          <input type="number" id="inNo" placeholder="예: 1001" required />
+          <div class="hint" id="hintNo">이미 존재하는 고객번호입니다.</div>
+        </div>
+        <div class="field">
+          <label for="inName">🙍 성명</label>
+          <input type="text" id="inName" placeholder="예: 홍길동" required />
+        </div>
+        <div class="field">
+          <label for="inInfo">📝 고객정보</label>
+          <textarea id="inInfo" rows="3" placeholder="주소, 연락처, 메모 등"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelAddBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitAddBtn">➕ 추가</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 변경 이력 모달 -->
+  <div class="modal-overlay" id="historyModalOverlay">
+    <div class="modal" style="max-width:560px;">
+      <h2 id="historyTitle">🕘 변경 이력</h2>
+      <p class="sub">이 고객의 등록/수정/삭제 기록입니다.</p>
+      <div id="historyList" style="max-height:420px; overflow-y:auto; margin:-4px 0 4px;"></div>
       <div class="modal-actions">
-        <button type="button" class="btn-outline" id="cancelMemberGuideBtn">취소</button>
-        <button type="button" class="btn" id="proceedMemberGuideBtn">📁 파일 선택하기</button>
+        <button type="button" class="btn-secondary" id="closeHistoryBtn">닫기</button>
       </div>
     </div>
   </div>
 
-  <!-- 사용자 추가 모달 -->
-  <div class="modal-overlay" id="addUserModalOverlay">
-    <div class="modal">
-      <h2>➕ 사용자 추가</h2>
-      <p class="sub">고객정보 관리 페이지에 접근할 수 있는 계정을 추가합니다.</p>
-      <form id="addUserForm">
-        <div class="field">
-          <label for="newUserEmail">이메일</label>
-          <input type="text" id="newUserEmail" placeholder="example@gmail.com" required />
-        </div>
-        <div class="field">
-          <label for="newUserName">이름</label>
-          <input type="text" id="newUserName" placeholder="예: 홍길동" required />
-        </div>
-        <div class="field checkbox-field">
-          <input type="checkbox" id="newUserIsAdmin" />
-          <label for="newUserIsAdmin">이 사용자를 관리자로 지정</label>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-outline" id="cancelAddUserBtn">취소</button>
-          <button type="submit" class="btn" id="submitAddUserBtn">추가</button>
-        </div>
-      </form>
+  <!-- CSV 업로드 안내 모달 -->
+  <div class="modal-overlay" id="csvGuideModalOverlay">
+    <div class="modal" style="max-width:460px;">
+      <h2>📤 CSV 업로드 전 확인해주세요</h2>
+      <div class="guide-box">
+        <p class="guide-title">1️⃣ 엑셀에서 저장할 때</p>
+        <p class="guide-text">
+          "다른 이름으로 저장" → 파일 형식에서 반드시
+          <b>"CSV UTF-8(쉼표로 분리) (*.csv)"</b>을 선택하세요.<br/>
+          일반 "CSV (쉼표로 분리)"로 저장하면 한글이 깨질 수 있어요.
+        </p>
+        <p class="guide-title">2️⃣ 첫 줄(헤더)에 이 열이 있어야 해요</p>
+        <p class="guide-text">
+          🔢 고객번호: <code>customer_no</code> 또는 <code>고객번호</code> / <code>번호</code><br/>
+          🙍 성명: <code>name</code> 또는 <code>성명</code> / <code>이름</code><br/>
+          📝 고객정보: <code>customer_info</code> 또는 <code>고객정보</code> / <code>메모</code> (선택)
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelCsvGuideBtn">취소</button>
+        <button type="button" class="btn-primary" id="proceedCsvGuideBtn">📁 파일 선택하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV 업로드 미리보기 모달 -->
+  <div class="modal-overlay" id="csvModalOverlay">
+    <div class="modal" style="max-width:820px;">
+      <h2>📤 CSV 업로드 미리보기</h2>
+      <p class="sub" id="csvSummary">CSV 파일을 분석하고 있습니다...</p>
+
+      <div id="csvQuickActions" style="display:none; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" id="csvSelectAllDup" style="padding:6px 12px; font-size:12.5px;">✅ 중복 전체 선택</button>
+        <button type="button" class="btn-secondary" id="csvDeselectAllDup" style="padding:6px 12px; font-size:12.5px;">⬜ 중복 전체 해제</button>
+        <span style="width:1px; background:var(--line); align-self:stretch;"></span>
+        <button type="button" class="btn-secondary" id="csvSetAllAppend" style="padding:6px 12px; font-size:12.5px;">🔗 전체 이어붙이기로</button>
+        <button type="button" class="btn-secondary" id="csvSetAllOverwrite" style="padding:6px 12px; font-size:12.5px;">🔄 전체 덮어쓰기로</button>
+      </div>
+
+      <div id="csvTableWrap" style="max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:10px;">
+        <table class="csv-preview-table">
+          <thead>
+            <tr>
+              <th style="width:36px;"></th>
+              <th style="width:80px;">🔢 고객번호</th>
+              <th>🙍 성명 / 📝 고객정보 (CSV → 기존)</th>
+              <th style="width:100px;">상태</th>
+            </tr>
+          </thead>
+          <tbody id="csvTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelCsvBtn">취소</button>
+        <button type="button" class="btn-primary" id="applyCsvBtn">✅ 선택 항목 적용</button>
+      </div>
     </div>
   </div>
 
@@ -457,31 +525,81 @@
     throw new Error('supabase-js not loaded');
   }
 
+  // ==== Supabase 연결 설정 ====
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const TABLE_NAME = "customers";
+  const VIEW_NAME = "customers_with_membership"; // 조합원 여부까지 포함된 조회 전용 뷰
 
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ---- DOM ----
   const loginScreen = document.getElementById('loginScreen');
-  const deniedScreen = document.getElementById('deniedScreen');
   const app = document.getElementById('app');
   const googleLoginBtn = document.getElementById('googleLoginBtn');
   const loginError = document.getElementById('loginError');
   const signOutBtn = document.getElementById('signOutBtn');
+  const adminLinkBtn = document.getElementById('adminLinkBtn');
   const userEmail = document.getElementById('userEmail');
 
-  function escapeHtml(s){
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-  function fmtDate(iso){
-    if (!iso) return '-';
-    const d = new Date(iso);
-    return d.toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-  }
+  const tableBody = document.getElementById('tableBody');
+  const customerTable = document.getElementById('customerTable');
+  const idleState = document.getElementById('idleState');
+  const emptyState = document.getElementById('emptyState');
+  const statusLine = document.getElementById('statusLine');
+  const countLabel = document.getElementById('countLabel');
+  const searchBox = document.getElementById('searchBox');
+  const searchBtn = document.getElementById('searchBtn');
+  const membersOnlyBtn = document.getElementById('membersOnlyBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
+  const trashBtn = document.getElementById('trashBtn');
+  const pagination = document.getElementById('pagination');
+  const pageSizeSelect = document.getElementById('pageSizeSelect');
+  const prevPageBtn = document.getElementById('prevPageBtn');
+  const nextPageBtn = document.getElementById('nextPageBtn');
+  const pageIndicator = document.getElementById('pageIndicator');
+  const resetBtn = document.getElementById('resetBtn');
 
-  // ---- 로그인 ----
+  const modalOverlay = document.getElementById('modalOverlay');
+  const historyModalOverlay = document.getElementById('historyModalOverlay');
+  const historyTitle = document.getElementById('historyTitle');
+  const historyList = document.getElementById('historyList');
+  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+
+  const csvUploadBtn = document.getElementById('csvUploadBtn');
+  const csvFileInput = document.getElementById('csvFileInput');
+  const csvGuideModalOverlay = document.getElementById('csvGuideModalOverlay');
+  const cancelCsvGuideBtn = document.getElementById('cancelCsvGuideBtn');
+  const proceedCsvGuideBtn = document.getElementById('proceedCsvGuideBtn');
+  const csvModalOverlay = document.getElementById('csvModalOverlay');
+  const csvSummary = document.getElementById('csvSummary');
+  const csvQuickActions = document.getElementById('csvQuickActions');
+  const csvSelectAllDup = document.getElementById('csvSelectAllDup');
+  const csvDeselectAllDup = document.getElementById('csvDeselectAllDup');
+  const csvSetAllAppend = document.getElementById('csvSetAllAppend');
+  const csvSetAllOverwrite = document.getElementById('csvSetAllOverwrite');
+  const csvTableBody = document.getElementById('csvTableBody');
+  const cancelCsvBtn = document.getElementById('cancelCsvBtn');
+  const applyCsvBtn = document.getElementById('applyCsvBtn');
+  const openAddBtn = document.getElementById('openAddBtn');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const addForm = document.getElementById('addForm');
+  const inNo = document.getElementById('inNo');
+  const inName = document.getElementById('inName');
+  const inInfo = document.getElementById('inInfo');
+  const hintNo = document.getElementById('hintNo');
+  const submitAddBtn = document.getElementById('submitAddBtn');
+
+  let currentRows = [];
+  let currentMode = 'none'; // 'none' | 'search' | 'all'
+  let currentKeyword = '';
+  let currentPage = 1;
+  let pageSize = 100;
+  let totalCount = 0;
+  let membersOnly = false; // "조합원만 보기" 필터 상태
+
+  // ---- 로그인 / 로그아웃 ----
   googleLoginBtn.addEventListener('click', async () => {
     loginError.style.display = 'none';
     googleLoginBtn.disabled = true;
@@ -494,6 +612,7 @@
       loginError.textContent = '로그인 실패: ' + error.message;
       loginError.style.display = 'block';
     }
+    // 성공 시에는 구글 로그인 화면으로 리디렉션되므로 별도 처리 불필요
   });
 
   signOutBtn.addEventListener('click', async () => {
@@ -501,18 +620,34 @@
     showLogin();
   });
 
-  sb.auth.onAuthStateChange((_event, session) => {
-    if (session) handleSession(session); else showLogin();
+  sb.auth.onAuthStateChange((event, session) => {
+    // 토큰 자동 갱신은 세션 유지 목적일 뿐 화면은 그대로 둬야 함 (안 그러면 작업 중 화면이 초기화됨)
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
   });
 
-  async function handleSession(session){
+  // 로그인은 됐지만 allowed_emails에 없는 계정은 즉시 로그아웃 처리
+  // shouldLog: 실제 "방금 로그인"한 경우에만 true (세션 복원/토큰 갱신 시에는 기록 안 남김)
+  async function handleSession(session, shouldLog){
+    // Google 로그인 후 주소에 남는 #access_token=... 같은 조각 제거
     if (window.location.hash){
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-    const { data: isAdmin, error } = await sb.rpc('is_admin');
-    if (error || !isAdmin){
-      showDenied();
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog){
+        const { error: logErr } = await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' }); // 접속이력에 비인가 시도 기록
+        if (logErr) console.error('log_login(실패기록) 오류:', logErr);
+      }
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
       return;
+    }
+    if (shouldLog){
+      const { error: logErr2 } = await sb.rpc('log_login', { p_success: true }); // 접속이력에 정상 로그인 기록
+      if (logErr2) console.error('log_login(성공기록) 오류:', logErr2);
     }
     showApp(session);
   }
@@ -522,560 +657,771 @@
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     loginScreen.style.display = 'flex';
-    deniedScreen.style.display = 'none';
     app.style.display = 'none';
     googleLoginBtn.disabled = false;
   }
-  function showDenied(){
-    loginScreen.style.display = 'none';
-    deniedScreen.style.display = 'flex';
-    app.style.display = 'none';
-  }
+  let currentUserName = '';
+
   async function showApp(session){
     loginScreen.style.display = 'none';
-    deniedScreen.style.display = 'none';
     app.style.display = 'block';
+    userEmail.textContent = session.user.email; // 이름을 못 불러올 경우를 대비한 임시 표시
     const { data: name } = await sb.rpc('current_user_name');
-    userEmail.textContent = name || session.user.email;
-    loadDashboard();
+    currentUserName = name || session.user.email;
+    userEmail.textContent = currentUserName;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    adminLinkBtn.style.display = admin ? 'inline-flex' : 'none';
+
+    showIdle();
   }
 
-  // ---- 탭 전환 ----
-  const tabButtons = document.querySelectorAll('.tab-btn');
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabButtons.forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
-
-      if (btn.dataset.tab === 'dashboard') loadDashboard();
-      if (btn.dataset.tab === 'users') loadUsers();
-      if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
-      if (btn.dataset.tab === 'csv-history') loadCsvHistory();
-      if (btn.dataset.tab === 'members') loadMemberCount();
+  function setStatus(text, cls){
+    statusLine.textContent = text;
+    statusLine.className = 'status-line ' + (cls || '');
+  }
+  function escapeHtml(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function autoResize(el){
+    requestAnimationFrame(() => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
     });
-  });
-
-  // ==================== 대시보드 ====================
-  const statGrid = document.getElementById('statGrid');
-  const activityBody = document.getElementById('activityBody');
-  const trendChart = document.getElementById('trendChart');
-  const recentEditList = document.getElementById('recentEditList');
-
-  function dayRangeIso(offsetDays){
-    // offsetDays: 0 = 오늘, 1 = 어제 ... (브라우저 로컬 시간 기준 하루 범위)
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - offsetDays);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { startIso: start.toISOString(), endIso: end.toISOString(), start };
   }
 
-  async function loadDashboard(){
-    statGrid.innerHTML = '<div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>';
-    trendChart.innerHTML = '<div class="empty-note">불러오는 중...</div>';
-    recentEditList.innerHTML = '<div class="empty-note">불러오는 중...</div>';
-
-    const today = dayRangeIso(0);
-
-    const [customersRes, trashRes, usersRes, historyRes, todayRes, recentEditRes] = await Promise.all([
-      sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
-      sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', true),
-      sb.from('allowed_emails').select('*', { count: 'exact', head: true }),
-      sb.from('customer_history').select('changed_by').order('changed_at', { ascending: false }).limit(2000),
-      sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', today.startIso).lt('changed_at', today.endIso),
-      sb.from('customer_history').select('*').order('changed_at', { ascending: false }).limit(5)
-    ]);
-
-    const customerCount = customersRes.count ?? 0;
-    const trashCount = trashRes.count ?? 0;
-    const userCount = usersRes.count ?? 0;
-    const todayCount = todayRes.count ?? 0;
-
-    statGrid.innerHTML = `
-      <div class="stat-card"><div class="num">${customerCount.toLocaleString()}</div><div class="label">📇 활성 고객 수</div></div>
-      <div class="stat-card"><div class="num">${trashCount.toLocaleString()}</div><div class="label">🗑️ 휴지통 고객 수</div></div>
-      <div class="stat-card"><div class="num">${userCount.toLocaleString()}</div><div class="label">👤 등록된 사용자 수</div></div>
-      <div class="stat-card"><div class="num">${todayCount.toLocaleString()}</div><div class="label">📅 오늘 활동 건수</div></div>
-    `;
-
-    // ---- 최근 7일 일별 변경 건수 (7건의 count 쿼리를 병렬 실행) ----
-    const dayDefs = [];
-    for (let i = 6; i >= 0; i--) dayDefs.push(dayRangeIso(i));
-    const dayCountsRes = await Promise.all(
-      dayDefs.map(d => sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', d.startIso).lt('changed_at', d.endIso))
-    );
-    const maxCount = Math.max(1, ...dayCountsRes.map(r => r.count ?? 0));
-    trendChart.innerHTML = '';
-    dayDefs.forEach((d, idx) => {
-      const c = dayCountsRes[idx].count ?? 0;
-      const heightPct = Math.round((c / maxCount) * 100);
-      const label = d.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
-      const col = document.createElement('div');
-      col.className = 'chart-bar-col';
-      col.innerHTML = `
-        <div class="chart-bar-count">${c}</div>
-        <div class="chart-bar" style="height:${Math.max(heightPct, c > 0 ? 4 : 0)}%;"></div>
-        <div class="chart-bar-label">${escapeHtml(label)}</div>
-      `;
-      trendChart.appendChild(col);
-    });
-
-    // ---- 최근 수정이력 5건 미리보기 ----
-    recentEditList.innerHTML = '';
-    if (recentEditRes.data && recentEditRes.data.length){
-      recentEditRes.data.forEach(row => {
-        const div = document.createElement('div');
-        div.className = 'recent-edit-item';
-        const actionLabel = ACTION_LABEL[row.action] || row.action;
-        let summary = '';
-        if (row.action === 'insert') summary = escapeHtml((row.new_data || {}).name || '');
-        else if (row.action === 'restore') summary = escapeHtml((row.new_data || {}).name || '');
-        else summary = escapeHtml((row.old_data || row.new_data || {}).name || '');
-        div.innerHTML = `
-          <div class="re-top">
-            <span>${actionLabel} · 🔢 ${row.customer_no} ${summary ? '(' + summary + ')' : ''}</span>
-            <span class="re-meta">${fmtDate(row.changed_at)}</span>
-          </div>
-          <div class="re-meta">${escapeHtml(row.changed_by || '알 수 없음')}</div>
-        `;
-        recentEditList.appendChild(div);
-      });
-    } else {
-      recentEditList.innerHTML = '<div class="empty-note">기록이 없습니다.</div>';
-    }
-
-    activityBody.innerHTML = '';
-    if (historyRes.data && historyRes.data.length){
-      const counts = {};
-      historyRes.data.forEach(r => {
-        const name = r.changed_by || '알 수 없음';
-        counts[name] = (counts[name] || 0) + 1;
-      });
-      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 15);
-      sorted.forEach(([name, count]) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="이름">${escapeHtml(name)}</td><td data-label="변경 건수">${count}건</td>`;
-        activityBody.appendChild(tr);
-      });
-    } else {
-      activityBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--muted);">데이터가 없습니다.</td></tr>';
-    }
+  // ---- 화면 상태 전환 ----
+  function showIdle(){
+    currentMode = 'none';
+    currentRows = [];
+    currentKeyword = '';
+    tableBody.innerHTML = '';
+    idleState.style.display = 'block';
+    emptyState.style.display = 'none';
+    customerTable.style.display = 'none';
+    pagination.style.display = 'none';
+    countLabel.textContent = '';
+    setStatus('', '');
   }
 
-  // ==================== 사용자 관리 ====================
-  const usersBody = document.getElementById('usersBody');
-  const usersEmpty = document.getElementById('usersEmpty');
-  const usersStatus = document.getElementById('usersStatus');
-  const openAddUserBtn = document.getElementById('openAddUserBtn');
-  const addUserModalOverlay = document.getElementById('addUserModalOverlay');
-  const cancelAddUserBtn = document.getElementById('cancelAddUserBtn');
-  const addUserForm = document.getElementById('addUserForm');
-  const newUserEmail = document.getElementById('newUserEmail');
-  const newUserName = document.getElementById('newUserName');
-  const newUserIsAdmin = document.getElementById('newUserIsAdmin');
-  const submitAddUserBtn = document.getElementById('submitAddUserBtn');
-
-  function setUsersStatus(text, cls){
-    usersStatus.textContent = text;
-    usersStatus.className = 'status-line ' + (cls || '');
+  function showResultView(){
+    idleState.style.display = 'none';
   }
 
-  async function loadUsers(){
-    setUsersStatus('불러오는 중...', '');
-    const [usersRes, loginRes] = await Promise.all([
-      sb.from('allowed_emails').select('*').order('created_at', { ascending: true }),
-      sb.from('login_history').select('email, created_at').eq('success', true).order('created_at', { ascending: false }).limit(3000)
-    ]);
-    const { data, error } = usersRes;
-    if (error){
-      setUsersStatus('불러오기 실패: ' + error.message, 'err-flash');
-      return;
-    }
-    // 이메일별 가장 최근 로그인 시각 (내림차순으로 가져왔으니 처음 나오는 게 최신)
-    const lastLoginMap = {};
-    if (loginRes.data){
-      loginRes.data.forEach(r => {
-        if (!lastLoginMap[r.email]) lastLoginMap[r.email] = r.created_at;
-      });
-    }
-
-    usersBody.innerHTML = '';
-    usersEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
-    (data || []).forEach(u => {
-      const lastLogin = lastLoginMap[u.email];
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td data-label="이메일">${escapeHtml(u.email)}</td>
-        <td data-label="이름"><input type="text" class="inline-input u-name" value="${escapeHtml(u.name || '')}" /></td>
-        <td data-label="관리자" style="text-align:center;"><input type="checkbox" class="u-admin" ${u.is_admin ? 'checked' : ''} /></td>
-        <td data-label="마지막 로그인" style="white-space:nowrap; color:var(--muted); font-size:12.5px;">${lastLogin ? fmtDate(lastLogin) : '기록 없음'}</td>
-        <td data-label="">
-          <button class="btn-outline u-save" style="margin-right:6px;">저장</button>
-          <button class="btn-outline btn-danger u-del">삭제</button>
-        </td>
-      `;
-      const nameInput = tr.querySelector('.u-name');
-      const adminCheck = tr.querySelector('.u-admin');
-      tr.querySelector('.u-save').addEventListener('click', async () => {
-        const { error } = await sb.from('allowed_emails')
-          .update({ name: nameInput.value, is_admin: adminCheck.checked })
-          .eq('email', u.email);
-        setUsersStatus(error ? '저장 실패: ' + error.message : `${u.email} 저장 완료`, error ? 'err-flash' : 'saved-flash');
-      });
-      tr.querySelector('.u-del').addEventListener('click', async () => {
-        if (!confirm(`${u.email} (${u.name || ''}) 계정의 접근 권한을 삭제할까요?`)) return;
-        const { error } = await sb.from('allowed_emails').delete().eq('email', u.email);
-        if (error){ setUsersStatus('삭제 실패: ' + error.message, 'err-flash'); return; }
-        setUsersStatus(`${u.email} 삭제 완료`, 'saved-flash');
-        loadUsers();
-      });
-      usersBody.appendChild(tr);
-    });
-    setUsersStatus('', '');
-  }
-
-  function openAddUserModal(){ addUserForm.reset(); addUserModalOverlay.classList.add('open'); }
-  function closeAddUserModal(){ addUserModalOverlay.classList.remove('open'); }
-  openAddUserBtn.addEventListener('click', openAddUserModal);
-  cancelAddUserBtn.addEventListener('click', closeAddUserModal);
-  addUserModalOverlay.addEventListener('click', (e) => { if (e.target === addUserModalOverlay) closeAddUserModal(); });
-
-  addUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    submitAddUserBtn.disabled = true;
-    submitAddUserBtn.textContent = '추가 중...';
-    const { error } = await sb.from('allowed_emails').insert({
-      email: newUserEmail.value.trim(),
-      name: newUserName.value.trim(),
-      is_admin: newUserIsAdmin.checked
-    });
-    submitAddUserBtn.disabled = false;
-    submitAddUserBtn.textContent = '추가';
-    if (error){
-      setUsersStatus('추가 실패: ' + error.message, 'err-flash');
-      return;
-    }
-    closeAddUserModal();
-    setUsersStatus('사용자 추가 완료', 'saved-flash');
-    loadUsers();
-  });
-
-  // ==================== 접속이력 ====================
-  const loginHistoryBody = document.getElementById('loginHistoryBody');
-  const loginHistoryEmpty = document.getElementById('loginHistoryEmpty');
-  const loginFilter = document.getElementById('loginFilter');
-  const loginPagination = document.getElementById('loginPagination');
-  const loginPageIndicator = document.getElementById('loginPageIndicator');
-  const loginPrevBtn = document.getElementById('loginPrevBtn');
-  const loginNextBtn = document.getElementById('loginNextBtn');
-
-  let loginPage = 1;
-  const LOGIN_PAGE_SIZE = 50;
-  let loginTotalCount = 0;
-
-  async function loadLoginHistory(page){
-    loginPage = page || 1;
-    const from = (loginPage - 1) * LOGIN_PAGE_SIZE;
-    const to = from + LOGIN_PAGE_SIZE - 1;
-
-    let query = sb.from('login_history').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
-    if (loginFilter.value === 'success') query = query.eq('success', true);
-    if (loginFilter.value === 'fail') query = query.eq('success', false);
-
+  // ---- 전체 고객 조회 (페이지 단위) ----
+  async function loadAllCustomers(page){
+    page = page || 1;
+    showResultView();
+    setStatus('불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    let query = sb
+      .from(VIEW_NAME)
+      .select('*', { count: 'exact' })
+      .order('customer_no', { ascending: true })
+      .range(from, to);
+    if (membersOnly) query = query.eq('membership', '조합원');
     const { data, error, count } = await query;
-    loginHistoryBody.innerHTML = '';
     if (error){
-      loginHistoryEmpty.style.display = 'block';
-      loginHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
-      loginPagination.style.display = 'none';
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다. 관리자에게 문의하세요.';
       return;
     }
-    loginTotalCount = count || 0;
-    loginHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
-    (data || []).forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td data-label="시각">${fmtDate(r.created_at)}</td>
-        <td data-label="이름/이메일">${escapeHtml(r.name || r.email || '알 수 없음')}</td>
-        <td data-label="결과">${r.success ? '<span class="badge ok">성공</span>' : '<span class="badge fail">실패</span>'}</td>
-        <td data-label="비고">${escapeHtml(r.reason === 'not_allowed' ? '비인가 계정 접근 시도' : (r.reason || ''))}</td>
-      `;
-      loginHistoryBody.appendChild(tr);
-    });
-
-    const totalPages = Math.max(1, Math.ceil(loginTotalCount / LOGIN_PAGE_SIZE));
-    loginPagination.style.display = loginTotalCount > 0 ? 'flex' : 'none';
-    loginPageIndicator.textContent = `📄 ${loginPage} / ${totalPages} 페이지`;
-    loginPrevBtn.disabled = loginPage <= 1;
-    loginNextBtn.disabled = loginPage >= totalPages;
+    currentMode = 'all';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `📊 총 ${totalCount}건 (전체${membersOnly ? ' · 조합원만' : ''})`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
   }
-  loginFilter.addEventListener('change', () => loadLoginHistory(1));
-  loginPrevBtn.addEventListener('click', () => { if (loginPage > 1) loadLoginHistory(loginPage - 1); });
-  loginNextBtn.addEventListener('click', () => {
-    const totalPages = Math.max(1, Math.ceil(loginTotalCount / LOGIN_PAGE_SIZE));
-    if (loginPage < totalPages) loadLoginHistory(loginPage + 1);
+
+  function updatePagination(){
+    if ((currentMode !== 'all' && currentMode !== 'trash') || totalCount === 0){
+      pagination.style.display = 'none';
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    pagination.style.display = 'flex';
+    pageIndicator.textContent = `📄 ${currentPage} / ${totalPages} 페이지`;
+    prevPageBtn.disabled = currentPage <= 1;
+    nextPageBtn.disabled = currentPage >= totalPages;
+  }
+
+  // ---- 휴지통(삭제된 고객) 조회 ----
+  async function loadTrash(page){
+    page = page || 1;
+    showResultView();
+    setStatus('휴지통을 불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await sb
+      .from(TABLE_NAME)
+      .select('*', { count: 'exact' })
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false })
+      .range(from, to);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '휴지통을 불러올 수 없습니다.';
+      return;
+    }
+    currentMode = 'trash';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `🗑️ 총 ${totalCount}건 (휴지통)`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
+  }
+
+  // ---- 검색 ----
+  async function searchCustomers(rawKeyword){
+    const keyword = (rawKeyword || '').trim();
+    if (!keyword){
+      setStatus('검색어를 입력해주세요', 'err-flash');
+      return;
+    }
+    showResultView();
+    setStatus('검색 중...', '');
+
+    // 필터 문법에 영향을 주는 특수문자는 제거
+    const safe = keyword.replace(/[,()%]/g, '');
+    let query = sb.from(VIEW_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
+
+    if (/^\d+$/.test(safe)){
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%,customer_no.eq.${safe}`);
+    } else {
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%`);
+    }
+    if (membersOnly) query = query.eq('membership', '조합원');
+
+    const { data, error } = await query;
+    if (error){
+      setStatus('검색 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '검색 중 오류가 발생했습니다.';
+      return;
+    }
+    currentMode = 'search';
+    currentKeyword = keyword;
+    currentRows = data || [];
+    countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${keyword}"${membersOnly ? ' · 조합원만' : ''})`;
+    renderTable(currentRows);
+    pagination.style.display = 'none';
+    setStatus('', '');
+  }
+
+  // ---- 변경 후 현재 보던 화면 다시 불러오기 ----
+  function refreshCurrentView(){
+    if (currentMode === 'all') return loadAllCustomers(currentPage);
+    if (currentMode === 'trash') return loadTrash(currentPage);
+    if (currentMode === 'search') return searchCustomers(currentKeyword);
+    return Promise.resolve();
+  }
+
+  function renderTable(rows){
+    tableBody.innerHTML = '';
+    customerTable.style.display = rows.length === 0 ? 'none' : 'table';
+    emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+    if (rows.length === 0){
+      emptyState.textContent = currentMode === 'trash' ? '🗑️ 휴지통이 비어 있습니다.' : '📭 조건에 맞는 고객 정보가 없습니다.';
+    }
+
+    const isTrash = currentMode === 'trash';
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+
+      if (isTrash){
+        tr.innerHTML = `
+          <td class="no-col">${row.customer_no}</td>
+          <td class="name-col">${escapeHtml(row.name)}</td>
+          <td class="info-col">
+            ${escapeHtml(row.customer_info)}
+            <div class="deleted-meta">🗑️ 삭제됨: ${fmtDate(row.deleted_at)} · ${escapeHtml(row.deleted_by || '알 수 없음')}</div>
+          </td>
+          <td class="actions-col">
+            <div class="row-actions">
+              <button class="icon-btn hist">🕘 이력</button>
+              <button class="icon-btn restore">♻️ 복구</button>
+            </div>
+          </td>`;
+
+        tr.querySelector('.hist').addEventListener('click', () => openHistory(row.customer_no, row.name));
+        tr.querySelector('.restore').addEventListener('click', async () => {
+          if (!confirm(`고객번호 ${row.customer_no} (${row.name})을(를) 복구할까요?`)) return;
+          const { data, error } = await sb
+            .from(TABLE_NAME)
+            .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+            .eq('customer_no', row.customer_no)
+            .select();
+          if (error){
+            setStatus('복구 실패: ' + error.message, 'err-flash');
+          } else if (!data || data.length === 0){
+            setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          } else {
+            setStatus(`고객번호 ${row.customer_no} 복구 완료`, 'saved-flash');
+            refreshCurrentView();
+          }
+        });
+
+        tableBody.appendChild(tr);
+        return;
+      }
+
+      tr.innerHTML = `
+        <td class="no-col">${row.customer_no}</td>
+        <td class="name-col">
+          <div class="name-cell-wrap">
+            <input type="text" class="name-input" value="${escapeHtml(row.name)}" />
+            ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
+          </div>
+        </td>
+        <td class="info-col"><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-btn hist">🕘 이력</button>
+            <button class="icon-btn save" disabled>💾 저장</button>
+            <button class="icon-btn del">🗑️ 삭제</button>
+          </div>
+        </td>`;
+
+      const nameInput = tr.querySelector('.name-input');
+      const infoInput = tr.querySelector('.info-input');
+      const saveBtn = tr.querySelector('.save');
+      const delBtn = tr.querySelector('.del');
+      const histBtn = tr.querySelector('.hist');
+      const markDirty = () => { saveBtn.disabled = false; };
+      nameInput.addEventListener('input', markDirty);
+      infoInput.addEventListener('input', () => { markDirty(); autoResize(infoInput); });
+
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ 저장중';
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ name: nameInput.value, customer_info: infoInput.value })
+          .eq('customer_no', row.customer_no)
+          .select();
+        saveBtn.textContent = '💾 저장';
+        if (error){
+          setStatus('저장 실패: ' + error.message, 'err-flash');
+          saveBtn.disabled = false;
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          saveBtn.disabled = false;
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
+          row.name = nameInput.value;
+          row.customer_info = infoInput.value;
+        }
+      });
+
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name}) 정보를 삭제할까요?\n(휴지통으로 이동하며, 나중에 복구할 수 있습니다)`)) return;
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: currentUserName })
+          .eq('customer_no', row.customer_no)
+          .select();
+        if (error){
+          setStatus('삭제 실패: ' + error.message, 'err-flash');
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 삭제 완료 (휴지통으로 이동)`, 'saved-flash');
+          // 전체를 다시 불러오지 않고, 이 행만 화면/목록에서 제거 (다른 행 편집 중인 내용 보존)
+          tr.remove();
+          currentRows = currentRows.filter(r => r.customer_no !== row.customer_no);
+          if (currentMode === 'all'){
+            totalCount = Math.max(0, totalCount - 1);
+            countLabel.textContent = `📊 총 ${totalCount}건 (전체)`;
+            updatePagination();
+          } else if (currentMode === 'search'){
+            countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${currentKeyword}")`;
+          }
+          if (currentRows.length === 0){
+            customerTable.style.display = 'none';
+            emptyState.style.display = 'block';
+            emptyState.textContent = '📭 조건에 맞는 고객 정보가 없습니다.';
+          }
+        }
+      });
+
+      histBtn.addEventListener('click', () => openHistory(row.customer_no, row.name));
+
+      tableBody.appendChild(tr);
+      autoResize(infoInput);
+    });
+  }
+
+  function runSearch(){ searchCustomers(searchBox.value); }
+  searchBtn.addEventListener('click', runSearch);
+  searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  membersOnlyBtn.addEventListener('click', () => {
+    membersOnly = !membersOnly;
+    membersOnlyBtn.classList.toggle('active', membersOnly);
+    if (currentMode === 'all') loadAllCustomers(1);
+    else if (currentMode === 'search') searchCustomers(currentKeyword);
+  });
+  showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(1); });
+  trashBtn.addEventListener('click', () => { searchBox.value = ''; loadTrash(1); });
+  resetBtn.addEventListener('click', () => {
+    searchBox.value = '';
+    membersOnly = false;
+    membersOnlyBtn.classList.remove('active');
+    showIdle();
   });
 
-  // ==================== 수정이력 ====================
-  const editHistorySearch = document.getElementById('editHistorySearch');
-  const editHistorySearchBtn = document.getElementById('editHistorySearchBtn');
-  const editHistoryAllBtn = document.getElementById('editHistoryAllBtn');
-  const editHistoryList = document.getElementById('editHistoryList');
-  const editHistoryEmpty = document.getElementById('editHistoryEmpty');
-  const editPagination = document.getElementById('editPagination');
-  const editPageIndicator = document.getElementById('editPageIndicator');
-  const editPrevBtn = document.getElementById('editPrevBtn');
-  const editNextBtn = document.getElementById('editNextBtn');
+  pageSizeSelect.value = String(pageSize);
+  pageSizeSelect.addEventListener('change', () => {
+    pageSize = Number(pageSizeSelect.value);
+    if (currentMode === 'all') loadAllCustomers(1);
+  });
+  prevPageBtn.addEventListener('click', () => { if (currentPage > 1) loadAllCustomers(currentPage - 1); });
+  nextPageBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    if (currentPage < totalPages) loadAllCustomers(currentPage + 1);
+  });
 
-  let editPage = 1;
-  const EDIT_PAGE_SIZE = 30;
-  let editTotalCount = 0;
-  let editKeyword = '';
+  // ---- 추가 모달 ----
+  function openModal(){
+    addForm.reset();
+    hintNo.style.display = 'none';
+    modalOverlay.classList.add('open');
+    setTimeout(() => inNo.focus(), 50);
+  }
+  function closeModal(){ modalOverlay.classList.remove('open'); }
 
+  // ---- 변경 이력 모달 ----
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
   const ACTION_LABEL = {
-    insert: '🆕 등록', update: '✏️ 수정', delete: '🗑️ 삭제',
-    soft_delete: '🗑️ 삭제', restore: '♻️ 복구', hard_delete: '💥 영구삭제'
+    insert: '🆕 등록',
+    update: '✏️ 수정',
+    delete: '🗑️ 삭제',
+    soft_delete: '🗑️ 삭제',
+    restore: '♻️ 복구',
+    hard_delete: '💥 영구삭제'
   };
 
-  function renderEditHistoryRow(row){
+  function renderHistoryItem(row){
+    const wrap = document.createElement('div');
+    wrap.className = 'history-item';
+
     let diffHtml = '';
     if (row.action === 'insert'){
       const d = row.new_data || {};
-      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
     } else if (row.action === 'delete' || row.action === 'soft_delete' || row.action === 'hard_delete'){
       const d = row.old_data || {};
-      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
     } else if (row.action === 'restore'){
       const d = row.new_data || {};
-      diffHtml = `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}`;
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
     } else {
       const o = row.old_data || {}, n = row.new_data || {};
       const parts = [];
-      if (o.name !== n.name) parts.push(`<span class="field-name">성명:</span> <del>${escapeHtml(o.name)}</del> <ins>${escapeHtml(n.name)}</ins>`);
-      if (o.customer_info !== n.customer_info) parts.push(`<span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins>`);
-      diffHtml = parts.join(' · ') || '변경된 값 없음';
+      if (o.name !== n.name){
+        parts.push(`<div><span class="field-name">성명:</span> <del>${escapeHtml(o.name)}</del> <ins>${escapeHtml(n.name)}</ins></div>`);
+      }
+      if (o.customer_info !== n.customer_info){
+        parts.push(`<div><span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins></div>`);
+      }
+      diffHtml = `<div class="h-diff">${parts.join('') || '<span class="h-meta">변경된 값 없음</span>'}</div>`;
     }
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td data-label="시각" style="white-space:nowrap;">${fmtDate(row.changed_at)}</td>
-      <td data-label="고객번호" style="white-space:nowrap;">🔢 ${row.customer_no}</td>
-      <td data-label="구분">${ACTION_LABEL[row.action] || row.action}</td>
-      <td data-label="변경자">${escapeHtml(row.changed_by || '알 수 없음')}</td>
-      <td data-label="내용" class="h-diff">${diffHtml}</td>
+
+    wrap.innerHTML = `
+      <div class="h-top">
+        <span class="h-action ${row.action}">${ACTION_LABEL[row.action] || row.action}</span>
+        <span class="h-meta">${fmtDate(row.changed_at)} · ${escapeHtml(row.changed_by || '알 수 없음')}</span>
+      </div>
+      ${diffHtml}
     `;
-    return tr;
+    return wrap;
   }
 
-  async function loadEditHistory(page){
-    editPage = page || 1;
-    const from = (editPage - 1) * EDIT_PAGE_SIZE;
-    const to = from + EDIT_PAGE_SIZE - 1;
+  async function openHistory(customerNo, name){
+    historyTitle.textContent = `변경 이력 - ${customerNo} (${name})`;
+    historyList.innerHTML = '<div class="h-meta">불러오는 중...</div>';
+    historyModalOverlay.classList.add('open');
 
-    let query = sb.from('customer_history').select('*', { count: 'exact' }).order('changed_at', { ascending: false }).range(from, to);
-    if (editKeyword) query = query.eq('customer_no', Number(editKeyword));
+    const { data, error } = await sb
+      .from('customer_history')
+      .select('*')
+      .eq('customer_no', customerNo)
+      .order('changed_at', { ascending: false });
 
-    const { data, error, count } = await query;
     if (error){
-      editHistoryList.innerHTML = '';
-      editHistoryEmpty.style.display = 'block';
-      editHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
-      editPagination.style.display = 'none';
+      historyList.innerHTML = `<div class="h-meta" style="color:var(--danger)">이력을 불러오지 못했습니다: ${escapeHtml(error.message)}</div>`;
       return;
     }
-    editTotalCount = count || 0;
-    editHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
-    if (data && data.length){
-      editHistoryEmpty.textContent = '검색 결과가 없습니다.';
-      const table = document.createElement('table');
-      table.innerHTML = `
-        <thead><tr><th style="width:150px;">시각</th><th style="width:90px;">고객번호</th><th style="width:90px;">구분</th><th style="width:120px;">변경자</th><th>내용</th></tr></thead>
-        <tbody></tbody>
-      `;
-      const tbody = table.querySelector('tbody');
-      data.forEach(row => tbody.appendChild(renderEditHistoryRow(row)));
-      editHistoryList.innerHTML = '';
-      editHistoryList.appendChild(table);
-    } else {
-      editHistoryList.innerHTML = '';
-    }
-
-    const totalPages = Math.max(1, Math.ceil(editTotalCount / EDIT_PAGE_SIZE));
-    editPagination.style.display = editTotalCount > 0 ? 'flex' : 'none';
-    editPageIndicator.textContent = `📄 ${editPage} / ${totalPages} 페이지`;
-    editPrevBtn.disabled = editPage <= 1;
-    editNextBtn.disabled = editPage >= totalPages;
-  }
-
-  editHistorySearchBtn.addEventListener('click', () => {
-    const kw = editHistorySearch.value.trim();
-    if (!kw || isNaN(Number(kw))){
-      editHistoryList.innerHTML = '';
-      editHistoryEmpty.style.display = 'block';
-      editHistoryEmpty.textContent = '숫자로 된 고객번호를 입력해주세요.';
-      editPagination.style.display = 'none';
+    if (!data || data.length === 0){
+      historyList.innerHTML = '<div class="h-meta">기록된 이력이 없습니다.</div>';
       return;
     }
-    editKeyword = kw;
-    loadEditHistory(1);
-  });
-  editHistorySearch.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); editHistorySearchBtn.click(); } });
-  editHistoryAllBtn.addEventListener('click', () => { editKeyword = ''; editHistorySearch.value = ''; loadEditHistory(1); });
-  editPrevBtn.addEventListener('click', () => { if (editPage > 1) loadEditHistory(editPage - 1); });
-  editNextBtn.addEventListener('click', () => {
-    const totalPages = Math.max(1, Math.ceil(editTotalCount / EDIT_PAGE_SIZE));
-    if (editPage < totalPages) loadEditHistory(editPage + 1);
-  });
-
-  // ==================== CSV 업로드 이력 ====================
-  const csvHistoryBody = document.getElementById('csvHistoryBody');
-  const csvHistoryEmpty = document.getElementById('csvHistoryEmpty');
-
-  async function loadCsvHistory(){
-    const { data, error } = await sb.from('csv_upload_history').select('*').order('created_at', { ascending: false }).limit(200);
-    csvHistoryBody.innerHTML = '';
-    if (error){
-      csvHistoryEmpty.style.display = 'block';
-      csvHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
-      return;
-    }
-    csvHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
-    (data || []).forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td data-label="시각">${fmtDate(r.created_at)}</td>
-        <td data-label="업로드한 사람">${escapeHtml(r.uploaded_by || '알 수 없음')}</td>
-        <td data-label="내용">${escapeHtml(r.file_summary || '')}</td>
-      `;
-      csvHistoryBody.appendChild(tr);
-    });
+    historyList.innerHTML = '';
+    data.forEach(row => historyList.appendChild(renderHistoryItem(row)));
   }
 
-  // ==================== 조합원 관리 ====================
-  const memberCount = document.getElementById('memberCount');
-  const memberUpdatedAt = document.getElementById('memberUpdatedAt');
-  const memberUploadBtn = document.getElementById('memberUploadBtn');
-  const memberFileInput = document.getElementById('memberFileInput');
-  const memberStatus = document.getElementById('memberStatus');
-  const memberGuideModalOverlay = document.getElementById('memberGuideModalOverlay');
-  const memberGuideTitle = document.getElementById('memberGuideTitle');
-  const memberGuideBody = document.getElementById('memberGuideBody');
-  const cancelMemberGuideBtn = document.getElementById('cancelMemberGuideBtn');
-  const proceedMemberGuideBtn = document.getElementById('proceedMemberGuideBtn');
+  function closeHistory(){ historyModalOverlay.classList.remove('open'); }
+  closeHistoryBtn.addEventListener('click', closeHistory);
+  historyModalOverlay.addEventListener('click', (e) => { if (e.target === historyModalOverlay) closeHistory(); });
 
-  const MEMBER_NO_ALIASES = ['customer_no', '고객번호', '번호', 'id'];
+  // ==================== CSV 업로드 ====================
+  const NO_ALIASES = ['customer_no', '고객번호', '번호', 'id'];
+  const NAME_ALIASES = ['name', '성명', '이름'];
+  const INFO_ALIASES = ['customer_info', '고객정보', '정보', '메모', '비고'];
 
-  function setMemberStatus(text, cls){
-    memberStatus.textContent = text;
-    memberStatus.className = 'status-line ' + (cls || '');
-  }
+  let csvParsedRows = []; // { no, name, info, status, valid }
 
-  async function loadMemberCount(){
-    const [countRes, latestRes] = await Promise.all([
-      sb.from('members').select('*', { count: 'exact', head: true }),
-      sb.from('members').select('updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle()
-    ]);
-    memberCount.textContent = countRes.error ? '오류' : (countRes.count ?? 0).toLocaleString();
-    memberUpdatedAt.textContent = (latestRes.error || !latestRes.data) ? '기록 없음' : fmtDate(latestRes.data.updated_at);
-  }
-
-  function findMemberNoColumn(headers){
+  function findColumn(headers, aliases){
     const norm = headers.map(h => (h || '').trim().toLowerCase());
-    for (const alias of MEMBER_NO_ALIASES){
+    for (const alias of aliases){
       const idx = norm.indexOf(alias.toLowerCase());
       if (idx !== -1) return idx;
     }
     return -1;
   }
 
-  // 1단계: 안내 모달
-  memberUploadBtn.addEventListener('click', () => {
-    memberGuideTitle.textContent = '🏅 조합원 명단 업로드';
-    memberGuideBody.innerHTML = `
-      <p class="sub">
-        CSV 첫 줄(헤더)에 고객번호 열이 있어야 해요: <code>customer_no</code> 또는 <code>고객번호</code> / <code>번호</code>.<br/><br/>
-        <b>주의:</b> 업로드하면 기존 조합원 명단은 전부 삭제되고, 이 CSV 내용으로 완전히 교체됩니다.
-      </p>
-    `;
-    proceedMemberGuideBtn.textContent = '📁 파일 선택하기';
-    proceedMemberGuideBtn.onclick = () => {
-      memberGuideModalOverlay.classList.remove('open');
-      memberFileInput.click();
-    };
-    memberGuideModalOverlay.classList.add('open');
+  csvUploadBtn.addEventListener('click', () => csvGuideModalOverlay.classList.add('open'));
+  cancelCsvGuideBtn.addEventListener('click', () => csvGuideModalOverlay.classList.remove('open'));
+  csvGuideModalOverlay.addEventListener('click', (e) => { if (e.target === csvGuideModalOverlay) csvGuideModalOverlay.classList.remove('open'); });
+  proceedCsvGuideBtn.addEventListener('click', () => {
+    csvGuideModalOverlay.classList.remove('open');
+    csvFileInput.click();
   });
-  cancelMemberGuideBtn.addEventListener('click', () => memberGuideModalOverlay.classList.remove('open'));
-  memberGuideModalOverlay.addEventListener('click', (e) => { if (e.target === memberGuideModalOverlay) memberGuideModalOverlay.classList.remove('open'); });
 
-  // 2단계: 파일 선택 -> 파싱 -> 확인 모달로 전환
-  memberFileInput.addEventListener('change', (e) => {
+  csvFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    memberFileInput.value = '';
     if (!file) return;
-
-    setMemberStatus('CSV 분석 중...', '');
+    csvSummary.textContent = 'CSV 파일을 분석하고 있습니다...';
+    csvTableBody.innerHTML = '';
+    csvQuickActions.style.display = 'none';
+    csvModalOverlay.classList.add('open');
 
     Papa.parse(file, {
       header: false,
       skipEmptyLines: true,
       encoding: 'UTF-8',
-      complete: (results) => {
+      complete: async (results) => {
         const rows = results.data;
         if (!rows || rows.length < 2){
-          setMemberStatus('CSV에 데이터가 없습니다.', 'err-flash');
+          csvSummary.textContent = 'CSV에 데이터가 없습니다.';
           return;
         }
         const headers = rows[0];
-        const noIdx = findMemberNoColumn(headers);
-        if (noIdx === -1){
-          setMemberStatus('고객번호 열을 찾을 수 없습니다. 헤더를 확인해주세요: ' + headers.join(', '), 'err-flash');
-          return;
-        }
-        const nos = rows.slice(1)
-          .map(r => Number((r[noIdx] || '').toString().trim()))
-          .filter(n => !isNaN(n) && n > 0);
+        const noIdx = findColumn(headers, NO_ALIASES);
+        const nameIdx = findColumn(headers, NAME_ALIASES);
+        const infoIdx = findColumn(headers, INFO_ALIASES);
 
-        if (nos.length === 0){
-          setMemberStatus('유효한 고객번호가 없습니다.', 'err-flash');
+        if (noIdx === -1 || nameIdx === -1){
+          csvSummary.innerHTML = `필수 열을 찾을 수 없습니다. 첫 줄(헤더)에 <b>고객번호</b>(customer_no)와 <b>성명</b>(name) 열이 있어야 합니다.<br/>지금 헤더: ${escapeHtml(headers.join(', '))}`;
           return;
         }
 
-        // 3단계: 최종 확인 모달
-        memberGuideTitle.textContent = '🏅 조합원 명단 교체 확인';
-        memberGuideBody.innerHTML = `
-          <p class="sub">
-            CSV에서 <b>${nos.length.toLocaleString()}건</b>의 고객번호를 찾았습니다.<br/><br/>
-            <b>확인을 누르면 기존 조합원 명단은 전부 삭제되고, 이 ${nos.length.toLocaleString()}건으로 완전히 교체됩니다.</b><br/>
-            되돌릴 수 없으니 신중히 진행해주세요.
-          </p>
-        `;
-        proceedMemberGuideBtn.textContent = '✅ 교체 확정';
-        proceedMemberGuideBtn.onclick = async () => {
-          proceedMemberGuideBtn.disabled = true;
-          proceedMemberGuideBtn.textContent = '⏳ 처리 중...';
-          const { data, error } = await sb.rpc('replace_all_members', { p_customer_nos: nos });
-          proceedMemberGuideBtn.disabled = false;
-          proceedMemberGuideBtn.textContent = '✅ 교체 확정';
-          if (error){
-            setMemberStatus('교체 실패: ' + error.message, 'err-flash');
-            return;
-          }
-          memberGuideModalOverlay.classList.remove('open');
-          setMemberStatus(`조합원 명단 교체 완료 (${data ?? nos.length}건)`, 'saved-flash');
-          loadMemberCount();
-        };
-        memberGuideModalOverlay.classList.add('open');
-        setMemberStatus('', '');
+        const parsed = rows.slice(1).map(r => {
+          const noRaw = (r[noIdx] || '').toString().trim();
+          const name = (r[nameIdx] || '').toString().trim();
+          const info = infoIdx !== -1 ? (r[infoIdx] || '').toString().trim() : '';
+          const no = Number(noRaw);
+          const valid = noRaw !== '' && !isNaN(no) && name !== '';
+          return { no: valid ? no : noRaw, name, info, valid, status: 'unknown' };
+        });
+
+        await matchAgainstDb(parsed);
       },
-      error: (err) => setMemberStatus('CSV 파싱 실패: ' + err.message, 'err-flash')
+      error: (err) => {
+        csvSummary.textContent = 'CSV 파싱 실패: ' + err.message;
+      }
     });
+
+    csvFileInput.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
   });
 
-  // ---- 시작: 세션 확인 ----
+  async function matchAgainstDb(parsed){
+    csvSummary.textContent = '기존 데이터와 대조하는 중...';
+    const validNos = [...new Set(parsed.filter(r => r.valid).map(r => r.no))];
+
+    // 너무 많으면 나눠서 조회 (URL 길이/요청 크기 안전)
+    const existingMap = new Map();
+    const CHUNK = 300;
+    for (let i = 0; i < validNos.length; i += CHUNK){
+      const chunk = validNos.slice(i, i + CHUNK);
+      const { data, error } = await sb
+        .from(TABLE_NAME)
+        .select('customer_no, name, customer_info, is_deleted')
+        .in('customer_no', chunk);
+      if (error){
+        csvSummary.textContent = '기존 데이터 조회 실패: ' + error.message;
+        return;
+      }
+      (data || []).forEach(row => existingMap.set(row.customer_no, row));
+    }
+
+    csvParsedRows = parsed.map(r => {
+      if (!r.valid) return { ...r, status: 'invalid', existing: null };
+      const existing = existingMap.get(r.no);
+      if (!existing) return { ...r, status: 'new', existing: null };
+      if (existing.is_deleted) return { ...r, status: 'trash', existing };
+      return { ...r, status: 'dup', existing };
+    });
+
+    renderCsvPreview();
+  }
+
+  function csvBadge(status){
+    const map = {
+      new: ['new', '🆕 신규'],
+      dup: ['dup', '🔁 중복'],
+      trash: ['trash', '🗑️ 휴지통'],
+      invalid: ['invalid', '⚠️ 오류']
+    };
+    const [cls, label] = map[status] || ['invalid', status];
+    return `<span class="csv-badge ${cls}">${label}</span>`;
+  }
+
+  function renderCsvPreview(){
+    const newCount = csvParsedRows.filter(r => r.status === 'new').length;
+    const dupCount = csvParsedRows.filter(r => r.status === 'dup').length;
+    const trashCount = csvParsedRows.filter(r => r.status === 'trash').length;
+    const invalidCount = csvParsedRows.filter(r => r.status === 'invalid').length;
+
+    csvSummary.innerHTML =
+      `총 ${csvParsedRows.length}건 — 신규 ${newCount}건, 기존 중복 ${dupCount}건, 휴지통 중복 ${trashCount}건` +
+      (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명 누락, 자동 제외)</span>` : '');
+
+    csvQuickActions.style.display = (dupCount + trashCount) > 0 ? 'flex' : 'none';
+
+    csvTableBody.innerHTML = '';
+    csvParsedRows.forEach((row, idx) => {
+      if (row.status === 'invalid') return; // 화면 목록이 너무 길어지지 않도록 오류 건은 요약 문구로만 안내
+      const tr = document.createElement('tr');
+      const checked = row.status === 'new' ? 'checked' : '';
+      const oldValHtml = row.existing
+        ? `<div class="csv-old-val">기존: ${escapeHtml(row.existing.name)} / ${escapeHtml(row.existing.customer_info || '')}</div>`
+        : '';
+      const isDupLike = (row.status === 'dup' || row.status === 'trash');
+      const modeRadiosHtml = isDupLike ? `
+        <div class="csv-mode-radios">
+          <label><input type="radio" name="csvMode_${idx}" value="append" checked /> 🔗 이어붙이기</label>
+          <label><input type="radio" name="csvMode_${idx}" value="overwrite" /> 🔄 덮어쓰기</label>
+        </div>` : '';
+      tr.innerHTML = `
+        <td><input type="checkbox" class="csv-row-check" data-idx="${idx}" ${checked} /></td>
+        <td class="csv-no">${escapeHtml(String(row.no))}</td>
+        <td>
+          <div class="csv-new-val">${escapeHtml(row.name)} / ${escapeHtml(row.info)}</div>
+          ${oldValHtml}
+        </td>
+        <td>${csvBadge(row.status)}${modeRadiosHtml}</td>
+      `;
+      csvTableBody.appendChild(tr);
+    });
+  }
+
+  csvSelectAllDup.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('.csv-row-check').forEach(cb => {
+      const row = csvParsedRows[Number(cb.dataset.idx)];
+      if (row.status === 'dup' || row.status === 'trash') cb.checked = true;
+    });
+  });
+  csvDeselectAllDup.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('.csv-row-check').forEach(cb => {
+      const row = csvParsedRows[Number(cb.dataset.idx)];
+      if (row.status === 'dup' || row.status === 'trash') cb.checked = false;
+    });
+  });
+  csvSetAllAppend.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('input[value="append"]').forEach(radio => { radio.checked = true; });
+  });
+  csvSetAllOverwrite.addEventListener('click', () => {
+    csvTableBody.querySelectorAll('input[value="overwrite"]').forEach(radio => { radio.checked = true; });
+  });
+
+  function closeCsvModal(){
+    csvModalOverlay.classList.remove('open');
+    csvParsedRows = [];
+    csvTableBody.innerHTML = '';
+  }
+  cancelCsvBtn.addEventListener('click', closeCsvModal);
+  csvModalOverlay.addEventListener('click', (e) => { if (e.target === csvModalOverlay) closeCsvModal(); });
+
+  applyCsvBtn.addEventListener('click', async () => {
+    const checkedIdx = new Set();
+    csvTableBody.querySelectorAll('.csv-row-check:checked').forEach(cb => checkedIdx.add(Number(cb.dataset.idx)));
+
+    const toInsert = [];
+    const toUpsert = [];
+    csvParsedRows.forEach((row, idx) => {
+      if (!checkedIdx.has(idx)) return;
+      if (row.status === 'new'){
+        toInsert.push({ customer_no: row.no, name: row.name, customer_info: row.info });
+      } else if (row.status === 'dup' || row.status === 'trash'){
+        const modeEl = document.querySelector(`input[name="csvMode_${idx}"]:checked`);
+        const rowMode = modeEl ? modeEl.value : 'append';
+        let finalInfo = row.info;
+        if (rowMode === 'append' && row.existing && row.existing.customer_info){
+          finalInfo = row.existing.customer_info + ' / ' + row.info;
+        }
+        toUpsert.push({ customer_no: row.no, name: row.name, customer_info: finalInfo, is_deleted: false, deleted_at: null, deleted_by: null });
+      }
+    });
+
+    if (toInsert.length === 0 && toUpsert.length === 0){
+      setStatus('적용할 항목을 선택해주세요', 'err-flash');
+      return;
+    }
+
+    applyCsvBtn.disabled = true;
+    applyCsvBtn.textContent = '⏳ 적용 중...';
+
+    let insertedCount = 0, upsertedCount = 0;
+    const errors = [];
+    const BATCH = 300;
+
+    for (let i = 0; i < toInsert.length; i += BATCH){
+      const batch = toInsert.slice(i, i + BATCH);
+      const { error, count } = await sb.from(TABLE_NAME).insert(batch);
+      if (error) errors.push(`신규 등록 중 오류: ${error.message}`);
+      else insertedCount += batch.length;
+    }
+    for (let i = 0; i < toUpsert.length; i += BATCH){
+      const batch = toUpsert.slice(i, i + BATCH);
+      const { error } = await sb.from(TABLE_NAME).upsert(batch, { onConflict: 'customer_no' });
+      if (error) errors.push(`갱신 중 오류: ${error.message}`);
+      else upsertedCount += batch.length;
+    }
+
+    applyCsvBtn.disabled = false;
+    applyCsvBtn.textContent = '✅ 선택 항목 적용';
+
+    if (errors.length){
+      setStatus(`일부 실패: ${errors.join(' / ')}`, 'err-flash');
+    } else {
+      setStatus(`CSV 적용 완료 — 신규 ${insertedCount}건, 갱신 ${upsertedCount}건`, 'saved-flash');
+      const { error: csvLogErr } = await sb.rpc('log_csv_upload', {
+        p_inserted: insertedCount,
+        p_updated: upsertedCount,
+        p_summary: `신규 ${insertedCount}건, 갱신 ${upsertedCount}건`
+      });
+      if (csvLogErr) console.error('log_csv_upload 오류:', csvLogErr);
+    }
+
+    closeCsvModal();
+    if (currentMode === 'none') showIdle();
+    else await refreshCurrentView();
+  });
+
+  openAddBtn.addEventListener('click', openModal);
+  cancelAddBtn.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+  inNo.addEventListener('blur', async () => {
+    hintNo.style.display = 'none';
+    const no = Number(inNo.value);
+    if (!no) return;
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, is_deleted').eq('customer_no', no).maybeSingle();
+    if (dup){
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
+      hintNo.style.display = 'block';
+    }
+  });
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hintNo.style.display = 'none';
+
+    const no = Number(inNo.value);
+    const name = inName.value.trim();
+    const info = inInfo.value.trim();
+
+    if (!no || !name){
+      setStatus('고객번호와 성명은 필수입니다', 'err-flash');
+      return;
+    }
+
+    submitAddBtn.disabled = true;
+    submitAddBtn.textContent = '⏳ 확인 중...';
+
+    const { data: dup, error: dupError } = await sb
+      .from(TABLE_NAME)
+      .select('customer_no, is_deleted')
+      .eq('customer_no', no)
+      .maybeSingle();
+
+    if (dupError){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '➕ 추가';
+      setStatus('중복 확인 실패: ' + dupError.message, 'err-flash');
+      return;
+    }
+    if (dup){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '➕ 추가';
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
+      hintNo.style.display = 'block';
+      inNo.focus();
+      return;
+    }
+
+    submitAddBtn.textContent = '⏳ 추가 중...';
+
+    const { data, error } = await sb
+      .from(TABLE_NAME)
+      .insert({ customer_no: no, name, customer_info: info })
+      .select();
+
+    submitAddBtn.disabled = false;
+    submitAddBtn.textContent = '➕ 추가';
+
+    if (error){
+      if (error.code === '23505'){
+        hintNo.style.display = 'block';
+        inNo.focus();
+      } else {
+        setStatus('추가 실패: ' + error.message, 'err-flash');
+      }
+      return;
+    }
+    closeModal();
+    if (currentMode === 'none'){
+      showIdle();
+    } else {
+      await refreshCurrentView();
+    }
+    setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
+  });
+
+  // ---- 시작: 세션 확인 (기존 세션 복원이므로 접속이력에는 기록 안 함) ----
   sb.auth.getSession().then(({ data: { session } }) => {
-    if (session) handleSession(session); else showLogin();
+    if (session) handleSession(session, false); else showLogin();
   });
 </script>
 </body>
