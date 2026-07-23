@@ -92,6 +92,27 @@
 
   .section-title{ font-size:14px; font-weight:700; margin:24px 0 10px; }
 
+  .chart-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px 20px 10px; margin-bottom:8px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:8px;
+    height:140px;
+  }
+  .chart-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
+  .chart-bar{
+    width:60%; max-width:36px; background:var(--accent); border-radius:5px 5px 0 0;
+    transition:height .2s; min-height:2px;
+  }
+  .chart-bar-count{ font-size:11px; color:var(--ink); font-weight:700; margin-bottom:3px; }
+  .chart-bar-label{ font-size:10.5px; color:var(--muted); margin-top:6px; white-space:nowrap; }
+
+  .recent-edit-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:10px 14px; margin-bottom:8px; font-size:12.5px;
+  }
+  .recent-edit-item .re-top{ display:flex; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .recent-edit-item .re-meta{ color:var(--muted); font-size:11.5px; }
+
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
@@ -183,6 +204,10 @@
     }
     .tab-btn{ flex:0 0 auto; padding:10px 12px; font-size:12.5px; white-space:nowrap; }
 
+    .chart-card{ height:120px; padding:16px 12px 8px; }
+    .chart-bar-label{ font-size:9.5px; }
+    .recent-edit-item .re-top{ flex-direction:column; gap:2px; }
+
     .page-title{ font-size:17px; }
     .stat-grid{ grid-template-columns:1fr 1fr; gap:10px; }
     .stat-card{ padding:14px 14px; }
@@ -273,6 +298,17 @@
         <div class="stat-grid" id="statGrid">
           <div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>
         </div>
+
+        <div class="section-title">📈 최근 7일 일별 변경 건수</div>
+        <div class="chart-card" id="trendChart">
+          <div class="empty-note">불러오는 중...</div>
+        </div>
+
+        <div class="section-title">🕘 최근 수정이력 (5건)</div>
+        <div id="recentEditList">
+          <div class="empty-note">불러오는 중...</div>
+        </div>
+
         <div class="section-title">🏅 사용자별 변경 건수 (최근 2000건 기준)</div>
         <table>
           <thead><tr><th>이름</th><th style="width:120px;">변경 건수</th></tr></thead>
@@ -524,26 +560,92 @@
   // ==================== 대시보드 ====================
   const statGrid = document.getElementById('statGrid');
   const activityBody = document.getElementById('activityBody');
+  const trendChart = document.getElementById('trendChart');
+  const recentEditList = document.getElementById('recentEditList');
+
+  function dayRangeIso(offsetDays){
+    // offsetDays: 0 = 오늘, 1 = 어제 ... (브라우저 로컬 시간 기준 하루 범위)
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - offsetDays);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { startIso: start.toISOString(), endIso: end.toISOString(), start };
+  }
 
   async function loadDashboard(){
     statGrid.innerHTML = '<div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>';
+    trendChart.innerHTML = '<div class="empty-note">불러오는 중...</div>';
+    recentEditList.innerHTML = '<div class="empty-note">불러오는 중...</div>';
 
-    const [customersRes, trashRes, usersRes, historyRes] = await Promise.all([
+    const today = dayRangeIso(0);
+
+    const [customersRes, trashRes, usersRes, historyRes, todayRes, recentEditRes] = await Promise.all([
       sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
       sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', true),
       sb.from('allowed_emails').select('*', { count: 'exact', head: true }),
-      sb.from('customer_history').select('changed_by').order('changed_at', { ascending: false }).limit(2000)
+      sb.from('customer_history').select('changed_by').order('changed_at', { ascending: false }).limit(2000),
+      sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', today.startIso).lt('changed_at', today.endIso),
+      sb.from('customer_history').select('*').order('changed_at', { ascending: false }).limit(5)
     ]);
 
     const customerCount = customersRes.count ?? 0;
     const trashCount = trashRes.count ?? 0;
     const userCount = usersRes.count ?? 0;
+    const todayCount = todayRes.count ?? 0;
 
     statGrid.innerHTML = `
       <div class="stat-card"><div class="num">${customerCount.toLocaleString()}</div><div class="label">📇 활성 고객 수</div></div>
       <div class="stat-card"><div class="num">${trashCount.toLocaleString()}</div><div class="label">🗑️ 휴지통 고객 수</div></div>
       <div class="stat-card"><div class="num">${userCount.toLocaleString()}</div><div class="label">👤 등록된 사용자 수</div></div>
+      <div class="stat-card"><div class="num">${todayCount.toLocaleString()}</div><div class="label">📅 오늘 활동 건수</div></div>
     `;
+
+    // ---- 최근 7일 일별 변경 건수 (7건의 count 쿼리를 병렬 실행) ----
+    const dayDefs = [];
+    for (let i = 6; i >= 0; i--) dayDefs.push(dayRangeIso(i));
+    const dayCountsRes = await Promise.all(
+      dayDefs.map(d => sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', d.startIso).lt('changed_at', d.endIso))
+    );
+    const maxCount = Math.max(1, ...dayCountsRes.map(r => r.count ?? 0));
+    trendChart.innerHTML = '';
+    dayDefs.forEach((d, idx) => {
+      const c = dayCountsRes[idx].count ?? 0;
+      const heightPct = Math.round((c / maxCount) * 100);
+      const label = d.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+      const col = document.createElement('div');
+      col.className = 'chart-bar-col';
+      col.innerHTML = `
+        <div class="chart-bar-count">${c}</div>
+        <div class="chart-bar" style="height:${Math.max(heightPct, c > 0 ? 4 : 0)}%;"></div>
+        <div class="chart-bar-label">${escapeHtml(label)}</div>
+      `;
+      trendChart.appendChild(col);
+    });
+
+    // ---- 최근 수정이력 5건 미리보기 ----
+    recentEditList.innerHTML = '';
+    if (recentEditRes.data && recentEditRes.data.length){
+      recentEditRes.data.forEach(row => {
+        const div = document.createElement('div');
+        div.className = 'recent-edit-item';
+        const actionLabel = ACTION_LABEL[row.action] || row.action;
+        let summary = '';
+        if (row.action === 'insert') summary = escapeHtml((row.new_data || {}).name || '');
+        else if (row.action === 'restore') summary = escapeHtml((row.new_data || {}).name || '');
+        else summary = escapeHtml((row.old_data || row.new_data || {}).name || '');
+        div.innerHTML = `
+          <div class="re-top">
+            <span>${actionLabel} · 🔢 ${row.customer_no} ${summary ? '(' + summary + ')' : ''}</span>
+            <span class="re-meta">${fmtDate(row.changed_at)}</span>
+          </div>
+          <div class="re-meta">${escapeHtml(row.changed_by || '알 수 없음')}</div>
+        `;
+        recentEditList.appendChild(div);
+      });
+    } else {
+      recentEditList.innerHTML = '<div class="empty-note">기록이 없습니다.</div>';
+    }
 
     activityBody.innerHTML = '';
     if (historyRes.data && historyRes.data.length){
