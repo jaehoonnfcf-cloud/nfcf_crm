@@ -422,21 +422,28 @@
         <h1 class="page-title">🙋 담당자/접점활동</h1>
         <p class="page-sub">직원별 담당 고객 현황과 전체 접점 활동 기록입니다.</p>
 
-        <div class="section-title">👤 담당자별 고객 수</div>
+        <div class="section-title">👤 담당자별 고객 수 <span style="font-weight:400; font-size:12px; color:var(--muted);">(이름을 클릭하면 담당 고객 목록이 보여요)</span></div>
         <table>
           <thead><tr><th>담당자</th><th style="width:120px;">담당 고객 수</th></tr></thead>
           <tbody id="assignSummaryBody"></tbody>
         </table>
         <div class="empty-note" id="assignSummaryEmpty" style="display:none;">담당자가 배정된 고객이 없습니다.</div>
 
+        <div class="section-title" id="assignedCustomersTitle" style="display:none;"></div>
+        <table id="assignedCustomersTable" style="display:none;">
+          <thead><tr><th style="width:110px;">고객번호</th><th>성명</th><th style="width:90px;">조합원</th></tr></thead>
+          <tbody id="assignedCustomersBody"></tbody>
+        </table>
+        <div class="empty-note" id="assignedCustomersEmpty" style="display:none;"></div>
+
         <div class="section-title">🤝 전체 접점 활동 로그</div>
         <div class="toolbar">
-          <input type="text" id="activitySearch" placeholder="고객번호로 검색" />
+          <input type="text" id="activitySearch" placeholder="고객번호 또는 성명 검색" />
           <button class="btn" id="activitySearchBtn">🔍 검색</button>
           <button class="btn-outline" id="activityAllBtn">📋 전체 보기</button>
         </div>
         <table>
-          <thead><tr><th style="width:150px;">일자</th><th style="width:90px;">고객번호</th><th style="width:110px;">유형</th><th style="width:120px;">담당자</th><th>내용</th></tr></thead>
+          <thead><tr><th style="width:150px;">일자</th><th style="width:140px;">고객</th><th style="width:110px;">유형</th><th style="width:120px;">담당자</th><th>내용</th></tr></thead>
           <tbody id="activityLogBody"></tbody>
         </table>
         <div class="empty-note" id="activityLogEmpty" style="display:none;">검색어를 입력하거나 "전체 보기"를 눌러주세요.</div>
@@ -572,12 +579,21 @@
     deniedScreen.style.display = 'flex';
     app.style.display = 'none';
   }
+  let userNameMap = {}; // email -> name (이력 diff, 담당자 표시 등에서 재사용)
+  async function loadUserNameMap(){
+    const { data } = await sb.from('allowed_emails').select('email, name');
+    const map = {};
+    (data || []).forEach(u => { map[u.email] = u.name || u.email; });
+    userNameMap = map;
+  }
+
   async function showApp(session){
     loginScreen.style.display = 'none';
     deniedScreen.style.display = 'none';
     app.style.display = 'block';
     const { data: name } = await sb.rpc('current_user_name');
     userEmail.textContent = name || session.user.email;
+    loadUserNameMap();
     loadDashboard();
   }
 
@@ -904,6 +920,11 @@
     soft_delete: '🗑️ 삭제', restore: '♻️ 복구', hard_delete: '💥 영구삭제'
   };
 
+  function displayAssignee(email){
+    if (!email) return '미배정';
+    return userNameMap[email] || email;
+  }
+
   function buildDiffHtml(row){
     if (row.action === 'insert'){
       const d = row.new_data || {};
@@ -919,6 +940,7 @@
       const parts = [];
       if (o.name !== n.name) parts.push(`<span class="field-name">성명:</span> <del>${escapeHtml(o.name)}</del> <ins>${escapeHtml(n.name)}</ins>`);
       if (o.customer_info !== n.customer_info) parts.push(`<span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins>`);
+      if (o.assigned_to !== n.assigned_to) parts.push(`<span class="field-name">담당자:</span> <del>${escapeHtml(displayAssignee(o.assigned_to))}</del> <ins>${escapeHtml(displayAssignee(n.assigned_to))}</ins>`);
       return parts.join(' · ') || '변경된 값 없음';
     }
   }
@@ -1170,6 +1192,7 @@
     }
     const nameMap = {};
     (usersRes.data || []).forEach(u => { nameMap[u.email] = u.name || u.email; });
+    userNameMap = nameMap; // 이력 diff 등에서도 재사용
 
     const counts = {};
     (custRes.data || []).forEach(r => {
@@ -1181,8 +1204,53 @@
     assignSummaryEmpty.style.display = sorted.length === 0 ? 'block' : 'none';
     sorted.forEach(([email, count]) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td data-label="담당자">${escapeHtml(nameMap[email] || email)}</td><td data-label="담당 고객 수">${count.toLocaleString()}건</td>`;
+      tr.style.cursor = 'pointer';
+      tr.innerHTML = `<td data-label="담당자" style="color:var(--accent); font-weight:600;">${escapeHtml(nameMap[email] || email)}</td><td data-label="담당 고객 수">${count.toLocaleString()}건</td>`;
+      tr.addEventListener('click', () => loadAssignedCustomers(email, nameMap[email] || email));
       assignSummaryBody.appendChild(tr);
+    });
+  }
+
+  async function loadAssignedCustomers(email, name){
+    const title = document.getElementById('assignedCustomersTitle');
+    const table = document.getElementById('assignedCustomersTable');
+    const body = document.getElementById('assignedCustomersBody');
+    const empty = document.getElementById('assignedCustomersEmpty');
+
+    title.style.display = 'block';
+    title.textContent = `🙋 ${name}님 담당 고객 목록`;
+    empty.style.display = 'none';
+    table.style.display = 'table';
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--muted);">불러오는 중...</td></tr>';
+
+    const { data, error } = await sb
+      .from('customers_with_membership')
+      .select('*')
+      .eq('assigned_to', email)
+      .order('customer_no', { ascending: true })
+      .limit(1000);
+
+    if (error){
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      empty.textContent = '불러오기 실패: ' + error.message;
+      return;
+    }
+    if (!data || data.length === 0){
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      empty.textContent = '담당 고객이 없습니다.';
+      return;
+    }
+    body.innerHTML = '';
+    data.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td data-label="고객번호">🔢 ${r.customer_no}</td>
+        <td data-label="성명">${escapeHtml(r.name)}</td>
+        <td data-label="조합원">${r.membership === '조합원' ? '🏅' : ''}</td>
+      `;
+      body.appendChild(tr);
     });
   }
 
@@ -1191,8 +1259,36 @@
     const from = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
     const to = from + ACTIVITY_PAGE_SIZE - 1;
 
+    let matchedNos = null;
+    if (activityKeyword){
+      const kw = activityKeyword.replace(/[,()%]/g, '');
+      let custQuery = sb.from('customers').select('customer_no');
+      if (/^\d+$/.test(kw)){
+        custQuery = custQuery.or(`customer_no.eq.${kw},name.ilike.%${kw}%`);
+      } else {
+        custQuery = custQuery.ilike('name', `%${kw}%`);
+      }
+      const { data: custMatches, error: custErr } = await custQuery;
+      if (custErr){
+        activityLogBody.innerHTML = '';
+        activityLogEmpty.style.display = 'block';
+        activityLogEmpty.textContent = '검색 실패: ' + custErr.message;
+        activityPagination.style.display = 'none';
+        return;
+      }
+      matchedNos = (custMatches || []).map(c => c.customer_no);
+      if (matchedNos.length === 0){
+        activityLogBody.innerHTML = '';
+        activityLogEmpty.style.display = 'block';
+        activityLogEmpty.textContent = '검색 결과가 없습니다.';
+        activityPagination.style.display = 'none';
+        activityTotalCount = 0;
+        return;
+      }
+    }
+
     let query = sb.from('customer_activities').select('*', { count: 'exact' }).order('activity_date', { ascending: false }).order('created_at', { ascending: false }).range(from, to);
-    if (activityKeyword) query = query.eq('customer_no', Number(activityKeyword));
+    if (matchedNos) query = query.in('customer_no', matchedNos);
 
     const { data, error, count } = await query;
     activityLogBody.innerHTML = '';
@@ -1205,11 +1301,21 @@
     activityTotalCount = count || 0;
     activityLogEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
     activityLogEmpty.textContent = activityKeyword ? '검색 결과가 없습니다.' : '기록된 접점 활동이 없습니다.';
+
+    // 화면에 보이는 활동들의 고객명도 같이 조회해서 표시
+    const nosOnPage = [...new Set((data || []).map(r => r.customer_no))];
+    let nameByNo = {};
+    if (nosOnPage.length){
+      const { data: custNames } = await sb.from('customers').select('customer_no, name').in('customer_no', nosOnPage);
+      (custNames || []).forEach(c => { nameByNo[c.customer_no] = c.name; });
+    }
+
     (data || []).forEach(r => {
       const tr = document.createElement('tr');
+      const custLabel = `🔢 ${r.customer_no}${nameByNo[r.customer_no] ? ' (' + escapeHtml(nameByNo[r.customer_no]) + ')' : ''}`;
       tr.innerHTML = `
         <td data-label="일자">${escapeHtml(r.activity_date)}</td>
-        <td data-label="고객번호">🔢 ${r.customer_no}</td>
+        <td data-label="고객">${custLabel}</td>
         <td data-label="유형">${escapeHtml(r.activity_type)}</td>
         <td data-label="담당자">${escapeHtml(r.created_by || '알 수 없음')}</td>
         <td data-label="내용">${escapeHtml(r.content || '')}</td>
@@ -1226,10 +1332,10 @@
 
   activitySearchBtn.addEventListener('click', () => {
     const kw = activitySearch.value.trim();
-    if (!kw || isNaN(Number(kw))){
+    if (!kw){
       activityLogBody.innerHTML = '';
       activityLogEmpty.style.display = 'block';
-      activityLogEmpty.textContent = '숫자로 된 고객번호를 입력해주세요.';
+      activityLogEmpty.textContent = '검색어를 입력해주세요.';
       activityPagination.style.display = 'none';
       return;
     }
