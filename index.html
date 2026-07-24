@@ -1276,6 +1276,12 @@
     hard_delete: '💥 영구삭제'
   };
 
+  function displayAssigneeName(email){
+    if (!email) return '미배정';
+    const u = directoryUsers.find(x => x.email === email);
+    return u ? (u.name || u.email) : email;
+  }
+
   function renderHistoryItem(row){
     const wrap = document.createElement('div');
     wrap.className = 'history-item';
@@ -1307,6 +1313,9 @@
       }
       if (o.customer_info !== n.customer_info){
         parts.push(`<div><span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins></div>`);
+      }
+      if (o.assigned_to !== n.assigned_to){
+        parts.push(`<div><span class="field-name">담당자:</span> <del>${escapeHtml(displayAssigneeName(o.assigned_to))}</del> <ins>${escapeHtml(displayAssigneeName(n.assigned_to))}</ins></div>`);
       }
       diffHtml = `<div class="h-diff">${parts.join('') || '<span class="h-meta">변경된 값 없음</span>'}</div>`;
     }
