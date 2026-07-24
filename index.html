@@ -308,7 +308,7 @@
 
     header{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
     .brand h2{ font-size:14.5px; }
-    .user-box{ gap:8px; font-size:12px; }
+    .user-box{ gap:8px; font-size:12px; flex-wrap:wrap; justify-content:flex-end; }
     .user-box span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
     main{ padding:18px 14px 40px; }
@@ -399,6 +399,7 @@
       </div>
       <div class="user-box">
         <span id="userEmail"></span>
+        <a href="manual.html" class="signout-btn" style="text-decoration:none;">📖 사용설명서</a>
         <a href="admin.html" class="signout-btn" id="adminLinkBtn" style="display:none; text-decoration:none;">⚙️ 관리자</a>
         <button class="signout-btn" id="signOutBtn">🚪 로그아웃</button>
       </div>
