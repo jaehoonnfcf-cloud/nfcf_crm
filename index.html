@@ -90,6 +90,22 @@
   .page-head h1{ font-size:20px; margin:0; letter-spacing:-0.01em; }
   .page-head .count{ font-size:13px; color:var(--muted); margin-left:8px; font-weight:400; }
 
+  .greeting-row{ margin-bottom:16px; }
+  .greeting-title{ font-size:18px; font-weight:600; margin:0 0 4px; letter-spacing:-0.01em; }
+  .greeting-sub{ font-size:13px; color:var(--muted); margin:0; }
+
+  .personal-stats{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:12px; margin-bottom:28px;
+  }
+  .pstat-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px;
+  }
+  .pstat-label{ font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .pstat-num{ font-size:24px; font-weight:700; color:var(--ink); }
+  .pstat-card.streak .pstat-num{ color:#a3690f; }
+
   .toolbar{ display:flex; gap:10px; align-items:center; }
   .toolbar input[type=text]{
     padding:8px 12px; border:1px solid var(--line); border-radius:8px;
@@ -289,6 +305,10 @@
 
     .page-head{ flex-direction:column; align-items:stretch; gap:10px; }
     .page-head h1{ font-size:17px; }
+    .greeting-title{ font-size:16px; }
+    .personal-stats{ grid-template-columns:repeat(2, 1fr); gap:8px; margin-bottom:20px; }
+    .pstat-card{ padding:12px 14px; }
+    .pstat-num{ font-size:19px; }
 
     .toolbar{ flex-wrap:wrap; gap:8px; }
     .toolbar input[type=text]{ flex:1 1 100%; width:auto; order:1; }
@@ -373,6 +393,32 @@
     </header>
 
     <main>
+      <div class="greeting-row">
+        <div>
+          <p class="greeting-title" id="greetingTitle">안녕하세요 👋</p>
+          <p class="greeting-sub">오늘의 활동 현황이에요</p>
+        </div>
+      </div>
+
+      <div class="personal-stats" id="personalStats">
+        <div class="pstat-card">
+          <div class="pstat-label">🆕 오늘 등록</div>
+          <div class="pstat-num" id="pstatInsert">-</div>
+        </div>
+        <div class="pstat-card">
+          <div class="pstat-label">✏️ 오늘 수정</div>
+          <div class="pstat-num" id="pstatUpdate">-</div>
+        </div>
+        <div class="pstat-card">
+          <div class="pstat-label">📊 이번 주 누적</div>
+          <div class="pstat-num" id="pstatWeek">-</div>
+        </div>
+        <div class="pstat-card streak">
+          <div class="pstat-label">🔥 연속 활동일</div>
+          <div class="pstat-num" id="pstatStreak">-</div>
+        </div>
+      </div>
+
       <div class="page-head">
         <h1>🗂️ 고객 목록 <span class="count" id="countLabel"></span></h1>
         <div class="toolbar">
@@ -541,6 +587,11 @@
   const loginError = document.getElementById('loginError');
   const signOutBtn = document.getElementById('signOutBtn');
   const adminLinkBtn = document.getElementById('adminLinkBtn');
+  const greetingTitle = document.getElementById('greetingTitle');
+  const pstatInsert = document.getElementById('pstatInsert');
+  const pstatUpdate = document.getElementById('pstatUpdate');
+  const pstatWeek = document.getElementById('pstatWeek');
+  const pstatStreak = document.getElementById('pstatStreak');
   const userEmail = document.getElementById('userEmail');
 
   const tableBody = document.getElementById('tableBody');
@@ -669,11 +720,13 @@
     const { data: name } = await sb.rpc('current_user_name');
     currentUserName = name || session.user.email;
     userEmail.textContent = currentUserName;
+    greetingTitle.textContent = `안녕하세요, ${currentUserName}님 👋`;
 
     const { data: admin } = await sb.rpc('is_admin');
     adminLinkBtn.style.display = admin ? 'inline-flex' : 'none';
 
     showIdle();
+    loadPersonalStats();
   }
 
   function setStatus(text, cls){
@@ -688,6 +741,71 @@
       el.style.height = 'auto';
       el.style.height = el.scrollHeight + 'px';
     });
+  }
+
+  // ---- 개인 활동 통계 ----
+  function dayKey(d){
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dayRange(offsetDays){
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - offsetDays);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { startIso: start.toISOString(), endIso: end.toISOString() };
+  }
+  function weekStartIso(){
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay(); // 0=일 ... 6=토
+    const diffToMonday = (day === 0 ? 6 : day - 1);
+    d.setDate(d.getDate() - diffToMonday);
+    return d.toISOString();
+  }
+  function computeStreak(dateKeySet){
+    let cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    if (!dateKeySet.has(dayKey(cursor))){
+      cursor.setDate(cursor.getDate() - 1); // 오늘 활동이 없으면 어제부터 확인
+    }
+    let streak = 0;
+    while (dateKeySet.has(dayKey(cursor))){
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  async function loadPersonalStats(){
+    if (!currentUserName) return;
+    const today = dayRange(0);
+    const weekStart = weekStartIso();
+    const streakLookback = new Date();
+    streakLookback.setDate(streakLookback.getDate() - 60);
+
+    const [insertRes, updateRes, weekRes, streakRes] = await Promise.all([
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName).eq('action', 'insert')
+        .gte('changed_at', today.startIso).lt('changed_at', today.endIso),
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName).eq('action', 'update')
+        .gte('changed_at', today.startIso).lt('changed_at', today.endIso),
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName)
+        .gte('changed_at', weekStart),
+      sb.from('customer_history').select('changed_at')
+        .eq('changed_by', currentUserName)
+        .gte('changed_at', streakLookback.toISOString())
+    ]);
+
+    pstatInsert.textContent = `${(insertRes.count ?? 0).toLocaleString()}건`;
+    pstatUpdate.textContent = `${(updateRes.count ?? 0).toLocaleString()}건`;
+    pstatWeek.textContent = `${(weekRes.count ?? 0).toLocaleString()}건`;
+
+    const dateSet = new Set((streakRes.data || []).map(r => dayKey(new Date(r.changed_at))));
+    const streak = computeStreak(dateSet);
+    pstatStreak.textContent = streak > 0 ? `${streak}일째` : '오늘 시작해요';
   }
 
   // ---- 화면 상태 전환 ----
@@ -873,6 +991,7 @@
           } else {
             setStatus(`고객번호 ${row.customer_no} 복구 완료`, 'saved-flash');
             refreshCurrentView();
+            loadPersonalStats();
           }
         });
 
@@ -925,6 +1044,7 @@
           setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
           row.name = nameInput.value;
           row.customer_info = infoInput.value;
+          loadPersonalStats();
         }
       });
 
@@ -956,6 +1076,7 @@
             emptyState.style.display = 'block';
             emptyState.textContent = '📭 조건에 맞는 고객 정보가 없습니다.';
           }
+          loadPersonalStats();
         }
       });
 
@@ -1333,6 +1454,7 @@
     closeCsvModal();
     if (currentMode === 'none') showIdle();
     else await refreshCurrentView();
+    loadPersonalStats();
   });
 
   openAddBtn.addEventListener('click', openModal);
@@ -1417,6 +1539,7 @@
       await refreshCurrentView();
     }
     setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
+    loadPersonalStats();
   });
 
   // ---- 시작: 세션 확인 (기존 세션 복원이므로 접속이력에는 기록 안 함) ----
