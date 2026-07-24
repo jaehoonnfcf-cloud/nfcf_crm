@@ -113,6 +113,9 @@
   .recent-edit-item .re-top{ display:flex; justify-content:space-between; gap:10px; margin-bottom:4px; }
   .recent-edit-item .re-meta{ color:var(--muted); font-size:11.5px; }
 
+  .day-toggle-btn{ padding:5px 12px; font-size:12px; }
+  .day-toggle-btn.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
@@ -304,7 +307,13 @@
           <div class="empty-note">불러오는 중...</div>
         </div>
 
-        <div class="section-title">🕘 오늘 수정이력</div>
+        <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <span id="recentEditTitle">🕘 오늘 수정이력</span>
+          <span style="display:flex; gap:6px;">
+            <button type="button" class="btn-outline day-toggle-btn active" id="dayTodayBtn" data-offset="0">오늘</button>
+            <button type="button" class="btn-outline day-toggle-btn" id="dayYesterdayBtn" data-offset="1">어제</button>
+          </span>
+        </div>
         <div id="recentEditList">
           <div class="empty-note">불러오는 중...</div>
         </div>
@@ -562,6 +571,9 @@
   const activityBody = document.getElementById('activityBody');
   const trendChart = document.getElementById('trendChart');
   const recentEditList = document.getElementById('recentEditList');
+  const recentEditTitle = document.getElementById('recentEditTitle');
+  const dayTodayBtn = document.getElementById('dayTodayBtn');
+  const dayYesterdayBtn = document.getElementById('dayYesterdayBtn');
 
   function dayRangeIso(offsetDays){
     // offsetDays: 0 = 오늘, 1 = 어제 ... (브라우저 로컬 시간 기준 하루 범위)
@@ -573,20 +585,61 @@
     return { startIso: start.toISOString(), endIso: end.toISOString(), start };
   }
 
+  // ---- 오늘/어제 수정이력 (변경 내용 전체 표시) ----
+  async function loadRecentEditList(offset){
+    dayTodayBtn.classList.toggle('active', offset === 0);
+    dayYesterdayBtn.classList.toggle('active', offset === 1);
+    recentEditTitle.textContent = offset === 0 ? '🕘 오늘 수정이력' : '🕘 어제 수정이력';
+    recentEditList.innerHTML = '<div class="empty-note">불러오는 중...</div>';
+
+    const range = dayRangeIso(offset);
+    const { data, error } = await sb
+      .from('customer_history')
+      .select('*')
+      .gte('changed_at', range.startIso)
+      .lt('changed_at', range.endIso)
+      .order('changed_at', { ascending: false })
+      .limit(100);
+
+    recentEditList.innerHTML = '';
+    if (error){
+      recentEditList.innerHTML = `<div class="empty-note">불러오기 실패: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (data && data.length){
+      data.forEach(row => {
+        const div = document.createElement('div');
+        div.className = 'recent-edit-item';
+        const actionLabel = ACTION_LABEL[row.action] || row.action;
+        const diffHtml = buildDiffHtml(row);
+        div.innerHTML = `
+          <div class="re-top">
+            <span>${actionLabel} · 🔢 ${row.customer_no}</span>
+            <span class="re-meta">${fmtDate(row.changed_at)} · ${escapeHtml(row.changed_by || '알 수 없음')}</span>
+          </div>
+          <div class="h-diff">${diffHtml}</div>
+        `;
+        recentEditList.appendChild(div);
+      });
+    } else {
+      recentEditList.innerHTML = `<div class="empty-note">${offset === 0 ? '오늘' : '어제'} 등록된 수정이력이 없습니다.</div>`;
+    }
+  }
+  dayTodayBtn.addEventListener('click', () => loadRecentEditList(0));
+  dayYesterdayBtn.addEventListener('click', () => loadRecentEditList(1));
+
   async function loadDashboard(){
     statGrid.innerHTML = '<div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>';
     trendChart.innerHTML = '<div class="empty-note">불러오는 중...</div>';
-    recentEditList.innerHTML = '<div class="empty-note">불러오는 중...</div>';
 
     const today = dayRangeIso(0);
 
-    const [customersRes, trashRes, usersRes, historyRes, todayRes, recentEditRes] = await Promise.all([
+    const [customersRes, trashRes, usersRes, historyRes, todayRes] = await Promise.all([
       sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
       sb.from('customers').select('*', { count: 'exact', head: true }).eq('is_deleted', true),
       sb.from('allowed_emails').select('*', { count: 'exact', head: true }),
       sb.from('customer_history').select('changed_by').order('changed_at', { ascending: false }).limit(2000),
-      sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', today.startIso).lt('changed_at', today.endIso),
-      sb.from('customer_history').select('*').gte('changed_at', today.startIso).lt('changed_at', today.endIso).order('changed_at', { ascending: false }).limit(100)
+      sb.from('customer_history').select('*', { count: 'exact', head: true }).gte('changed_at', today.startIso).lt('changed_at', today.endIso)
     ]);
 
     const customerCount = customersRes.count ?? 0;
@@ -623,26 +676,7 @@
       trendChart.appendChild(col);
     });
 
-    // ---- 오늘 수정이력 (변경 내용 전체 표시) ----
-    recentEditList.innerHTML = '';
-    if (recentEditRes.data && recentEditRes.data.length){
-      recentEditRes.data.forEach(row => {
-        const div = document.createElement('div');
-        div.className = 'recent-edit-item';
-        const actionLabel = ACTION_LABEL[row.action] || row.action;
-        const diffHtml = buildDiffHtml(row);
-        div.innerHTML = `
-          <div class="re-top">
-            <span>${actionLabel} · 🔢 ${row.customer_no}</span>
-            <span class="re-meta">${fmtDate(row.changed_at)} · ${escapeHtml(row.changed_by || '알 수 없음')}</span>
-          </div>
-          <div class="h-diff">${diffHtml}</div>
-        `;
-        recentEditList.appendChild(div);
-      });
-    } else {
-      recentEditList.innerHTML = '<div class="empty-note">오늘 등록된 수정이력이 없습니다.</div>';
-    }
+    loadRecentEditList(0);
 
     activityBody.innerHTML = '';
     if (historyRes.data && historyRes.data.length){
