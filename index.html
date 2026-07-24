@@ -106,7 +106,8 @@
   .pstat-num{ font-size:24px; font-weight:700; color:var(--ink); }
   .pstat-card.streak .pstat-num{ color:#a3690f; }
 
-  .toolbar{ display:flex; gap:10px; align-items:center; }
+  .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .toolbar > *{ flex-shrink:0; }
   .toolbar input[type=text]{
     padding:8px 12px; border:1px solid var(--line); border-radius:8px;
     font-size:13.5px; width:230px; background:#fff;
@@ -248,6 +249,7 @@
   .btn-secondary{
     border:1px solid var(--line); background:#fff; color:var(--ink);
     padding:9px 16px; border-radius:8px; font-size:13.5px; cursor:pointer;
+    white-space:nowrap;
   }
   .btn-secondary:hover{ background:#f2f1ee; }
   .btn-primary{
