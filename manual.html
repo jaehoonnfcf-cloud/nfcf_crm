@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사용설명서 - 고객정보 관리</title>
+<style>
+  :root{
+    --ink:#1c2024;
+    --paper:#f7f7f5;
+    --panel:#ffffff;
+    --line:#e2e1dd;
+    --accent:#2f5d50;
+    --accent-soft:#e7efec;
+    --danger:#a4443a;
+    --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .mark{
+    width:32px; height:32px; border-radius:8px; background:var(--accent-soft);
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .brand h2{ font-size:16px; margin:0; }
+  .back-link{
+    border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none;
+    padding:7px 14px; border-radius:7px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px;
+  }
+  .back-link:hover{ background:#f2f1ee; }
+
+  main{ max-width:880px; margin:0 auto; padding:32px 24px 80px; }
+
+  .intro{ margin-bottom:28px; }
+  .intro h1{ font-size:24px; margin:0 0 8px; }
+  .intro p{ font-size:14px; color:var(--muted); margin:0; line-height:1.6; }
+
+  .toc{
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:36px;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px;
+  }
+  .toc a{
+    font-size:12.5px; color:var(--ink); text-decoration:none;
+    background:#fafaf8; border:1px solid var(--line); padding:6px 12px; border-radius:999px;
+  }
+  .toc a:hover{ background:#f2f1ee; }
+
+  section{ margin-bottom:40px; scroll-margin-top:80px; }
+  section h2{ font-size:18px; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+  section > p.section-desc{ font-size:13.5px; color:var(--muted); margin:0 0 16px; }
+
+  .guide-item{
+    display:flex; align-items:flex-start; gap:18px;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:12px;
+  }
+  .guide-btn-demo{ flex-shrink:0; padding-top:2px; }
+  .guide-text{ flex:1; }
+  .guide-text .g-title{ font-size:14px; font-weight:700; margin:0 0 4px; }
+  .guide-text .g-desc{ font-size:13px; color:var(--muted); line-height:1.6; margin:0; }
+  .guide-text .g-desc b{ color:var(--ink); }
+  .guide-text .g-desc code{
+    background:var(--accent-soft); color:var(--accent); padding:1px 6px; border-radius:5px;
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:11.5px;
+  }
+
+  /* ---- 실제 앱과 동일한 버튼 스타일 재현 ---- */
+  .demo-add-btn, .demo-csv-btn{
+    display:inline-flex; align-items:center; gap:6px; border:none; color:#fff;
+    padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .demo-add-btn{ background:var(--accent); }
+  .demo-csv-btn{ background:#2b5e9e; }
+  .demo-search-btn{
+    display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:#fff;
+    padding:9px 14px; border-radius:999px; font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .demo-member-btn{
+    display:inline-flex; align-items:center; gap:6px; background:#fff; color:#a3690f;
+    border:1px solid #f0d9ae; padding:8px 14px; border-radius:999px; font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .demo-secondary-btn{
+    display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:#fff;
+    color:var(--ink); padding:8px 14px; border-radius:8px; font-size:13px; white-space:nowrap;
+  }
+  .demo-reset-btn{
+    display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--danger);
+    border:1px solid #e8d3d0; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .demo-icon-btn{
+    display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); background:#fff;
+    color:var(--ink); padding:5px 10px; border-radius:6px; font-size:12px;
+  }
+  .demo-icon-btn.save{ border-color:var(--accent); color:var(--accent); }
+  .demo-icon-btn.del{ border-color:#e8d3d0; color:var(--danger); }
+  .demo-icon-btn.contact{ border-color:#f0d9ae; color:#a3690f; }
+  .demo-badge{
+    font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:#fdf1e0; color:#a3690f;
+  }
+
+  .stat-preview{ display:flex; gap:10px; flex-wrap:wrap; }
+  .stat-preview .mini-card{
+    background:#fafaf8; border:1px solid var(--line); border-radius:10px;
+    padding:10px 14px; font-size:12px; color:var(--muted); min-width:110px;
+  }
+  .stat-preview .mini-card .n{ font-size:18px; font-weight:700; color:var(--ink); display:block; margin-top:2px; }
+
+  .note-box{
+    background:#fff4e5; border:1px solid #e8c88a; color:#7a5a12;
+    padding:12px 16px; border-radius:10px; font-size:13px; margin-top:6px; line-height:1.6;
+  }
+  .admin-only-box{
+    background:#fdf1e0; border:1px solid #f0d9ae; color:#a3690f;
+    padding:12px 16px; border-radius:10px; font-size:13px; margin-top:10px; line-height:1.6;
+  }
+
+  @media (max-width:640px){
+    header{ padding:14px 16px; }
+    main{ padding:24px 16px 60px; }
+    .guide-item{ flex-direction:column; gap:10px; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="mark">📖</div>
+      <h2>사용설명서</h2>
+    </div>
+    <a href="index.html" class="back-link">🗂️ 고객정보 관리로 돌아가기</a>
+  </header>
+
+  <main>
+    <div class="intro">
+      <h1>고객정보 관리 페이지, 이렇게 쓰세요</h1>
+      <p>버튼 하나하나가 뭘 하는지, 눌렀을 때 어떤 일이 일어나는지 정리했어요. 화면에서 보이는 것과 똑같은 버튼 모양으로 표시했으니, 헷갈리면 여기서 찾아보세요.</p>
+    </div>
+
+    <div class="toc">
+      <a href="#search">🔍 검색</a>
+      <a href="#member-filter">🏅 조합원만 보기</a>
+      <a href="#my-customers">🙋 내 담당 고객</a>
+      <a href="#show-all">📋 전체고객 보기</a>
+      <a href="#trash">🗑️ 휴지통</a>
+      <a href="#reset">🧹 초기화</a>
+      <a href="#csv">📤 CSV 업로드</a>
+      <a href="#add">➕ 고객 추가</a>
+      <a href="#assign">🙋 담당자 배정</a>
+      <a href="#contact">🤝 접점기록</a>
+      <a href="#row-actions">💾 저장 · 🕘 이력 · 🗑️ 삭제</a>
+      <a href="#personal-stats">📊 나의 활동 카드</a>
+      <a href="#admin">⚙️ 관리자 전용</a>
+    </div>
+
+    <section id="search">
+      <h2>🔍 검색</h2>
+      <p class="section-desc">가장 자주 쓰게 될 기능이에요. 화면에 진입해도 처음엔 아무것도 안 보이는데, 이건 데이터가 많아서 미리 다 안 불러오기 때문이에요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-search-btn">🔍 검색</span></div>
+        <div class="guide-text">
+          <p class="g-title">검색창에 입력 후 이 버튼 클릭 (또는 Enter)</p>
+          <p class="g-desc"><b>고객번호, 성명, 고객정보</b> 안에 있는 내용까지 한 번에 검색돼요. 예를 들어 고객정보 메모에 "이사"라고 적어뒀으면 "이사"로 검색해도 나옵니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="member-filter">
+      <h2>🏅 조합원만 보기</h2>
+      <p class="section-desc">조합원 명단에 등록된 고객만 걸러서 보고 싶을 때 켜는 스위치예요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-member-btn">🏅 조합원만 보기</span></div>
+        <div class="guide-text">
+          <p class="g-title">누르면 진한 색으로 켜짐 (활성화 표시)</p>
+          <p class="g-desc">켜진 상태에서 검색하거나 "전체고객 보기"를 하면, 조합원인 고객만 나와요. 조합원 명단 자체는 관리자 페이지에서 CSV로 관리됩니다. <code>🧹 초기화</code>를 누르면 이 필터도 같이 꺼져요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="my-customers">
+      <h2>🙋 내 담당 고객</h2>
+      <p class="section-desc">내가 담당자로 지정된 고객만 모아서 보는 화면이에요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-secondary-btn">🙋 내 담당 고객</span></div>
+        <div class="guide-text">
+          <p class="g-title">누르면 내 담당 고객 목록만 표시</p>
+          <p class="g-desc">담당 고객이 많으면 이 화면에서 페이지 단위로 넘겨볼 수 있어요. 여기서 바로 <b>🤝 접점</b> 버튼으로 활동을 기록할 수도 있습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="show-all">
+      <h2>📋 전체고객 보기</h2>
+      <p class="section-desc">검색 조건 없이 등록된 고객 전체를 페이지 단위로 훑어볼 때 사용해요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-secondary-btn">📋 전체고객 보기</span></div>
+        <div class="guide-text">
+          <p class="g-title">표 아래 "100명씩 / 500명씩 / 1000명씩 보기"로 조절 가능</p>
+          <p class="g-desc">고객 수가 많아서 한 번에 다 부르면 느려지니, 이렇게 페이지로 나눠서 보여드려요. 이전/다음 버튼으로 페이지를 넘길 수 있습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="trash">
+      <h2>🗑️ 휴지통</h2>
+      <p class="section-desc">삭제한 고객은 완전히 사라지는 게 아니라 여기로 이동해요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-secondary-btn">🗑️ 휴지통</span></div>
+        <div class="guide-text">
+          <p class="g-title">삭제된 고객 목록 + <span class="demo-icon-btn">♻️ 복구</span> 버튼</p>
+          <p class="g-desc">실수로 삭제했어도 여기서 "복구" 누르면 원래대로 되돌릴 수 있어요. 언제, 누가 삭제했는지도 같이 표시됩니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="reset">
+      <h2>🧹 초기화</h2>
+      <p class="section-desc">검색어, 조합원 필터 등을 전부 지우고 처음 상태(대기 화면)로 되돌립니다.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-reset-btn">🧹 초기화</span></div>
+        <div class="guide-text">
+          <p class="g-title">화면이 복잡해졌을 때 리셋 용도</p>
+          <p class="g-desc">데이터를 지우는 게 아니라, <b>화면 상태만</b> 처음으로 되돌리는 버튼이에요. 안전하게 눌러도 됩니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="csv">
+      <h2>📤 CSV 업로드</h2>
+      <p class="section-desc">엑셀에서 정리한 고객 명단을 한 번에 여러 건 등록/갱신할 때 사용해요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-csv-btn">📤 CSV 업로드</span></div>
+        <div class="guide-text">
+          <p class="g-title">누르면 저장 방법 안내 팝업이 먼저 뜸</p>
+          <p class="g-desc">
+            엑셀에서 저장할 때 꼭 <b>"CSV UTF-8(쉼표로 분리)"</b>로 저장해야 한글이 안 깨져요.<br/>
+            첫 줄(헤더)에는 <code>고객번호</code>(또는 customer_no), <code>성명</code>(또는 name), <code>고객정보</code>(또는 customer_info) 열이 있어야 합니다.
+          </p>
+        </div>
+      </div>
+      <div class="note-box">
+        업로드하면 미리보기 화면에서 <b>신규 / 중복 / 휴지통</b>으로 자동 구분돼요.<br/>
+        - <b>신규</b>는 자동으로 체크되어 바로 추가되고<br/>
+        - <b>중복/휴지통</b> 건은 기본적으로 체크가 꺼져있고, 건별로 <b>🔗 이어붙이기</b>(기존 내용 뒤에 새 내용 추가) 또는 <b>🔄 덮어쓰기</b>(완전 교체) 중 선택할 수 있어요.<br/>
+        마지막에 "선택 항목 적용"을 눌러야 실제로 반영됩니다.
+      </div>
+    </section>
+
+    <section id="add">
+      <h2>➕ 고객 추가</h2>
+      <p class="section-desc">한 명씩 직접 등록할 때 사용해요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-add-btn">➕ 고객 추가</span></div>
+        <div class="guide-text">
+          <p class="g-title">고객번호 · 성명 · 고객정보 입력 후 추가</p>
+          <p class="g-desc">이미 있는 고객번호를 입력하면 바로 "이미 존재합니다" 경고가 떠요. 휴지통에 있는 번호면 "복구해주세요"라고 안내됩니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="assign">
+      <h2>🙋 담당자 배정</h2>
+      <p class="section-desc">고객 목록 표의 "담당자" 열에서 바로 배정/변경할 수 있어요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo" style="min-width:120px;">
+          <select disabled style="width:100%; padding:5px 6px; border:1px solid var(--line); border-radius:6px; font-size:12.5px; background:#fff;">
+            <option>미배정</option>
+            <option selected>정재훈</option>
+          </select>
+        </div>
+        <div class="guide-text">
+          <p class="g-title">드롭박스에서 담당 직원 선택 → 자동 저장</p>
+          <p class="g-desc">직원 누구나 자유롭게 배정/변경할 수 있어요. 선택하는 즉시 저장되며, 담당자로 지정되면 그 직원 화면에 <b>🤝 접점</b> 버튼이 나타나고 "내 담당 고객"에도 포함됩니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2>🤝 접점기록</h2>
+      <p class="section-desc">담당 고객과 언제, 어떻게 접촉했는지 남기는 기능이에요. <b>내가 담당하는 고객에게만</b> 이 버튼이 보여요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-icon-btn contact">🤝 접점</span></div>
+        <div class="guide-text">
+          <p class="g-title">활동 유형 · 일자 · 내용 입력 후 기록 추가</p>
+          <p class="g-desc">활동 유형은 자유롭게 입력하시면 돼요 (예: 전화, 방문, 문자/카톡, 마케팅 등). 지금까지 쌓인 접점 기록도 같은 창에서 시간순으로 확인할 수 있어요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="row-actions">
+      <h2>표 안의 버튼들</h2>
+      <p class="section-desc">각 고객 행마다 오른쪽에 있는 작은 버튼들이에요.</p>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-icon-btn save">💾 저장</span></div>
+        <div class="guide-text">
+          <p class="g-title">성명/고객정보를 수정하면 활성화됨</p>
+          <p class="g-desc">칸을 고치면 이 버튼이 눌리게 바뀌어요. 눌러야 실제로 저장됩니다 (자동저장 아님).</p>
+        </div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-icon-btn">🕘 이력</span></div>
+        <div class="guide-text">
+          <p class="g-title">이 고객의 등록/수정/삭제 기록 전체 보기</p>
+          <p class="g-desc">언제, 누가, 무엇을 바꿨는지 이전값→새값 형태로 확인할 수 있어요.</p>
+        </div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-icon-btn del">🗑️ 삭제</span></div>
+        <div class="guide-text">
+          <p class="g-title">완전 삭제 아님 — 휴지통으로 이동</p>
+          <p class="g-desc">실수해도 괜찮아요. <a href="#trash" style="color:var(--accent);">🗑️ 휴지통</a>에서 다시 복구할 수 있습니다.</p>
+        </div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-btn-demo"><span class="demo-badge">🏅조합원</span></div>
+        <div class="guide-text">
+          <p class="g-title">성명 옆 배지 — 조합원 명단 등록 여부</p>
+          <p class="g-desc">이 배지가 붙어있으면 조합원 명단(관리자가 관리)에 등록된 고객이라는 뜻이에요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="personal-stats">
+      <h2>📊 나의 활동 카드</h2>
+      <p class="section-desc">로그인하면 맨 위에 항상 보이는 카드들이에요. 새로고침해도 그대로 있고, 등록/수정할 때마다 바로 갱신됩니다.</p>
+      <div class="stat-preview">
+        <div class="mini-card">🆕 오늘 등록<span class="n">3건</span></div>
+        <div class="mini-card">✏️ 오늘 수정<span class="n">12건</span></div>
+        <div class="mini-card">📊 이번 주 누적<span class="n">41건</span></div>
+        <div class="mini-card">🔥 연속 활동일<span class="n">5일째</span></div>
+      </div>
+      <p class="g-desc" style="margin-top:14px;">"연속 활동일"은 매일 최소 한 번 이상 고객정보를 만졌는지를 기준으로 세요. 오늘 아직 아무것도 안 했어도 어제까지 이어온 기록이 있으면 계속 표시되니 걱정 마세요.</p>
+    </section>
+
+    <section id="admin">
+      <h2>⚙️ 관리자 전용 기능</h2>
+      <p class="section-desc">일반 직원 화면에는 안 보이고, 관리자로 지정된 계정에만 헤더에 "⚙️ 관리자" 링크가 나타나요.</p>
+      <div class="admin-only-box">
+        관리자 페이지에서는 <b>사용자 관리(직원 추가/삭제)</b>, <b>접속이력</b>, <b>전체 수정이력</b>, <b>CSV 업로드 이력</b>, <b>조합원 명단 관리</b>, <b>담당자/접점활동 현황</b>, <b>대시보드(오늘 활동, 최근 7일 추이 등)</b>를 확인할 수 있어요.
+        일반 업무에는 필요 없는 기능들이라 직원 화면에는 노출되지 않습니다.
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>
