@@ -109,7 +109,7 @@
     color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
     overflow:hidden; text-overflow:ellipsis;
   }
-  tbody td{ padding:8px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; height:52px; }
+  tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:#fafaf9; }
   td.no-col{ color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -120,6 +120,7 @@
   td input:hover{ border-color:var(--line); }
   td input:focus{ outline:none; border-color:var(--accent); background:#fff; }
   td.amount-cell{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); white-space:nowrap; }
+  td.note-cell{ color:var(--muted); word-break:break-word; }
   .amount-cell-wrap{ display:flex; align-items:center; gap:6px; white-space:nowrap; height:34px; }
   .amount-display{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); line-height:34px; }
   .amount-edit-btn{ height:34px; box-sizing:border-box; padding:0 8px; font-size:12px; flex-shrink:0; display:inline-flex; align-items:center; }
@@ -311,6 +312,49 @@
     </div>
   </div>
 
+  <!-- VIP 수정 모달 -->
+  <div class="modal-overlay" id="editModalOverlay">
+    <div class="modal">
+      <h2>✏️ VIP 정보 수정</h2>
+      <p class="sub" id="editModalSub">고객번호와 성명 등 전체 항목을 여기서 한 번에 수정합니다.</p>
+      <form id="editForm">
+        <div class="field">
+          <label for="editNo">🔢 고객번호</label>
+          <input type="number" id="editNo" required />
+        </div>
+        <div class="field">
+          <label for="editName">🙍 성명</label>
+          <input type="text" id="editName" required />
+        </div>
+        <div class="field">
+          <label for="editAccount">🏦 계좌번호</label>
+          <input type="text" id="editAccount" placeholder="예: 123-45-6789012" maxlength="14" />
+          <p style="font-size:11.5px; color:var(--muted); margin:4px 0 0;">형식: 000-00-0000000 (숫자만 입력하면 자동으로 하이픈이 붙어요)</p>
+        </div>
+        <div class="field">
+          <label for="editStart">신규일자</label>
+          <input type="date" id="editStart" />
+        </div>
+        <div class="field">
+          <label for="editMaturity">만기일자</label>
+          <input type="date" id="editMaturity" required />
+        </div>
+        <div class="field">
+          <label for="editAmount">💰 금액</label>
+          <input type="number" id="editAmount" placeholder="예: 50000000" />
+        </div>
+        <div class="field">
+          <label for="editNote">특이사항</label>
+          <textarea id="editNote" rows="3" placeholder="예: 재예치 예정, 담당자 연락처 등"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelEditBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitEditBtn">💾 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- CSV 안내 모달 -->
   <div class="modal-overlay" id="csvGuideModalOverlay">
     <div class="modal" style="max-width:460px;">
@@ -407,6 +451,20 @@
   const inNote = document.getElementById('inNote');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const submitAddBtn = document.getElementById('submitAddBtn');
+
+  const editModalOverlay = document.getElementById('editModalOverlay');
+  const editModalSub = document.getElementById('editModalSub');
+  const editForm = document.getElementById('editForm');
+  const editNo = document.getElementById('editNo');
+  const editName = document.getElementById('editName');
+  const editAccount = document.getElementById('editAccount');
+  const editStart = document.getElementById('editStart');
+  const editMaturity = document.getElementById('editMaturity');
+  const editAmount = document.getElementById('editAmount');
+  const editNote = document.getElementById('editNote');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const submitEditBtn = document.getElementById('submitEditBtn');
+  let editingRow = null;
 
   const csvGuideModalOverlay = document.getElementById('csvGuideModalOverlay');
   const cancelCsvGuideBtn = document.getElementById('cancelCsvGuideBtn');
@@ -638,96 +696,25 @@
       tr.innerHTML = `
         <td class="no-col">${row.customer_no}</td>
         <td>
-          <input type="text" class="f-name" value="${escapeHtml(row.name)}" />
+          ${escapeHtml(row.name)}
           ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
         </td>
-        <td><input type="text" class="f-account" value="${escapeHtml(row.account_no || '')}" /></td>
-        <td><input type="date" class="f-start" value="${row.start_date || ''}" /></td>
-        <td><input type="date" class="f-maturity" value="${row.maturity_date || ''}" /></td>
-        <td class="amount-cell-wrap">
-          <span class="amount-display">${row.amount != null ? Number(row.amount).toLocaleString() : '-'}</span>
-          <button type="button" class="icon-btn amount-edit-btn" title="금액 수정">✏️</button>
-        </td>
-        <td><input type="text" class="f-note visible-input" value="${escapeHtml(row.note || '')}" placeholder="메모를 입력하세요" /></td>
+        <td>${escapeHtml(row.account_no || '-')}</td>
+        <td>${escapeHtml(row.start_date || '-')}</td>
+        <td>${escapeHtml(row.maturity_date || '-')}</td>
+        <td class="amount-cell">${row.amount != null ? Number(row.amount).toLocaleString() : '-'}</td>
+        <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:#c7c5c1;">-</span>'}</td>
         <td>
           <div class="row-actions">
-            <button class="icon-btn save" disabled>💾 저장</button>
+            <button class="icon-btn edit-row-btn">✏️ 수정</button>
             <button class="icon-btn del">🗑️ 삭제</button>
           </div>
         </td>
       `;
-      const nameInput = tr.querySelector('.f-name');
-      const accountInput = tr.querySelector('.f-account');
-      const startInput = tr.querySelector('.f-start');
-      const maturityInput = tr.querySelector('.f-maturity');
-      const noteInput = tr.querySelector('.f-note');
-      const saveBtn = tr.querySelector('.save');
-      const delBtn = tr.querySelector('.del');
-      const amountEditBtn = tr.querySelector('.amount-edit-btn');
-      const amountCellWrap = tr.querySelector('.amount-cell-wrap');
-      const markDirty = () => { saveBtn.disabled = false; };
-      [nameInput, accountInput, startInput, maturityInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
 
-      amountEditBtn.addEventListener('click', () => {
-        if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 금액을 수정하시겠습니까?\n신중하게 확인 후 진행해주세요.`)) return;
+      tr.querySelector('.edit-row-btn').addEventListener('click', () => openEditModal(row));
 
-        amountCellWrap.innerHTML = `
-          <input type="number" class="amount-edit-input" value="${row.amount ?? ''}" />
-          <button type="button" class="icon-btn amount-confirm-btn">✅</button>
-          <button type="button" class="icon-btn amount-cancel-btn">✕</button>
-        `;
-        const editInput = amountCellWrap.querySelector('.amount-edit-input');
-        const confirmBtn = amountCellWrap.querySelector('.amount-confirm-btn');
-        const cancelBtn = amountCellWrap.querySelector('.amount-cancel-btn');
-        editInput.focus();
-        editInput.select();
-
-        cancelBtn.addEventListener('click', () => renderTable(currentRows));
-
-        confirmBtn.addEventListener('click', async () => {
-          const newAmount = editInput.value === '' ? null : Number(editInput.value);
-          confirmBtn.disabled = true;
-          const { error } = await sb.from(TABLE_NAME).update({
-            amount: newAmount,
-            updated_by: currentUserName,
-            updated_at: new Date().toISOString()
-          }).eq('id', row.id);
-          if (error){
-            setStatus('금액 수정 실패: ' + error.message, 'err-flash');
-            confirmBtn.disabled = false;
-          } else {
-            row.amount = newAmount;
-            setStatus(`고객번호 ${row.customer_no} 금액 수정 완료`, 'saved-flash');
-            renderTable(currentRows);
-            loadDashboard();
-          }
-        });
-      });
-
-      saveBtn.addEventListener('click', async () => {
-        saveBtn.disabled = true;
-        saveBtn.textContent = '⏳ 저장중';
-        const { error } = await sb.from(TABLE_NAME).update({
-          name: nameInput.value,
-          account_no: accountInput.value,
-          start_date: startInput.value || null,
-          maturity_date: maturityInput.value,
-          note: noteInput.value,
-          updated_by: currentUserName,
-          updated_at: new Date().toISOString()
-        }).eq('id', row.id);
-        saveBtn.textContent = '💾 저장';
-        if (error){
-          setStatus('저장 실패: ' + error.message, 'err-flash');
-          saveBtn.disabled = false;
-        } else {
-          setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
-          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, note: noteInput.value });
-          loadDashboard();
-        }
-      });
-
-      delBtn.addEventListener('click', async () => {
+      tr.querySelector('.del').addEventListener('click', async () => {
         if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 VIP 만기 정보를 삭제할까요?\n(이 작업은 되돌릴 수 없습니다)`)) return;
         const { error } = await sb.from(TABLE_NAME).delete().eq('id', row.id);
         if (error){
@@ -786,6 +773,61 @@
     inAccount.value = formatAccountNo(inAccount.value);
     // 하이픈이 추가되며 커서가 튀는 걸 최소화 (끝부분 입력이 가장 흔한 경우라 끝으로 이동)
     if (before.length !== inAccount.value.length) inAccount.selectionStart = inAccount.selectionEnd = inAccount.value.length;
+  });
+  editAccount.addEventListener('input', () => {
+    const before = editAccount.value;
+    editAccount.value = formatAccountNo(editAccount.value);
+    if (before.length !== editAccount.value.length) editAccount.selectionStart = editAccount.selectionEnd = editAccount.value.length;
+  });
+
+  // ---- VIP 수정 모달 ----
+  function openEditModal(row){
+    editingRow = row;
+    editModalSub.textContent = `고객번호 ${row.customer_no} (${row.name})의 정보를 수정합니다.`;
+    editNo.value = row.customer_no;
+    editName.value = row.name || '';
+    editAccount.value = row.account_no || '';
+    editStart.value = row.start_date || '';
+    editMaturity.value = row.maturity_date || '';
+    editAmount.value = row.amount ?? '';
+    editNote.value = row.note || '';
+    editModalOverlay.classList.add('open');
+  }
+  function closeEditModal(){ editModalOverlay.classList.remove('open'); editingRow = null; }
+  cancelEditBtn.addEventListener('click', closeEditModal);
+  editModalOverlay.addEventListener('click', (e) => { if (e.target === editModalOverlay) closeEditModal(); });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editingRow) return;
+    submitEditBtn.disabled = true;
+    submitEditBtn.textContent = '⏳ 저장 중...';
+
+    const updated = {
+      customer_no: Number(editNo.value),
+      name: editName.value.trim(),
+      account_no: editAccount.value.trim(),
+      start_date: editStart.value || null,
+      maturity_date: editMaturity.value,
+      amount: editAmount.value === '' ? null : Number(editAmount.value),
+      note: editNote.value.trim(),
+      updated_by: currentUserName,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await sb.from(TABLE_NAME).update(updated).eq('id', editingRow.id);
+    submitEditBtn.disabled = false;
+    submitEditBtn.textContent = '💾 저장';
+
+    if (error){
+      setStatus('수정 실패: ' + error.message, 'err-flash');
+      return;
+    }
+    Object.assign(editingRow, updated);
+    setStatus(`고객번호 ${updated.customer_no} 수정 완료`, 'saved-flash');
+    closeEditModal();
+    renderTable(currentRows);
+    loadDashboard();
   });
 
   addForm.addEventListener('submit', async (e) => {
