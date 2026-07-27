@@ -96,6 +96,24 @@
   .top5-name{ font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .top5-meta{ font-size:11px; color:var(--muted); margin-top:2px; }
   .top5-amount{ font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; flex-shrink:0; }
+  .link-more-btn{
+    border:none; background:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer; padding:0;
+  }
+  .link-more-btn:hover{ text-decoration:underline; }
+  .rank-item{
+    display:flex; align-items:center; gap:12px;
+    border-bottom:1px solid var(--line); padding:10px 4px;
+  }
+  .rank-item:last-child{ border-bottom:none; }
+  .rank-num{
+    flex-shrink:0; width:26px; height:26px; border-radius:999px; background:#fafaf8; color:var(--muted);
+    font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .rank-num.top3{ background:#fdf1e0; color:#a3690f; }
+  .rank-info{ flex:1; min-width:0; }
+  .rank-name{ font-size:13.5px; font-weight:600; }
+  .rank-meta{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .rank-amount{ font-size:14px; font-weight:700; color:var(--accent); white-space:nowrap; }
 
   /* ---- 툴바/표 ---- */
   .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
@@ -260,7 +278,10 @@
           <div id="upcomingItems"></div>
         </div>
         <div class="top5-panel">
-          <div class="panel-title">💰 금액 TOP 5</div>
+          <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>💰 금액 TOP 5</span>
+            <button type="button" class="link-more-btn" id="amountRankMoreBtn">더보기 ›</button>
+          </div>
           <div id="top5Items"></div>
         </div>
       </div>
@@ -385,6 +406,18 @@
     </div>
   </div>
 
+  <!-- 금액 합산 전체 순위 모달 -->
+  <div class="modal-overlay" id="amountRankModalOverlay">
+    <div class="modal" style="max-width:520px;">
+      <h2>💰 고객별 금액 합산 순위</h2>
+      <p class="sub">같은 고객번호의 여러 계좌 금액을 합산해서 높은 순으로 보여줍니다.</p>
+      <div id="amountRankList" style="max-height:420px; overflow-y:auto; margin:-4px 0 4px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="closeAmountRankBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- CSV 안내 모달 -->
   <div class="modal-overlay" id="csvGuideModalOverlay">
     <div class="modal" style="max-width:460px;">
@@ -506,6 +539,7 @@
   const applyCsvBtn = document.getElementById('applyCsvBtn');
 
   let currentUserName = '';
+  let allAmountRanking = [];
   let currentRows = [];
   let csvParsedRows = [];
 
@@ -655,7 +689,9 @@
       // 성명이 비어있던 이전 값이면 최신 값으로 갱신
       if (r.name) byCustomer[r.customer_no].name = r.name;
     });
-    const top5Rows = Object.values(byCustomer).sort((a, b) => b.total - a.total).slice(0, 5);
+    const allCustomerRanked = Object.values(byCustomer).sort((a, b) => b.total - a.total);
+    allAmountRanking = allCustomerRanked;
+    const top5Rows = allCustomerRanked.slice(0, 5);
 
     if (top5Rows.length === 0){
       top5Items.innerHTML = '<div class="empty-state" style="padding:20px;">등록된 금액 정보가 없습니다.</div>';
@@ -895,6 +931,36 @@
     renderTable(currentRows);
     loadDashboard();
   });
+
+  // ---- 금액 합산 전체 순위 모달 ----
+  const amountRankModalOverlay = document.getElementById('amountRankModalOverlay');
+  const amountRankList = document.getElementById('amountRankList');
+  const amountRankMoreBtn = document.getElementById('amountRankMoreBtn');
+  const closeAmountRankBtn = document.getElementById('closeAmountRankBtn');
+
+  amountRankMoreBtn.addEventListener('click', () => {
+    amountRankList.innerHTML = '';
+    if (allAmountRanking.length === 0){
+      amountRankList.innerHTML = '<div class="empty-state" style="padding:20px;">등록된 금액 정보가 없습니다.</div>';
+    } else {
+      allAmountRanking.forEach((r, idx) => {
+        const div = document.createElement('div');
+        div.className = 'rank-item';
+        div.innerHTML = `
+          <span class="rank-num ${idx < 3 ? 'top3' : ''}">${idx + 1}</span>
+          <div class="rank-info">
+            <div class="rank-name">🔢 ${r.customer_no} · ${escapeHtml(r.name)}</div>
+            <div class="rank-meta">${r.count}건 합계</div>
+          </div>
+          <span class="rank-amount">${r.total.toLocaleString()}</span>
+        `;
+        amountRankList.appendChild(div);
+      });
+    }
+    amountRankModalOverlay.classList.add('open');
+  });
+  closeAmountRankBtn.addEventListener('click', () => amountRankModalOverlay.classList.remove('open'));
+  amountRankModalOverlay.addEventListener('click', (e) => { if (e.target === amountRankModalOverlay) amountRankModalOverlay.classList.remove('open'); });
 
   addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
