@@ -258,7 +258,8 @@
         </div>
         <div class="field">
           <label for="inAccount">🏦 계좌번호</label>
-          <input type="text" id="inAccount" placeholder="예: 123-456-789012" />
+          <input type="text" id="inAccount" placeholder="예: 123-45-6789012" maxlength="14" />
+          <p style="font-size:11.5px; color:var(--muted); margin:4px 0 0;">형식: 000-00-0000000 (숫자만 입력하면 자동으로 하이픈이 붙어요)</p>
         </div>
         <div class="field">
           <label for="inStart">신규일자</label>
@@ -668,6 +669,21 @@
     if (!no || inName.value.trim()) return;
     const { data } = await sb.from('customers').select('name').eq('customer_no', no).eq('is_deleted', false).maybeSingle();
     if (data && data.name) inName.value = data.name;
+  });
+
+  // 계좌번호 자동 포맷팅: 000-00-0000000 (3자리-2자리-7자리)
+  function formatAccountNo(raw){
+    const digits = raw.replace(/\D/g, '').slice(0, 12);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 5) return `${digits.slice(0,3)}-${digits.slice(3)}`;
+    return `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`;
+  }
+  inAccount.addEventListener('input', () => {
+    const pos = inAccount.selectionStart;
+    const before = inAccount.value;
+    inAccount.value = formatAccountNo(inAccount.value);
+    // 하이픈이 추가되며 커서가 튀는 걸 최소화 (끝부분 입력이 가장 흔한 경우라 끝으로 이동)
+    if (before.length !== inAccount.value.length) inAccount.selectionStart = inAccount.selectionEnd = inAccount.value.length;
   });
 
   addForm.addEventListener('submit', async (e) => {
