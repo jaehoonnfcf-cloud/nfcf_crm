@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VIP 만기일자내역</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
+    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---- 로그인 ---- */
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .login-mark{
+    width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:22px;
+  }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer;
+  }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .google-btn:disabled{ opacity:.6; cursor:default; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  /* ---- 앱 ---- */
+  #app{ display:none; }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .link-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none;
+    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .link-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
+
+  h1.page-title{ font-size:20px; margin:0 0 4px; }
+  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; }
+
+  /* ---- 대시보드 ---- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px; margin-bottom:20px; }
+  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .stat-card .num{ font-size:26px; font-weight:700; color:var(--ink); }
+  .stat-card .label{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .stat-card.warn .num{ color:#a3690f; }
+  .stat-card.danger .num{ color:var(--danger); }
+
+  .upcoming-list{ margin-bottom:32px; }
+  .upcoming-item{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:10px 14px; margin-bottom:8px; font-size:13px;
+  }
+  .upcoming-item .u-left{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .dday-badge{ font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  .dday-badge.overdue{ background:#fbeceb; color:var(--danger); }
+  .dday-badge.soon{ background:#fdf1e0; color:#a3690f; }
+  .dday-badge.later{ background:var(--accent-soft); color:var(--accent); }
+
+  /* ---- 툴바/표 ---- */
+  .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+  .toolbar > *{ flex-shrink:0; }
+  .toolbar input[type=text]{
+    padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; width:220px; background:#fff;
+  }
+  .btn-secondary{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:9px 16px; border-radius:8px; font-size:13.5px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-secondary:hover{ background:#f2f1ee; }
+  .search-btn{
+    display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:#fff; border:none;
+    padding:9px 16px; border-radius:999px; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .csv-btn, .add-btn{
+    display:inline-flex; align-items:center; gap:6px; border:none; color:#fff;
+    padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .csv-btn{ background:#2b5e9e; }
+  .add-btn{ background:var(--accent); }
+
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; min-width:920px; }
+  thead th{
+    text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
+    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
+  }
+  tbody td{ padding:9px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#fafaf9; }
+  td.no-col{ color:var(--muted); font-weight:600; white-space:nowrap; }
+  td input[type=text], td input[type=date]{
+    width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
+    font-size:13px; font-family:inherit; background:transparent;
+  }
+  td input:hover{ border-color:var(--line); }
+  td input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .member-badge{
+    font-size:10px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f;
+    padding:2px 6px; border-radius:999px; margin-left:6px;
+  }
+  .row-actions{ display:flex; gap:6px; white-space:nowrap; }
+  .icon-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; color:var(--ink); }
+  .icon-btn.save{ border-color:var(--accent); color:var(--accent); }
+  .icon-btn.save:disabled{ opacity:.4; cursor:default; }
+  .icon-btn.del{ color:var(--danger); border-color:#e8d3d0; }
+  .icon-btn:hover{ background:#f2f1ee; }
+
+  .empty-state{ text-align:center; padding:40px 20px; color:var(--muted); font-size:13.5px; }
+  .status-line{ font-size:12px; color:var(--muted); margin-top:10px; min-height:16px; }
+  .saved-flash{ color:var(--accent); }
+  .err-flash{ color:var(--danger); }
+
+  /* ---- 모달 ---- */
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(28,32,36,0.4); align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-overlay.open{ display:flex; }
+  .modal{ background:#fff; border-radius:14px; width:100%; max-width:480px; padding:28px; box-shadow:0 12px 40px rgba(0,0,0,0.18); max-height:90vh; overflow-y:auto; }
+  .modal h2{ font-size:16.5px; margin:0 0 4px; }
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .modal .sub code{ background:var(--accent-soft); color:var(--accent); padding:1px 6px; border-radius:5px; font-family:monospace; font-size:11.5px; }
+  .modal .sub b{ color:var(--danger); }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
+  .field input, .field textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; font-family:inherit;
+  }
+  .field input:focus, .field textarea:focus{ outline:none; border-color:var(--accent); }
+  .field .hint{ font-size:11.5px; color:var(--danger); margin-top:4px; display:none; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .btn-primary{ border:none; background:var(--accent); color:#fff; padding:9px 18px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .btn-primary:disabled{ opacity:.5; }
+
+  .csv-preview-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .csv-preview-table th{ text-align:left; padding:6px 8px; font-size:11px; color:var(--muted); background:#fafaf8; border-bottom:1px solid var(--line); }
+  .csv-preview-table td{ padding:6px 8px; border-bottom:1px solid var(--line); }
+
+  @media (max-width:720px){
+    main{ padding:20px 16px 40px; }
+    header{ padding:14px 16px; }
+    .toolbar{ flex-direction:column; align-items:stretch; }
+    .toolbar input[type=text], .toolbar .btn-secondary, .toolbar .search-btn, .toolbar .csv-btn, .toolbar .add-btn{ width:100%; justify-content:center; }
+    .modal{ max-width:94vw; padding:22px 18px; }
+    .upcoming-item{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="login-wrap" id="loginScreen">
+    <div class="login-card">
+      <div class="login-mark">💎</div>
+      <h1>VIP 만기일자내역</h1>
+      <p>승인된 Google 계정으로 로그인 후<br/>VIP 만기 정보를 조회하고 관리할 수 있습니다.</p>
+      <button class="google-btn" id="googleLoginBtn">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 16 3 9.1 7.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.6 2.4-7.2 2.4-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9 40.4 15.9 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C40.9 36.3 45 30.7 45 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
+        Google 계정으로 로그인
+      </button>
+      <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+    </div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="login-mark">💎</div>
+        <h2>VIP 만기일자내역</h2>
+      </div>
+      <div class="user-box">
+        <span id="userEmail"></span>
+        <a href="index.html" class="link-btn">🗂️ 고객정보 관리</a>
+        <a href="manual.html" class="link-btn">📖 사용설명서</a>
+        <button class="link-btn" id="signOutBtn">🚪 로그아웃</button>
+      </div>
+    </header>
+
+    <main>
+      <h1 class="page-title">💎 VIP 만기일자내역</h1>
+      <p class="page-sub">주요 법인 · 단체 · VIP 고객의 예금 만기일자를 관리합니다.</p>
+
+      <div class="stat-grid">
+        <div class="stat-card warn"><div class="num" id="statThisMonth">-</div><div class="label">📅 이번달 만기</div></div>
+        <div class="stat-card"><div class="num" id="statNextMonth">-</div><div class="label">📆 다음달 만기</div></div>
+        <div class="stat-card danger"><div class="num" id="statOverdue">-</div><div class="label">⚠️ 만기 경과</div></div>
+        <div class="stat-card"><div class="num" id="statTotal">-</div><div class="label">💎 전체 등록 건수</div></div>
+      </div>
+
+      <div class="upcoming-list">
+        <div id="upcomingItems"></div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="searchBox" placeholder="🔍 고객번호 또는 성명 검색" autocomplete="off" />
+        <button class="search-btn" id="searchBtn">🔍 검색</button>
+        <button class="btn-secondary" id="showAllBtn">📋 전체 보기</button>
+        <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+        <button class="add-btn" id="openAddBtn">➕ VIP 등록</button>
+      </div>
+
+      <div class="table-scroll">
+        <table id="vipTable" style="display:none;">
+          <thead>
+            <tr>
+              <th style="width:90px;">🔢 고객번호</th>
+              <th style="width:150px;">🙍 성명</th>
+              <th style="width:150px;">🏦 계좌번호</th>
+              <th style="width:130px;">신규일자</th>
+              <th style="width:130px;">만기일자</th>
+              <th>특이사항</th>
+              <th style="width:110px;"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="idleState">🔍 검색어를 입력하거나, "📋 전체 보기"를 눌러 VIP 목록을 불러오세요.</div>
+      <div class="empty-state" id="emptyState" style="display:none;">📭 등록된 VIP 정보가 없습니다.</div>
+      <div class="status-line" id="statusLine"></div>
+    </main>
+  </div>
+
+  <!-- VIP 등록 모달 -->
+  <div class="modal-overlay" id="addModalOverlay">
+    <div class="modal">
+      <h2>➕ VIP 등록</h2>
+      <p class="sub">고객번호를 입력하고 포커스를 벗어나면, 이미 등록된 고객이면 성명이 자동으로 채워져요.</p>
+      <form id="addForm">
+        <div class="field">
+          <label for="inNo">🔢 고객번호</label>
+          <input type="number" id="inNo" required />
+        </div>
+        <div class="field">
+          <label for="inName">🙍 성명</label>
+          <input type="text" id="inName" required />
+        </div>
+        <div class="field">
+          <label for="inAccount">🏦 계좌번호</label>
+          <input type="text" id="inAccount" placeholder="예: 123-456-789012" />
+        </div>
+        <div class="field">
+          <label for="inStart">신규일자</label>
+          <input type="date" id="inStart" />
+        </div>
+        <div class="field">
+          <label for="inMaturity">만기일자</label>
+          <input type="date" id="inMaturity" required />
+        </div>
+        <div class="field">
+          <label for="inNote">특이사항</label>
+          <textarea id="inNote" rows="3" placeholder="예: 재예치 예정, 담당자 연락처 등"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelAddBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitAddBtn">➕ 등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CSV 안내 모달 -->
+  <div class="modal-overlay" id="csvGuideModalOverlay">
+    <div class="modal" style="max-width:460px;">
+      <h2>📤 VIP 명단 CSV 업로드 전 확인해주세요</h2>
+      <p class="sub">
+        엑셀에서 저장할 때 <b>"CSV UTF-8(쉼표로 분리)"</b>로 저장해야 한글이 안 깨져요.<br/><br/>
+        첫 줄(헤더)에 아래 열이 있어야 합니다:<br/>
+        🔢 고객번호: <code>customer_no</code> / <code>고객번호</code><br/>
+        🙍 성명: <code>name</code> / <code>성명</code><br/>
+        🏦 계좌번호: <code>account_no</code> / <code>계좌번호</code> (선택)<br/>
+        신규일자: <code>start_date</code> / <code>신규일자</code> (선택, YYYY-MM-DD)<br/>
+        만기일자: <code>maturity_date</code> / <code>만기일자</code> (필수, YYYY-MM-DD)<br/>
+        특이사항: <code>note</code> / <code>특이사항</code> (선택)
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelCsvGuideBtn">취소</button>
+        <button type="button" class="btn-primary" id="proceedCsvGuideBtn">📁 파일 선택하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV 미리보기 모달 -->
+  <div class="modal-overlay" id="csvModalOverlay">
+    <div class="modal" style="max-width:720px;">
+      <h2>📤 CSV 업로드 미리보기</h2>
+      <p class="sub" id="csvSummary">CSV 파일을 분석하고 있습니다...</p>
+      <div style="max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:10px;">
+        <table class="csv-preview-table">
+          <thead>
+            <tr><th style="width:36px;"></th><th>고객번호</th><th>성명</th><th>계좌번호</th><th>신규일자</th><th>만기일자</th><th>특이사항</th></tr>
+          </thead>
+          <tbody id="csvTableBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelCsvBtn">취소</button>
+        <button type="button" class="btn-primary" id="applyCsvBtn">✅ 선택 항목 등록</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  if (typeof supabase === 'undefined') {
+    document.body.innerHTML = '<div style="padding:24px;color:#a4443a;font-family:sans-serif;">Supabase 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.</div>';
+    throw new Error('supabase-js not loaded');
+  }
+
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const TABLE_NAME = "vip_deposits";
+  const VIEW_NAME = "vip_deposits_with_membership";
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---- DOM ----
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+
+  const statThisMonth = document.getElementById('statThisMonth');
+  const statNextMonth = document.getElementById('statNextMonth');
+  const statOverdue = document.getElementById('statOverdue');
+  const statTotal = document.getElementById('statTotal');
+  const upcomingItems = document.getElementById('upcomingItems');
+
+  const searchBox = document.getElementById('searchBox');
+  const searchBtn = document.getElementById('searchBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
+  const csvUploadBtn = document.getElementById('csvUploadBtn');
+  const csvFileInput = document.getElementById('csvFileInput');
+  const openAddBtn = document.getElementById('openAddBtn');
+
+  const vipTable = document.getElementById('vipTable');
+  const tableBody = document.getElementById('tableBody');
+  const idleState = document.getElementById('idleState');
+  const emptyState = document.getElementById('emptyState');
+  const statusLine = document.getElementById('statusLine');
+
+  const addModalOverlay = document.getElementById('addModalOverlay');
+  const addForm = document.getElementById('addForm');
+  const inNo = document.getElementById('inNo');
+  const inName = document.getElementById('inName');
+  const inAccount = document.getElementById('inAccount');
+  const inStart = document.getElementById('inStart');
+  const inMaturity = document.getElementById('inMaturity');
+  const inNote = document.getElementById('inNote');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const submitAddBtn = document.getElementById('submitAddBtn');
+
+  const csvGuideModalOverlay = document.getElementById('csvGuideModalOverlay');
+  const cancelCsvGuideBtn = document.getElementById('cancelCsvGuideBtn');
+  const proceedCsvGuideBtn = document.getElementById('proceedCsvGuideBtn');
+  const csvModalOverlay = document.getElementById('csvModalOverlay');
+  const csvSummary = document.getElementById('csvSummary');
+  const csvTableBody = document.getElementById('csvTableBody');
+  const cancelCsvBtn = document.getElementById('cancelCsvBtn');
+  const applyCsvBtn = document.getElementById('applyCsvBtn');
+
+  let currentUserName = '';
+  let currentRows = [];
+  let csvParsedRows = [];
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function setStatus(text, cls){
+    statusLine.textContent = text;
+    statusLine.className = 'status-line ' + (cls || '');
+  }
+
+  // ---- 로그인 ----
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session); else showLogin();
+  });
+
+  async function handleSession(session){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    userEmail.textContent = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    currentUserName = name || session.user.email;
+    userEmail.textContent = currentUserName;
+    loadDashboard();
+    showIdle();
+  }
+
+  // ---- 대시보드 ----
+  function monthRange(offsetMonths){
+    const start = new Date();
+    start.setDate(1); start.setHours(0,0,0,0);
+    start.setMonth(start.getMonth() + offsetMonths);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    return { start, end };
+  }
+  function toDateStr(d){ return d.toISOString().slice(0,10); }
+
+  async function loadDashboard(){
+    const thisM = monthRange(0);
+    const nextM = monthRange(1);
+    const todayStr = toDateStr(new Date());
+
+    const [thisRes, nextRes, overdueRes, totalRes, upcomingRes] = await Promise.all([
+      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).gte('maturity_date', toDateStr(thisM.start)).lt('maturity_date', toDateStr(thisM.end)),
+      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).gte('maturity_date', toDateStr(nextM.start)).lt('maturity_date', toDateStr(nextM.end)),
+      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).lt('maturity_date', todayStr),
+      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }),
+      sb.from(TABLE_NAME).select('*').gte('maturity_date', todayStr).lt('maturity_date', toDateStr(nextM.end)).order('maturity_date', { ascending:true }).limit(30)
+    ]);
+
+    statThisMonth.textContent = (thisRes.count ?? 0).toLocaleString();
+    statNextMonth.textContent = (nextRes.count ?? 0).toLocaleString();
+    statOverdue.textContent = (overdueRes.count ?? 0).toLocaleString();
+    statTotal.textContent = (totalRes.count ?? 0).toLocaleString();
+
+    upcomingItems.innerHTML = '';
+    const rows = upcomingRes.data || [];
+    if (rows.length === 0){
+      upcomingItems.innerHTML = '<div class="empty-state" style="padding:20px;">이번달·다음달 만기 예정 건이 없습니다.</div>';
+      return;
+    }
+    const today = new Date(); today.setHours(0,0,0,0);
+    rows.forEach(r => {
+      const md = new Date(r.maturity_date);
+      const dDay = Math.round((md - today) / 86400000);
+      let badgeClass = 'later', badgeText = `D-${dDay}`;
+      if (dDay < 0){ badgeClass = 'overdue'; badgeText = '만기경과'; }
+      else if (dDay === 0){ badgeClass = 'soon'; badgeText = '오늘 만기'; }
+      else if (dDay <= 7){ badgeClass = 'soon'; }
+      const div = document.createElement('div');
+      div.className = 'upcoming-item';
+      div.innerHTML = `
+        <div class="u-left">
+          <span class="dday-badge ${badgeClass}">${badgeText}</span>
+          <span>🔢 ${r.customer_no} · ${escapeHtml(r.name)}</span>
+          <span style="color:var(--muted);">${escapeHtml(r.account_no || '')}</span>
+        </div>
+        <span style="color:var(--muted);">${escapeHtml(r.maturity_date)}</span>
+      `;
+      upcomingItems.appendChild(div);
+    });
+  }
+
+  // ---- 목록 조회 ----
+  function showIdle(){
+    idleState.style.display = 'block';
+    emptyState.style.display = 'none';
+    vipTable.style.display = 'none';
+    tableBody.innerHTML = '';
+    currentRows = [];
+    setStatus('', '');
+  }
+
+  async function loadAll(){
+    idleState.style.display = 'none';
+    setStatus('불러오는 중...', '');
+    const { data, error } = await sb.from(VIEW_NAME).select('*').order('maturity_date', { ascending:true }).limit(2000);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      vipTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다.';
+      return;
+    }
+    currentRows = data || [];
+    renderTable(currentRows);
+    setStatus('', '');
+  }
+
+  async function runSearch(){
+    const kw = searchBox.value.trim();
+    if (!kw){ setStatus('검색어를 입력해주세요', 'err-flash'); return; }
+    idleState.style.display = 'none';
+    setStatus('검색 중...', '');
+    const safe = kw.replace(/[,()%]/g, '');
+    let query = sb.from(VIEW_NAME).select('*').order('maturity_date', { ascending:true }).limit(500);
+    if (/^\d+$/.test(safe)){
+      query = query.or(`name.ilike.%${safe}%,customer_no.eq.${safe}`);
+    } else {
+      query = query.ilike('name', `%${safe}%`);
+    }
+    const { data, error } = await query;
+    if (error){
+      setStatus('검색 실패: ' + error.message, 'err-flash');
+      vipTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '검색 중 오류가 발생했습니다.';
+      return;
+    }
+    currentRows = data || [];
+    renderTable(currentRows);
+    setStatus('', '');
+  }
+
+  function renderTable(rows){
+    tableBody.innerHTML = '';
+    vipTable.style.display = rows.length === 0 ? 'none' : 'table';
+    emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+    if (rows.length === 0) emptyState.textContent = '📭 조건에 맞는 VIP 정보가 없습니다.';
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="no-col">${row.customer_no}</td>
+        <td>
+          <input type="text" class="f-name" value="${escapeHtml(row.name)}" />
+          ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
+        </td>
+        <td><input type="text" class="f-account" value="${escapeHtml(row.account_no || '')}" /></td>
+        <td><input type="date" class="f-start" value="${row.start_date || ''}" /></td>
+        <td><input type="date" class="f-maturity" value="${row.maturity_date || ''}" /></td>
+        <td><input type="text" class="f-note" value="${escapeHtml(row.note || '')}" /></td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn save" disabled>💾 저장</button>
+            <button class="icon-btn del">🗑️ 삭제</button>
+          </div>
+        </td>
+      `;
+      const nameInput = tr.querySelector('.f-name');
+      const accountInput = tr.querySelector('.f-account');
+      const startInput = tr.querySelector('.f-start');
+      const maturityInput = tr.querySelector('.f-maturity');
+      const noteInput = tr.querySelector('.f-note');
+      const saveBtn = tr.querySelector('.save');
+      const delBtn = tr.querySelector('.del');
+      const markDirty = () => { saveBtn.disabled = false; };
+      [nameInput, accountInput, startInput, maturityInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
+
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ 저장중';
+        const { error } = await sb.from(TABLE_NAME).update({
+          name: nameInput.value,
+          account_no: accountInput.value,
+          start_date: startInput.value || null,
+          maturity_date: maturityInput.value,
+          note: noteInput.value,
+          updated_by: currentUserName,
+          updated_at: new Date().toISOString()
+        }).eq('id', row.id);
+        saveBtn.textContent = '💾 저장';
+        if (error){
+          setStatus('저장 실패: ' + error.message, 'err-flash');
+          saveBtn.disabled = false;
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
+          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, note: noteInput.value });
+          loadDashboard();
+        }
+      });
+
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 VIP 만기 정보를 삭제할까요?\n(이 작업은 되돌릴 수 없습니다)`)) return;
+        const { error } = await sb.from(TABLE_NAME).delete().eq('id', row.id);
+        if (error){
+          setStatus('삭제 실패: ' + error.message, 'err-flash');
+        } else {
+          tr.remove();
+          currentRows = currentRows.filter(r => r.id !== row.id);
+          if (currentRows.length === 0){
+            vipTable.style.display = 'none';
+            emptyState.style.display = 'block';
+            emptyState.textContent = '📭 등록된 VIP 정보가 없습니다.';
+          }
+          setStatus(`고객번호 ${row.customer_no} 삭제 완료`, 'saved-flash');
+          loadDashboard();
+        }
+      });
+
+      tableBody.appendChild(tr);
+    });
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAll(); });
+
+  // ---- VIP 등록 ----
+  function openAddModal(){
+    addForm.reset();
+    addModalOverlay.classList.add('open');
+    setTimeout(() => inNo.focus(), 50);
+  }
+  function closeAddModal(){ addModalOverlay.classList.remove('open'); }
+  openAddBtn.addEventListener('click', openAddModal);
+  cancelAddBtn.addEventListener('click', closeAddModal);
+  addModalOverlay.addEventListener('click', (e) => { if (e.target === addModalOverlay) closeAddModal(); });
+
+  inNo.addEventListener('blur', async () => {
+    const no = Number(inNo.value);
+    if (!no || inName.value.trim()) return;
+    const { data } = await sb.from('customers').select('name').eq('customer_no', no).eq('is_deleted', false).maybeSingle();
+    if (data && data.name) inName.value = data.name;
+  });
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitAddBtn.disabled = true;
+    submitAddBtn.textContent = '⏳ 등록 중...';
+    const { error } = await sb.from(TABLE_NAME).insert({
+      customer_no: Number(inNo.value),
+      name: inName.value.trim(),
+      account_no: inAccount.value.trim(),
+      start_date: inStart.value || null,
+      maturity_date: inMaturity.value,
+      note: inNote.value.trim(),
+      created_by: currentUserName,
+      updated_by: currentUserName
+    });
+    submitAddBtn.disabled = false;
+    submitAddBtn.textContent = '➕ 등록';
+    if (error){
+      setStatus('등록 실패: ' + error.message, 'err-flash');
+      return;
+    }
+    closeAddModal();
+    setStatus(`고객번호 ${inNo.value} VIP 등록 완료`, 'saved-flash');
+    loadDashboard();
+    if (searchBox.value.trim()) runSearch(); else if (vipTable.style.display !== 'none') loadAll();
+  });
+
+  // ==================== CSV 업로드 ====================
+  const NO_ALIASES = ['customer_no', '고객번호', '번호'];
+  const NAME_ALIASES = ['name', '성명', '이름'];
+  const ACCOUNT_ALIASES = ['account_no', '계좌번호'];
+  const START_ALIASES = ['start_date', '신규일자'];
+  const MATURITY_ALIASES = ['maturity_date', '만기일자'];
+  const NOTE_ALIASES = ['note', '특이사항', '비고'];
+
+  function findCol(headers, aliases){
+    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    for (const a of aliases){ const idx = norm.indexOf(a.toLowerCase()); if (idx !== -1) return idx; }
+    return -1;
+  }
+
+  csvUploadBtn.addEventListener('click', () => csvGuideModalOverlay.classList.add('open'));
+  cancelCsvGuideBtn.addEventListener('click', () => csvGuideModalOverlay.classList.remove('open'));
+  csvGuideModalOverlay.addEventListener('click', (e) => { if (e.target === csvGuideModalOverlay) csvGuideModalOverlay.classList.remove('open'); });
+  proceedCsvGuideBtn.addEventListener('click', () => { csvGuideModalOverlay.classList.remove('open'); csvFileInput.click(); });
+
+  csvFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    csvFileInput.value = '';
+    if (!file) return;
+    csvSummary.textContent = 'CSV 파일을 분석하고 있습니다...';
+    csvTableBody.innerHTML = '';
+    csvModalOverlay.classList.add('open');
+
+    Papa.parse(file, {
+      header: false, skipEmptyLines: true, encoding: 'UTF-8',
+      complete: (results) => {
+        const rows = results.data;
+        if (!rows || rows.length < 2){ csvSummary.textContent = 'CSV에 데이터가 없습니다.'; return; }
+        const headers = rows[0];
+        const noIdx = findCol(headers, NO_ALIASES);
+        const nameIdx = findCol(headers, NAME_ALIASES);
+        const accIdx = findCol(headers, ACCOUNT_ALIASES);
+        const startIdx = findCol(headers, START_ALIASES);
+        const matIdx = findCol(headers, MATURITY_ALIASES);
+        const noteIdx = findCol(headers, NOTE_ALIASES);
+
+        if (noIdx === -1 || nameIdx === -1 || matIdx === -1){
+          csvSummary.innerHTML = `필수 열(고객번호/성명/만기일자)을 찾을 수 없습니다.<br/>지금 헤더: ${escapeHtml(headers.join(', '))}`;
+          return;
+        }
+
+        csvParsedRows = rows.slice(1).map(r => {
+          const no = Number((r[noIdx] || '').toString().trim());
+          const name = (r[nameIdx] || '').toString().trim();
+          const account = accIdx !== -1 ? (r[accIdx] || '').toString().trim() : '';
+          const start = startIdx !== -1 ? (r[startIdx] || '').toString().trim() : '';
+          const maturity = (r[matIdx] || '').toString().trim();
+          const note = noteIdx !== -1 ? (r[noteIdx] || '').toString().trim() : '';
+          const valid = !isNaN(no) && no > 0 && name !== '' && maturity !== '';
+          return { no, name, account, start, maturity, note, valid };
+        });
+
+        renderCsvPreview();
+      },
+      error: (err) => { csvSummary.textContent = 'CSV 파싱 실패: ' + err.message; }
+    });
+  });
+
+  function renderCsvPreview(){
+    const validCount = csvParsedRows.filter(r => r.valid).length;
+    const invalidCount = csvParsedRows.length - validCount;
+    csvSummary.innerHTML = `총 ${csvParsedRows.length}건 — 등록 가능 ${validCount}건` + (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명/만기일자 누락, 자동 제외)</span>` : '');
+
+    csvTableBody.innerHTML = '';
+    csvParsedRows.forEach((row, idx) => {
+      if (!row.valid) return;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" class="csv-row-check" data-idx="${idx}" checked /></td>
+        <td>${escapeHtml(String(row.no))}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.account)}</td>
+        <td>${escapeHtml(row.start)}</td>
+        <td>${escapeHtml(row.maturity)}</td>
+        <td>${escapeHtml(row.note)}</td>
+      `;
+      csvTableBody.appendChild(tr);
+    });
+  }
+
+  function closeCsvModal(){ csvModalOverlay.classList.remove('open'); csvParsedRows = []; csvTableBody.innerHTML = ''; }
+  cancelCsvBtn.addEventListener('click', closeCsvModal);
+  csvModalOverlay.addEventListener('click', (e) => { if (e.target === csvModalOverlay) closeCsvModal(); });
+
+  applyCsvBtn.addEventListener('click', async () => {
+    const checkedIdx = new Set();
+    csvTableBody.querySelectorAll('.csv-row-check:checked').forEach(cb => checkedIdx.add(Number(cb.dataset.idx)));
+    const toInsert = csvParsedRows
+      .filter((row, idx) => row.valid && checkedIdx.has(idx))
+      .map(row => ({
+        customer_no: row.no, name: row.name, account_no: row.account,
+        start_date: row.start || null, maturity_date: row.maturity, note: row.note,
+        created_by: currentUserName, updated_by: currentUserName
+      }));
+
+    if (toInsert.length === 0){ setStatus('등록할 항목을 선택해주세요', 'err-flash'); return; }
+
+    applyCsvBtn.disabled = true;
+    applyCsvBtn.textContent = '⏳ 등록 중...';
+    let insertedCount = 0;
+    const errors = [];
+    const BATCH = 300;
+    for (let i = 0; i < toInsert.length; i += BATCH){
+      const batch = toInsert.slice(i, i + BATCH);
+      const { error } = await sb.from(TABLE_NAME).insert(batch);
+      if (error) errors.push(error.message); else insertedCount += batch.length;
+    }
+    applyCsvBtn.disabled = false;
+    applyCsvBtn.textContent = '✅ 선택 항목 등록';
+
+    if (errors.length){
+      setStatus('일부 실패: ' + errors.join(' / '), 'err-flash');
+    } else {
+      setStatus(`CSV 등록 완료 — ${insertedCount}건`, 'saved-flash');
+    }
+    closeCsvModal();
+    loadDashboard();
+    if (vipTable.style.display !== 'none') loadAll();
+  });
+
+  // ---- 시작 ----
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session); else showLogin();
+  });
+</script>
+</body>
+</html>
