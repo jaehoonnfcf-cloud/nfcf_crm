@@ -117,6 +117,20 @@
   }
   td input:hover{ border-color:var(--line); }
   td input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  td.amount-cell{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); white-space:nowrap; }
+  .amount-cell-wrap{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .amount-display{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
+  .amount-edit-btn{ padding:3px 7px; font-size:11px; flex-shrink:0; }
+  .amount-edit-input{
+    width:130px; border:1px solid var(--accent) !important; border-radius:6px; padding:5px 7px;
+    font-size:13px; font-family:inherit; background:#fff !important;
+  }
+  .amount-confirm-btn{ border-color:var(--accent) !important; color:var(--accent) !important; }
+  .visible-input{
+    border:1px solid var(--line) !important; background:#fcfcfb !important;
+  }
+  .visible-input:focus{ background:#fff !important; }
+  .visible-input::placeholder{ color:#b6b8ba; }
   .member-badge{
     font-size:10px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f;
     padding:2px 6px; border-radius:999px; margin-left:6px;
@@ -583,8 +597,11 @@
         <td><input type="text" class="f-account" value="${escapeHtml(row.account_no || '')}" /></td>
         <td><input type="date" class="f-start" value="${row.start_date || ''}" /></td>
         <td><input type="date" class="f-maturity" value="${row.maturity_date || ''}" /></td>
-        <td><input type="number" class="f-amount" value="${row.amount ?? ''}" /></td>
-        <td><input type="text" class="f-note" value="${escapeHtml(row.note || '')}" /></td>
+        <td class="amount-cell-wrap">
+          <span class="amount-display">${row.amount != null ? Number(row.amount).toLocaleString() : '-'}</span>
+          <button type="button" class="icon-btn amount-edit-btn" title="금액 수정">✏️</button>
+        </td>
+        <td><input type="text" class="f-note visible-input" value="${escapeHtml(row.note || '')}" placeholder="메모를 입력하세요" /></td>
         <td>
           <div class="row-actions">
             <button class="icon-btn save" disabled>💾 저장</button>
@@ -596,12 +613,49 @@
       const accountInput = tr.querySelector('.f-account');
       const startInput = tr.querySelector('.f-start');
       const maturityInput = tr.querySelector('.f-maturity');
-      const amountInput = tr.querySelector('.f-amount');
       const noteInput = tr.querySelector('.f-note');
       const saveBtn = tr.querySelector('.save');
       const delBtn = tr.querySelector('.del');
+      const amountEditBtn = tr.querySelector('.amount-edit-btn');
+      const amountCellWrap = tr.querySelector('.amount-cell-wrap');
       const markDirty = () => { saveBtn.disabled = false; };
-      [nameInput, accountInput, startInput, maturityInput, amountInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
+      [nameInput, accountInput, startInput, maturityInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
+
+      amountEditBtn.addEventListener('click', () => {
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 금액을 수정하시겠습니까?\n신중하게 확인 후 진행해주세요.`)) return;
+
+        amountCellWrap.innerHTML = `
+          <input type="number" class="amount-edit-input" value="${row.amount ?? ''}" />
+          <button type="button" class="icon-btn amount-confirm-btn">✅</button>
+          <button type="button" class="icon-btn amount-cancel-btn">✕</button>
+        `;
+        const editInput = amountCellWrap.querySelector('.amount-edit-input');
+        const confirmBtn = amountCellWrap.querySelector('.amount-confirm-btn');
+        const cancelBtn = amountCellWrap.querySelector('.amount-cancel-btn');
+        editInput.focus();
+        editInput.select();
+
+        cancelBtn.addEventListener('click', () => renderTable(currentRows));
+
+        confirmBtn.addEventListener('click', async () => {
+          const newAmount = editInput.value === '' ? null : Number(editInput.value);
+          confirmBtn.disabled = true;
+          const { error } = await sb.from(TABLE_NAME).update({
+            amount: newAmount,
+            updated_by: currentUserName,
+            updated_at: new Date().toISOString()
+          }).eq('id', row.id);
+          if (error){
+            setStatus('금액 수정 실패: ' + error.message, 'err-flash');
+            confirmBtn.disabled = false;
+          } else {
+            row.amount = newAmount;
+            setStatus(`고객번호 ${row.customer_no} 금액 수정 완료`, 'saved-flash');
+            renderTable(currentRows);
+            loadDashboard();
+          }
+        });
+      });
 
       saveBtn.addEventListener('click', async () => {
         saveBtn.disabled = true;
@@ -611,7 +665,6 @@
           account_no: accountInput.value,
           start_date: startInput.value || null,
           maturity_date: maturityInput.value,
-          amount: amountInput.value === '' ? null : Number(amountInput.value),
           note: noteInput.value,
           updated_by: currentUserName,
           updated_at: new Date().toISOString()
@@ -622,7 +675,7 @@
           saveBtn.disabled = false;
         } else {
           setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
-          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, amount: amountInput.value === '' ? null : Number(amountInput.value), note: noteInput.value });
+          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, note: noteInput.value });
           loadDashboard();
         }
       });
