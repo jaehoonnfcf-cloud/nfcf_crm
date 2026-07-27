@@ -68,7 +68,9 @@
   .stat-card.danger .num{ color:var(--danger); }
   .stat-amount{ font-size:12.5px; color:var(--muted); margin-top:4px; font-weight:600; }
 
-  .upcoming-list{ margin-bottom:32px; }
+  .dashboard-row{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; margin-bottom:32px; align-items:start; }
+  .panel-title{ font-size:13px; font-weight:700; color:var(--muted); margin-bottom:10px; }
+  .upcoming-list{ }
   .upcoming-item{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     background:var(--panel); border:1px solid var(--line); border-radius:10px;
@@ -79,6 +81,21 @@
   .dday-badge.overdue{ background:#fbeceb; color:var(--danger); }
   .dday-badge.soon{ background:#fdf1e0; color:#a3690f; }
   .dday-badge.later{ background:var(--accent-soft); color:var(--accent); }
+
+  .top5-panel{ position:sticky; top:16px; }
+  .top5-item{
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .top5-rank{
+    flex-shrink:0; width:22px; height:22px; border-radius:999px; background:#fdf1e0; color:#a3690f;
+    font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .top5-info{ flex:1; min-width:0; }
+  .top5-name{ font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .top5-meta{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .top5-amount{ font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; flex-shrink:0; }
 
   /* ---- 툴바/표 ---- */
   .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
@@ -103,7 +120,7 @@
   .add-btn{ background:var(--accent); }
 
   .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; min-width:1130px; table-layout:fixed; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; table-layout:fixed; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
     color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
@@ -180,6 +197,8 @@
     .toolbar input[type=text], .toolbar .btn-secondary, .toolbar .search-btn, .toolbar .csv-btn, .toolbar .add-btn{ width:100%; justify-content:center; }
     .modal{ max-width:94vw; padding:22px 18px; }
     .upcoming-item{ flex-direction:column; align-items:flex-start; }
+    .dashboard-row{ grid-template-columns:1fr; }
+    .top5-panel{ position:static; }
   }
 </style>
 </head>
@@ -228,11 +247,22 @@
           <div class="stat-amount" id="statNextMonthAmount"></div>
         </div>
         <div class="stat-card danger"><div class="num" id="statOverdue">-</div><div class="label">⚠️ 만기 경과</div></div>
-        <div class="stat-card"><div class="num" id="statTotal">-</div><div class="label">💎 전체 등록 건수</div></div>
+        <div class="stat-card">
+          <div class="num" id="statTotal">-</div>
+          <div class="label">💎 전체 등록 건수</div>
+          <div class="stat-amount" id="statTotalAmount"></div>
+        </div>
       </div>
 
-      <div class="upcoming-list">
-        <div id="upcomingItems"></div>
+      <div class="dashboard-row">
+        <div class="upcoming-list">
+          <div class="panel-title">⏰ 임박 만기 목록</div>
+          <div id="upcomingItems"></div>
+        </div>
+        <div class="top5-panel">
+          <div class="panel-title">💰 금액 TOP 5</div>
+          <div id="top5Items"></div>
+        </div>
       </div>
 
       <div class="toolbar">
@@ -250,14 +280,14 @@
         <table id="vipTable" style="display:none;">
           <thead>
             <tr>
-              <th style="width:90px;">🔢 고객번호</th>
-              <th style="width:140px;">🙍 성명</th>
-              <th style="width:140px;">🏦 계좌번호</th>
-              <th style="width:110px;">신규일자</th>
-              <th style="width:110px;">만기일자</th>
-              <th style="width:130px; text-align:right;">💰 금액</th>
-              <th style="width:220px;">특이사항</th>
-              <th style="width:180px;"></th>
+              <th style="width:8%;">🔢 고객번호</th>
+              <th style="width:12%;">🙍 성명</th>
+              <th style="width:13%;">🏦 계좌번호</th>
+              <th style="width:10%;">신규일자</th>
+              <th style="width:10%;">만기일자</th>
+              <th style="width:12%; text-align:right;">💰 금액</th>
+              <th style="width:19%;">특이사항</th>
+              <th style="width:16%;"></th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -559,12 +589,13 @@
     const nextM = monthRange(1);
     const todayStr = toDateStr(new Date());
 
-    const [thisRes, nextRes, overdueRes, totalRes, upcomingRes] = await Promise.all([
+    const [thisRes, nextRes, overdueRes, totalRes, upcomingRes, top5Res] = await Promise.all([
       sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(thisM.start)).lt('maturity_date', toDateStr(thisM.end)),
       sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(nextM.start)).lt('maturity_date', toDateStr(nextM.end)),
       sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).lt('maturity_date', todayStr),
-      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }),
-      sb.from(TABLE_NAME).select('*').gte('maturity_date', todayStr).lt('maturity_date', toDateStr(nextM.end)).order('maturity_date', { ascending:true }).limit(30)
+      sb.from(TABLE_NAME).select('amount', { count:'exact' }),
+      sb.from(TABLE_NAME).select('*').gte('maturity_date', todayStr).lt('maturity_date', toDateStr(nextM.end)).order('maturity_date', { ascending:true }).limit(30),
+      sb.from(TABLE_NAME).select('*').not('amount', 'is', null).order('amount', { ascending:false }).limit(5)
     ]);
 
     function sumAmount(rows){
@@ -580,34 +611,58 @@
     statNextMonth.textContent = (nextRes.count ?? 0).toLocaleString();
     statOverdue.textContent = (overdueRes.count ?? 0).toLocaleString();
     statTotal.textContent = (totalRes.count ?? 0).toLocaleString();
+    document.getElementById('statTotalAmount').textContent = fmtMillion(sumAmount(totalRes.data));
 
+    // ---- 임박 만기 목록 ----
     upcomingItems.innerHTML = '';
     const rows = upcomingRes.data || [];
     if (rows.length === 0){
       upcomingItems.innerHTML = '<div class="empty-state" style="padding:20px;">이번달·다음달 만기 예정 건이 없습니다.</div>';
-      return;
+    } else {
+      const today = new Date(); today.setHours(0,0,0,0);
+      rows.forEach(r => {
+        const md = new Date(r.maturity_date);
+        const dDay = Math.round((md - today) / 86400000);
+        let badgeClass = 'later', badgeText = `D-${dDay}`;
+        if (dDay < 0){ badgeClass = 'overdue'; badgeText = '만기경과'; }
+        else if (dDay === 0){ badgeClass = 'soon'; badgeText = '오늘 만기'; }
+        else if (dDay <= 7){ badgeClass = 'soon'; }
+        const div = document.createElement('div');
+        div.className = 'upcoming-item';
+        div.innerHTML = `
+          <div class="u-left">
+            <span class="dday-badge ${badgeClass}">${badgeText}</span>
+            <span>🔢 ${r.customer_no} · ${escapeHtml(r.name)}</span>
+            <span style="color:var(--muted);">${escapeHtml(r.account_no || '')}</span>
+            ${r.amount != null ? `<span style="color:var(--muted);">💰 ${Number(r.amount).toLocaleString()}</span>` : ''}
+          </div>
+          <span style="color:var(--muted);">${escapeHtml(r.maturity_date)}</span>
+        `;
+        upcomingItems.appendChild(div);
+      });
     }
-    const today = new Date(); today.setHours(0,0,0,0);
-    rows.forEach(r => {
-      const md = new Date(r.maturity_date);
-      const dDay = Math.round((md - today) / 86400000);
-      let badgeClass = 'later', badgeText = `D-${dDay}`;
-      if (dDay < 0){ badgeClass = 'overdue'; badgeText = '만기경과'; }
-      else if (dDay === 0){ badgeClass = 'soon'; badgeText = '오늘 만기'; }
-      else if (dDay <= 7){ badgeClass = 'soon'; }
-      const div = document.createElement('div');
-      div.className = 'upcoming-item';
-      div.innerHTML = `
-        <div class="u-left">
-          <span class="dday-badge ${badgeClass}">${badgeText}</span>
-          <span>🔢 ${r.customer_no} · ${escapeHtml(r.name)}</span>
-          <span style="color:var(--muted);">${escapeHtml(r.account_no || '')}</span>
-          ${r.amount != null ? `<span style="color:var(--muted);">💰 ${Number(r.amount).toLocaleString()}</span>` : ''}
-        </div>
-        <span style="color:var(--muted);">${escapeHtml(r.maturity_date)}</span>
-      `;
-      upcomingItems.appendChild(div);
-    });
+
+    // ---- 금액 TOP 5 ----
+    const top5Items = document.getElementById('top5Items');
+    top5Items.innerHTML = '';
+    const top5Rows = top5Res.data || [];
+    if (top5Rows.length === 0){
+      top5Items.innerHTML = '<div class="empty-state" style="padding:20px;">등록된 금액 정보가 없습니다.</div>';
+    } else {
+      top5Rows.forEach((r, idx) => {
+        const div = document.createElement('div');
+        div.className = 'top5-item';
+        div.innerHTML = `
+          <span class="top5-rank">${idx + 1}</span>
+          <div class="top5-info">
+            <div class="top5-name">🔢 ${r.customer_no} · ${escapeHtml(r.name)}</div>
+            <div class="top5-meta">만기 ${escapeHtml(r.maturity_date)}</div>
+          </div>
+          <span class="top5-amount">${Number(r.amount).toLocaleString()}</span>
+        `;
+        top5Items.appendChild(div);
+      });
+    }
   }
 
   // ---- 목록 조회 ----
