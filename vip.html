@@ -228,6 +228,7 @@
               <th style="width:150px;">🏦 계좌번호</th>
               <th style="width:130px;">신규일자</th>
               <th style="width:130px;">만기일자</th>
+              <th style="width:130px;">💰 금액</th>
               <th>특이사항</th>
               <th style="width:110px;"></th>
             </tr>
@@ -268,6 +269,10 @@
           <input type="date" id="inMaturity" required />
         </div>
         <div class="field">
+          <label for="inAmount">💰 금액</label>
+          <input type="number" id="inAmount" placeholder="예: 50000000" />
+        </div>
+        <div class="field">
           <label for="inNote">특이사항</label>
           <textarea id="inNote" rows="3" placeholder="예: 재예치 예정, 담당자 연락처 등"></textarea>
         </div>
@@ -291,6 +296,7 @@
         🏦 계좌번호: <code>account_no</code> / <code>계좌번호</code> (선택)<br/>
         신규일자: <code>start_date</code> / <code>신규일자</code> (선택, YYYY-MM-DD)<br/>
         만기일자: <code>maturity_date</code> / <code>만기일자</code> (필수, YYYY-MM-DD)<br/>
+        💰 금액: <code>amount</code> / <code>금액</code> (선택, 숫자만)<br/>
         특이사항: <code>note</code> / <code>특이사항</code> (선택)
       </p>
       <div class="modal-actions">
@@ -308,7 +314,7 @@
       <div style="max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:10px;">
         <table class="csv-preview-table">
           <thead>
-            <tr><th style="width:36px;"></th><th>고객번호</th><th>성명</th><th>계좌번호</th><th>신규일자</th><th>만기일자</th><th>특이사항</th></tr>
+            <tr><th style="width:36px;"></th><th>고객번호</th><th>성명</th><th>계좌번호</th><th>신규일자</th><th>만기일자</th><th>금액</th><th>특이사항</th></tr>
           </thead>
           <tbody id="csvTableBody"></tbody>
         </table>
@@ -368,6 +374,7 @@
   const inAccount = document.getElementById('inAccount');
   const inStart = document.getElementById('inStart');
   const inMaturity = document.getElementById('inMaturity');
+  const inAmount = document.getElementById('inAmount');
   const inNote = document.getElementById('inNote');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const submitAddBtn = document.getElementById('submitAddBtn');
@@ -499,6 +506,7 @@
           <span class="dday-badge ${badgeClass}">${badgeText}</span>
           <span>🔢 ${r.customer_no} · ${escapeHtml(r.name)}</span>
           <span style="color:var(--muted);">${escapeHtml(r.account_no || '')}</span>
+          ${r.amount != null ? `<span style="color:var(--muted);">💰 ${Number(r.amount).toLocaleString()}</span>` : ''}
         </div>
         <span style="color:var(--muted);">${escapeHtml(r.maturity_date)}</span>
       `;
@@ -574,6 +582,7 @@
         <td><input type="text" class="f-account" value="${escapeHtml(row.account_no || '')}" /></td>
         <td><input type="date" class="f-start" value="${row.start_date || ''}" /></td>
         <td><input type="date" class="f-maturity" value="${row.maturity_date || ''}" /></td>
+        <td><input type="number" class="f-amount" value="${row.amount ?? ''}" /></td>
         <td><input type="text" class="f-note" value="${escapeHtml(row.note || '')}" /></td>
         <td>
           <div class="row-actions">
@@ -586,11 +595,12 @@
       const accountInput = tr.querySelector('.f-account');
       const startInput = tr.querySelector('.f-start');
       const maturityInput = tr.querySelector('.f-maturity');
+      const amountInput = tr.querySelector('.f-amount');
       const noteInput = tr.querySelector('.f-note');
       const saveBtn = tr.querySelector('.save');
       const delBtn = tr.querySelector('.del');
       const markDirty = () => { saveBtn.disabled = false; };
-      [nameInput, accountInput, startInput, maturityInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
+      [nameInput, accountInput, startInput, maturityInput, amountInput, noteInput].forEach(el => el.addEventListener('input', markDirty));
 
       saveBtn.addEventListener('click', async () => {
         saveBtn.disabled = true;
@@ -600,6 +610,7 @@
           account_no: accountInput.value,
           start_date: startInput.value || null,
           maturity_date: maturityInput.value,
+          amount: amountInput.value === '' ? null : Number(amountInput.value),
           note: noteInput.value,
           updated_by: currentUserName,
           updated_at: new Date().toISOString()
@@ -610,7 +621,7 @@
           saveBtn.disabled = false;
         } else {
           setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
-          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, note: noteInput.value });
+          Object.assign(row, { name: nameInput.value, account_no: accountInput.value, start_date: startInput.value, maturity_date: maturityInput.value, amount: amountInput.value === '' ? null : Number(amountInput.value), note: noteInput.value });
           loadDashboard();
         }
       });
@@ -669,6 +680,7 @@
       account_no: inAccount.value.trim(),
       start_date: inStart.value || null,
       maturity_date: inMaturity.value,
+      amount: inAmount.value === '' ? null : Number(inAmount.value),
       note: inNote.value.trim(),
       created_by: currentUserName,
       updated_by: currentUserName
@@ -691,6 +703,7 @@
   const ACCOUNT_ALIASES = ['account_no', '계좌번호'];
   const START_ALIASES = ['start_date', '신규일자'];
   const MATURITY_ALIASES = ['maturity_date', '만기일자'];
+  const AMOUNT_ALIASES = ['amount', '금액'];
   const NOTE_ALIASES = ['note', '특이사항', '비고'];
 
   function findCol(headers, aliases){
@@ -723,6 +736,7 @@
         const accIdx = findCol(headers, ACCOUNT_ALIASES);
         const startIdx = findCol(headers, START_ALIASES);
         const matIdx = findCol(headers, MATURITY_ALIASES);
+        const amountIdx = findCol(headers, AMOUNT_ALIASES);
         const noteIdx = findCol(headers, NOTE_ALIASES);
 
         if (noIdx === -1 || nameIdx === -1 || matIdx === -1){
@@ -736,9 +750,11 @@
           const account = accIdx !== -1 ? (r[accIdx] || '').toString().trim() : '';
           const start = startIdx !== -1 ? (r[startIdx] || '').toString().trim() : '';
           const maturity = (r[matIdx] || '').toString().trim();
+          const amountRaw = amountIdx !== -1 ? (r[amountIdx] || '').toString().trim().replace(/,/g, '') : '';
+          const amount = amountRaw === '' ? null : Number(amountRaw);
           const note = noteIdx !== -1 ? (r[noteIdx] || '').toString().trim() : '';
           const valid = !isNaN(no) && no > 0 && name !== '' && maturity !== '';
-          return { no, name, account, start, maturity, note, valid };
+          return { no, name, account, start, maturity, amount, note, valid };
         });
 
         renderCsvPreview();
@@ -763,6 +779,7 @@
         <td>${escapeHtml(row.account)}</td>
         <td>${escapeHtml(row.start)}</td>
         <td>${escapeHtml(row.maturity)}</td>
+        <td>${row.amount != null ? Number(row.amount).toLocaleString() : ''}</td>
         <td>${escapeHtml(row.note)}</td>
       `;
       csvTableBody.appendChild(tr);
@@ -780,7 +797,7 @@
       .filter((row, idx) => row.valid && checkedIdx.has(idx))
       .map(row => ({
         customer_no: row.no, name: row.name, account_no: row.account,
-        start_date: row.start || null, maturity_date: row.maturity, note: row.note,
+        start_date: row.start || null, maturity_date: row.maturity, amount: row.amount, note: row.note,
         created_by: currentUserName, updated_by: currentUserName
       }));
 
