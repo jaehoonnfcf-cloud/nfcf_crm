@@ -66,6 +66,7 @@
   .stat-card .label{ font-size:12.5px; color:var(--muted); margin-top:4px; }
   .stat-card.warn .num{ color:#a3690f; }
   .stat-card.danger .num{ color:var(--danger); }
+  .stat-amount{ font-size:12.5px; color:var(--muted); margin-top:4px; font-weight:600; }
 
   .upcoming-list{ margin-bottom:32px; }
   .upcoming-item{
@@ -102,28 +103,29 @@
   .add-btn{ background:var(--accent); }
 
   .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; min-width:920px; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; min-width:980px; table-layout:fixed; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
     color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
+    overflow:hidden; text-overflow:ellipsis;
   }
-  tbody td{ padding:9px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody td{ padding:8px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; height:52px; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:#fafaf9; }
-  td.no-col{ color:var(--muted); font-weight:600; white-space:nowrap; }
+  td.no-col{ color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   td input[type=text], td input[type=date]{
-    width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
-    font-size:13px; font-family:inherit; background:transparent;
+    width:100%; height:34px; box-sizing:border-box; border:1px solid transparent; border-radius:6px; padding:0 7px;
+    font-size:13px; font-family:inherit; background:transparent; line-height:32px;
   }
   td input:hover{ border-color:var(--line); }
   td input:focus{ outline:none; border-color:var(--accent); background:#fff; }
   td.amount-cell{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); white-space:nowrap; }
-  .amount-cell-wrap{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
-  .amount-display{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
-  .amount-edit-btn{ padding:3px 7px; font-size:11px; flex-shrink:0; }
+  .amount-cell-wrap{ display:flex; align-items:center; gap:6px; white-space:nowrap; height:34px; }
+  .amount-display{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); line-height:34px; }
+  .amount-edit-btn{ height:34px; box-sizing:border-box; padding:0 8px; font-size:12px; flex-shrink:0; display:inline-flex; align-items:center; }
   .amount-edit-input{
-    width:130px; border:1px solid var(--accent) !important; border-radius:6px; padding:5px 7px;
-    font-size:13px; font-family:inherit; background:#fff !important;
+    width:130px; height:34px; box-sizing:border-box; border:1px solid var(--accent) !important; border-radius:6px; padding:0 7px;
+    font-size:13px; font-family:inherit; background:#fff !important; line-height:32px;
   }
   .amount-confirm-btn{ border-color:var(--accent) !important; color:var(--accent) !important; }
   .visible-input{
@@ -214,8 +216,16 @@
       <p class="page-sub">주요 법인 · 단체 · VIP 고객의 예금 만기일자를 관리합니다.</p>
 
       <div class="stat-grid">
-        <div class="stat-card warn"><div class="num" id="statThisMonth">-</div><div class="label">📅 이번달 만기</div></div>
-        <div class="stat-card"><div class="num" id="statNextMonth">-</div><div class="label">📆 다음달 만기</div></div>
+        <div class="stat-card warn">
+          <div class="num" id="statThisMonth">-</div>
+          <div class="label">📅 이번달 만기</div>
+          <div class="stat-amount" id="statThisMonthAmount"></div>
+        </div>
+        <div class="stat-card">
+          <div class="num" id="statNextMonth">-</div>
+          <div class="label">📆 다음달 만기</div>
+          <div class="stat-amount" id="statNextMonthAmount"></div>
+        </div>
         <div class="stat-card danger"><div class="num" id="statOverdue">-</div><div class="label">⚠️ 만기 경과</div></div>
         <div class="stat-card"><div class="num" id="statTotal">-</div><div class="label">💎 전체 등록 건수</div></div>
       </div>
@@ -227,6 +237,8 @@
       <div class="toolbar">
         <input type="text" id="searchBox" placeholder="🔍 고객번호 또는 성명 검색" autocomplete="off" />
         <button class="search-btn" id="searchBtn">🔍 검색</button>
+        <button class="btn-secondary" id="thisMonthBtn">📅 이번달 만기</button>
+        <button class="btn-secondary" id="nextMonthBtn">📆 다음달 만기</button>
         <button class="btn-secondary" id="showAllBtn">📋 전체 보기</button>
         <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
         <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
@@ -371,6 +383,8 @@
 
   const searchBox = document.getElementById('searchBox');
   const searchBtn = document.getElementById('searchBtn');
+  const thisMonthBtn = document.getElementById('thisMonthBtn');
+  const nextMonthBtn = document.getElementById('nextMonthBtn');
   const showAllBtn = document.getElementById('showAllBtn');
   const csvUploadBtn = document.getElementById('csvUploadBtn');
   const csvFileInput = document.getElementById('csvFileInput');
@@ -488,14 +502,23 @@
     const todayStr = toDateStr(new Date());
 
     const [thisRes, nextRes, overdueRes, totalRes, upcomingRes] = await Promise.all([
-      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).gte('maturity_date', toDateStr(thisM.start)).lt('maturity_date', toDateStr(thisM.end)),
-      sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).gte('maturity_date', toDateStr(nextM.start)).lt('maturity_date', toDateStr(nextM.end)),
+      sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(thisM.start)).lt('maturity_date', toDateStr(thisM.end)),
+      sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(nextM.start)).lt('maturity_date', toDateStr(nextM.end)),
       sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).lt('maturity_date', todayStr),
       sb.from(TABLE_NAME).select('*', { count:'exact', head:true }),
       sb.from(TABLE_NAME).select('*').gte('maturity_date', todayStr).lt('maturity_date', toDateStr(nextM.end)).order('maturity_date', { ascending:true }).limit(30)
     ]);
 
+    function sumAmount(rows){
+      return (rows || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    }
+    function fmtMillion(sum){
+      return `💰 ${Math.round(sum / 1000000).toLocaleString()}백만원`;
+    }
+
     statThisMonth.textContent = (thisRes.count ?? 0).toLocaleString();
+    document.getElementById('statThisMonthAmount').textContent = fmtMillion(sumAmount(thisRes.data));
+    document.getElementById('statNextMonthAmount').textContent = fmtMillion(sumAmount(nextRes.data));
     statNextMonth.textContent = (nextRes.count ?? 0).toLocaleString();
     statOverdue.textContent = (overdueRes.count ?? 0).toLocaleString();
     statTotal.textContent = (totalRes.count ?? 0).toLocaleString();
@@ -552,7 +575,31 @@
     }
     currentRows = data || [];
     renderTable(currentRows);
-    setStatus('', '');
+    setStatus(`총 ${currentRows.length}건 (전체)`, '');
+  }
+
+  async function loadByMonth(offsetMonths, label){
+    idleState.style.display = 'none';
+    setStatus('불러오는 중...', '');
+    const range = monthRange(offsetMonths);
+    const { data, error } = await sb
+      .from(VIEW_NAME)
+      .select('*')
+      .gte('maturity_date', toDateStr(range.start))
+      .lt('maturity_date', toDateStr(range.end))
+      .order('maturity_date', { ascending:true })
+      .limit(2000);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      vipTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다.';
+      return;
+    }
+    currentRows = data || [];
+    renderTable(currentRows);
+    if (currentRows.length === 0) emptyState.textContent = `📭 ${label} 만기인 VIP가 없습니다.`;
+    setStatus(`총 ${currentRows.length}건 (${label} 만기)`, '');
   }
 
   async function runSearch(){
@@ -704,6 +751,8 @@
 
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  thisMonthBtn.addEventListener('click', () => { searchBox.value = ''; loadByMonth(0, '이번달'); });
+  nextMonthBtn.addEventListener('click', () => { searchBox.value = ''; loadByMonth(1, '다음달'); });
   showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAll(); });
 
   // ---- VIP 등록 ----
