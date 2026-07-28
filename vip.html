@@ -303,7 +303,7 @@
         </div>
         <div class="top5-panel">
           <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>💰 금액 TOP 5</span>
+            <span>💰 금액 TOP 10</span>
             <button type="button" class="link-more-btn" id="amountRankMoreBtn">더보기 ›</button>
           </div>
           <div id="top5Items"></div>
@@ -712,7 +712,7 @@
       });
     }
 
-    // ---- 금액 TOP 5 (고객번호별 합산 기준) ----
+    // ---- 금액 TOP 10 (고객번호별 합산 기준) ----
     const top5Items = document.getElementById('top5Items');
     top5Items.innerHTML = '';
     const byCustomer = {};
@@ -727,7 +727,7 @@
     });
     const allCustomerRanked = Object.values(byCustomer).sort((a, b) => b.total - a.total);
     allAmountRanking = allCustomerRanked;
-    const top5Rows = allCustomerRanked.slice(0, 5);
+    const top5Rows = allCustomerRanked.slice(0, 10);
 
     if (top5Rows.length === 0){
       top5Items.innerHTML = '<div class="empty-state" style="padding:20px;">등록된 금액 정보가 없습니다.</div>';
