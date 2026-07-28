@@ -431,7 +431,8 @@
         신규일자: <code>start_date</code> / <code>신규일자</code> (선택, YYYY-MM-DD)<br/>
         만기일자: <code>maturity_date</code> / <code>만기일자</code> (필수, YYYY-MM-DD)<br/>
         💰 금액: <code>amount</code> / <code>금액</code> (선택, 숫자만)<br/>
-        특이사항: <code>note</code> / <code>특이사항</code> (선택)
+        특이사항: <code>note</code> / <code>특이사항</code> (선택)<br/><br/>
+        <b>계좌번호가 이미 등록되어 있으면 자동으로 최신 내용으로 업데이트</b>되고, 없으면 새로 등록됩니다.
       </p>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" id="cancelCsvGuideBtn">취소</button>
@@ -448,7 +449,7 @@
       <div style="max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:10px;">
         <table class="csv-preview-table">
           <thead>
-            <tr><th style="width:36px;"></th><th>고객번호</th><th>성명</th><th>계좌번호</th><th>신규일자</th><th>만기일자</th><th>금액</th><th>특이사항</th></tr>
+            <tr><th style="width:36px;"></th><th>고객번호</th><th>성명</th><th>계좌번호</th><th>신규일자</th><th>만기일자</th><th>금액</th><th>특이사항</th><th>상태</th></tr>
           </thead>
           <tbody id="csvTableBody"></tbody>
         </table>
@@ -908,7 +909,7 @@
     const updated = {
       customer_no: Number(editNo.value),
       name: editName.value.trim(),
-      account_no: editAccount.value.trim(),
+      account_no: editAccount.value.trim() || null,
       start_date: editStart.value || null,
       maturity_date: editMaturity.value,
       amount: editAmount.value === '' ? null : Number(editAmount.value),
@@ -922,7 +923,11 @@
     submitEditBtn.textContent = '💾 저장';
 
     if (error){
-      setStatus('수정 실패: ' + error.message, 'err-flash');
+      if (error.code === '23505'){
+        setStatus('수정 실패: 이미 등록된 계좌번호입니다. 계좌번호를 확인해주세요.', 'err-flash');
+      } else {
+        setStatus('수정 실패: ' + error.message, 'err-flash');
+      }
       return;
     }
     Object.assign(editingRow, updated);
@@ -969,7 +974,7 @@
     const { error } = await sb.from(TABLE_NAME).insert({
       customer_no: Number(inNo.value),
       name: inName.value.trim(),
-      account_no: inAccount.value.trim(),
+      account_no: inAccount.value.trim() || null,
       start_date: inStart.value || null,
       maturity_date: inMaturity.value,
       amount: inAmount.value === '' ? null : Number(inAmount.value),
@@ -980,7 +985,11 @@
     submitAddBtn.disabled = false;
     submitAddBtn.textContent = '➕ 등록';
     if (error){
-      setStatus('등록 실패: ' + error.message, 'err-flash');
+      if (error.code === '23505'){
+        setStatus('등록 실패: 이미 등록된 계좌번호입니다. 계좌번호를 확인해주세요.', 'err-flash');
+      } else {
+        setStatus('등록 실패: ' + error.message, 'err-flash');
+      }
       return;
     }
     closeAddModal();
@@ -999,7 +1008,7 @@
   const NOTE_ALIASES = ['note', '특이사항', '비고'];
 
   function findCol(headers, aliases){
-    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    const norm = headers.map(h => (h || '').replace(/^\uFEFF/, '').trim().toLowerCase());
     for (const a of aliases){ const idx = norm.indexOf(a.toLowerCase()); if (idx !== -1) return idx; }
     return -1;
   }
@@ -1019,7 +1028,7 @@
 
     Papa.parse(file, {
       header: false, skipEmptyLines: true, encoding: 'UTF-8',
-      complete: (results) => {
+      complete: async (results) => {
         const rows = results.data;
         if (!rows || rows.length < 2){ csvSummary.textContent = 'CSV에 데이터가 없습니다.'; return; }
         const headers = rows[0];
@@ -1046,24 +1055,43 @@
           const amount = amountRaw === '' ? null : Number(amountRaw);
           const note = noteIdx !== -1 ? (r[noteIdx] || '').toString().trim() : '';
           const valid = !isNaN(no) && no > 0 && name !== '' && maturity !== '';
-          return { no, name, account, start, maturity, amount, note, valid };
+          return { no, name, account, start, maturity, amount, note, valid, status: 'new' };
         });
 
+        await matchAgainstExistingAccounts();
         renderCsvPreview();
       },
       error: (err) => { csvSummary.textContent = 'CSV 파싱 실패: ' + err.message; }
     });
   });
 
+  // 계좌번호가 이미 등록되어 있으면 '업데이트' 대상으로 표시 (계좌번호 = 고유 식별자)
+  async function matchAgainstExistingAccounts(){
+    const accounts = [...new Set(csvParsedRows.filter(r => r.valid && r.account).map(r => r.account))];
+    if (accounts.length === 0) return;
+    const { data, error } = await sb.from(TABLE_NAME).select('account_no').in('account_no', accounts);
+    if (error) return;
+    const existingSet = new Set((data || []).map(r => r.account_no));
+    csvParsedRows.forEach(row => {
+      if (row.valid && row.account && existingSet.has(row.account)) row.status = 'dup';
+    });
+  }
+
   function renderCsvPreview(){
-    const validCount = csvParsedRows.filter(r => r.valid).length;
-    const invalidCount = csvParsedRows.length - validCount;
-    csvSummary.innerHTML = `총 ${csvParsedRows.length}건 — 등록 가능 ${validCount}건` + (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명/만기일자 누락, 자동 제외)</span>` : '');
+    const validRows = csvParsedRows.filter(r => r.valid);
+    const invalidCount = csvParsedRows.length - validRows.length;
+    const newCount = validRows.filter(r => r.status === 'new').length;
+    const dupCount = validRows.filter(r => r.status === 'dup').length;
+    csvSummary.innerHTML = `총 ${csvParsedRows.length}건 — 🆕 신규 ${newCount}건, 🔁 기존계좌 업데이트 ${dupCount}건` +
+      (invalidCount ? `, <span style="color:var(--danger)">오류 ${invalidCount}건(고객번호/성명/만기일자 누락, 자동 제외)</span>` : '');
 
     csvTableBody.innerHTML = '';
     csvParsedRows.forEach((row, idx) => {
       if (!row.valid) return;
       const tr = document.createElement('tr');
+      const badge = row.status === 'dup'
+        ? '<span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:#eaf1fb; color:#2b5e9e;">🔁 업데이트</span>'
+        : '<span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:var(--accent-soft); color:var(--accent);">🆕 신규</span>';
       tr.innerHTML = `
         <td><input type="checkbox" class="csv-row-check" data-idx="${idx}" checked /></td>
         <td>${escapeHtml(String(row.no))}</td>
@@ -1073,6 +1101,7 @@
         <td>${escapeHtml(row.maturity)}</td>
         <td>${row.amount != null ? Number(row.amount).toLocaleString() : ''}</td>
         <td>${escapeHtml(row.note)}</td>
+        <td>${badge}</td>
       `;
       csvTableBody.appendChild(tr);
     });
@@ -1085,25 +1114,28 @@
   applyCsvBtn.addEventListener('click', async () => {
     const checkedIdx = new Set();
     csvTableBody.querySelectorAll('.csv-row-check:checked').forEach(cb => checkedIdx.add(Number(cb.dataset.idx)));
-    const toInsert = csvParsedRows
-      .filter((row, idx) => row.valid && checkedIdx.has(idx))
-      .map(row => ({
-        customer_no: row.no, name: row.name, account_no: row.account,
-        start_date: row.start || null, maturity_date: row.maturity, amount: row.amount, note: row.note,
-        created_by: currentUserName, updated_by: currentUserName
-      }));
+    const selectedRows = csvParsedRows.filter((row, idx) => row.valid && checkedIdx.has(idx));
+    const toUpsert = selectedRows.map(row => ({
+      customer_no: row.no, name: row.name, account_no: row.account || null,
+      start_date: row.start || null, maturity_date: row.maturity, amount: row.amount, note: row.note,
+      created_by: currentUserName, updated_by: currentUserName
+    }));
 
-    if (toInsert.length === 0){ setStatus('등록할 항목을 선택해주세요', 'err-flash'); return; }
+    if (toUpsert.length === 0){ setStatus('등록할 항목을 선택해주세요', 'err-flash'); return; }
+
+    const newCount = selectedRows.filter(r => r.status === 'new').length;
+    const dupCount = selectedRows.filter(r => r.status === 'dup').length;
 
     applyCsvBtn.disabled = true;
-    applyCsvBtn.textContent = '⏳ 등록 중...';
-    let insertedCount = 0;
+    applyCsvBtn.textContent = '⏳ 처리 중...';
+    let processedCount = 0;
     const errors = [];
     const BATCH = 300;
-    for (let i = 0; i < toInsert.length; i += BATCH){
-      const batch = toInsert.slice(i, i + BATCH);
-      const { error } = await sb.from(TABLE_NAME).insert(batch);
-      if (error) errors.push(error.message); else insertedCount += batch.length;
+    for (let i = 0; i < toUpsert.length; i += BATCH){
+      const batch = toUpsert.slice(i, i + BATCH);
+      // 계좌번호(account_no)가 이미 있으면 갱신, 없으면 새로 추가
+      const { error } = await sb.from(TABLE_NAME).upsert(batch, { onConflict: 'account_no' });
+      if (error) errors.push(error.message); else processedCount += batch.length;
     }
     applyCsvBtn.disabled = false;
     applyCsvBtn.textContent = '✅ 선택 항목 등록';
@@ -1111,7 +1143,7 @@
     if (errors.length){
       setStatus('일부 실패: ' + errors.join(' / '), 'err-flash');
     } else {
-      setStatus(`CSV 등록 완료 — ${insertedCount}건`, 'saved-flash');
+      setStatus(`CSV 처리 완료 — 🆕 신규 ${newCount}건, 🔁 업데이트 ${dupCount}건`, 'saved-flash');
     }
     closeCsvModal();
     loadDashboard();
