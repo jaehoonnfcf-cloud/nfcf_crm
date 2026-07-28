@@ -1103,7 +1103,7 @@
   }
 
   function findMemberNoColumn(headers){
-    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    const norm = headers.map(h => (h || '').replace(/^\uFEFF/, '').trim().toLowerCase());
     for (const alias of MEMBER_NO_ALIASES){
       const idx = norm.indexOf(alias.toLowerCase());
       if (idx !== -1) return idx;
