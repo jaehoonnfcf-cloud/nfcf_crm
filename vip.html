@@ -173,6 +173,20 @@
     font-size:10px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f;
     padding:2px 6px; border-radius:999px; margin-left:6px;
   }
+  .branch-badge{
+    display:inline-block; font-size:10px; font-weight:700; white-space:nowrap;
+    padding:2px 7px; border-radius:999px; margin-top:3px;
+  }
+  .branch-badge.branch-hq{ background:#eaf1fb; color:#2b5e9e; }
+  .branch-badge.branch-br{ background:var(--accent-soft); color:var(--accent); }
+  .branch-filter-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; border:1px solid var(--line); color:var(--ink);
+    padding:8px 14px; border-radius:8px; font-size:13.5px; cursor:pointer; white-space:nowrap;
+  }
+  .branch-filter-btn:hover{ background:#f2f1ee; }
+  .branch-filter-btn.active.hq{ background:#2b5e9e; color:#fff; border-color:#2b5e9e; }
+  .branch-filter-btn.active.br{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .row-actions{ display:flex; gap:6px; white-space:nowrap; }
   .icon-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; color:var(--ink); }
   .icon-btn.save{ border-color:var(--accent); color:var(--accent); }
@@ -212,7 +226,7 @@
     main{ padding:20px 16px 40px; }
     header{ padding:14px 16px; }
     .toolbar{ flex-direction:column; align-items:stretch; }
-    .toolbar input[type=text], .toolbar .btn-secondary, .toolbar .search-btn, .toolbar .csv-btn, .toolbar .add-btn{ width:100%; justify-content:center; }
+    .toolbar input[type=text], .toolbar .btn-secondary, .toolbar .search-btn, .toolbar .csv-btn, .toolbar .add-btn, .toolbar .branch-filter-btn{ width:100%; justify-content:center; }
     .modal{ max-width:94vw; padding:22px 18px; }
     .upcoming-item{ flex-direction:column; align-items:flex-start; }
     .dashboard-row{ grid-template-columns:1fr; }
@@ -270,6 +284,16 @@
           <div class="label">💎 전체 등록 건수</div>
           <div class="stat-amount" id="statTotalAmount"></div>
         </div>
+        <div class="stat-card">
+          <div class="num" id="statHq">-</div>
+          <div class="label">🏢 본점 계좌</div>
+          <div class="stat-amount" id="statHqAmount"></div>
+        </div>
+        <div class="stat-card">
+          <div class="num" id="statBr">-</div>
+          <div class="label">🏬 지점 계좌</div>
+          <div class="stat-amount" id="statBrAmount"></div>
+        </div>
       </div>
 
       <div class="dashboard-row">
@@ -292,6 +316,8 @@
         <button class="btn-secondary" id="thisMonthBtn">📅 이번달 만기</button>
         <button class="btn-secondary" id="nextMonthBtn">📆 다음달 만기</button>
         <button class="btn-secondary" id="showAllBtn">📋 전체 보기</button>
+        <button class="branch-filter-btn hq" id="hqFilterBtn">🏢 본점만</button>
+        <button class="branch-filter-btn br" id="brFilterBtn">🏬 지점만</button>
         <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
         <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
         <button class="add-btn" id="openAddBtn">➕ VIP 등록</button>
@@ -494,6 +520,8 @@
   const thisMonthBtn = document.getElementById('thisMonthBtn');
   const nextMonthBtn = document.getElementById('nextMonthBtn');
   const showAllBtn = document.getElementById('showAllBtn');
+  const hqFilterBtn = document.getElementById('hqFilterBtn');
+  const brFilterBtn = document.getElementById('brFilterBtn');
   const csvUploadBtn = document.getElementById('csvUploadBtn');
   const csvFileInput = document.getElementById('csvFileInput');
   const openAddBtn = document.getElementById('openAddBtn');
@@ -628,7 +656,7 @@
       sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(thisM.start)).lt('maturity_date', toDateStr(thisM.end)),
       sb.from(TABLE_NAME).select('amount', { count:'exact' }).gte('maturity_date', toDateStr(nextM.start)).lt('maturity_date', toDateStr(nextM.end)),
       sb.from(TABLE_NAME).select('*', { count:'exact', head:true }).lt('maturity_date', todayStr),
-      sb.from(TABLE_NAME).select('amount', { count:'exact' }),
+      sb.from(TABLE_NAME).select('amount, account_no', { count:'exact' }),
       sb.from(TABLE_NAME).select('*').gte('maturity_date', todayStr).lt('maturity_date', toDateStr(nextM.end)).order('maturity_date', { ascending:true }).limit(30),
       sb.from(TABLE_NAME).select('customer_no, name, amount').not('amount', 'is', null).limit(2000)
     ]);
@@ -647,6 +675,13 @@
     statOverdue.textContent = (overdueRes.count ?? 0).toLocaleString();
     statTotal.textContent = (totalRes.count ?? 0).toLocaleString();
     document.getElementById('statTotalAmount').textContent = fmtMillion(sumAmount(totalRes.data));
+
+    const hqRows = (totalRes.data || []).filter(r => branchType(r.account_no) === '본점');
+    const brRows = (totalRes.data || []).filter(r => branchType(r.account_no) === '지점');
+    document.getElementById('statHq').textContent = hqRows.length.toLocaleString();
+    document.getElementById('statHqAmount').textContent = fmtMillion(sumAmount(hqRows));
+    document.getElementById('statBr').textContent = brRows.length.toLocaleString();
+    document.getElementById('statBrAmount').textContent = fmtMillion(sumAmount(brRows));
 
     // ---- 임박 만기 목록 ----
     upcomingItems.innerHTML = '';
@@ -763,10 +798,41 @@
     setStatus(`총 ${currentRows.length}건 (${label} 만기)`, '');
   }
 
+  function clearBranchActive(){
+    hqFilterBtn.classList.remove('active');
+    brFilterBtn.classList.remove('active');
+  }
+
+  async function loadByBranch(type){
+    idleState.style.display = 'none';
+    setStatus('불러오는 중...', '');
+    const prefix = type === '본점' ? '201' : '254';
+    const { data, error } = await sb
+      .from(VIEW_NAME)
+      .select('*')
+      .like('account_no', `${prefix}%`)
+      .order('maturity_date', { ascending:true })
+      .limit(2000);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      vipTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다.';
+      return;
+    }
+    currentRows = data || [];
+    renderTable(currentRows);
+    if (currentRows.length === 0) emptyState.textContent = `📭 ${type} 계좌인 VIP가 없습니다.`;
+    setStatus(`총 ${currentRows.length}건 (${type})`, '');
+    clearBranchActive();
+    (type === '본점' ? hqFilterBtn : brFilterBtn).classList.add('active');
+  }
+
   async function runSearch(){
     const kw = searchBox.value.trim();
     if (!kw){ setStatus('검색어를 입력해주세요', 'err-flash'); return; }
     idleState.style.display = 'none';
+    clearBranchActive();
     setStatus('검색 중...', '');
     const safe = kw.replace(/[,()%]/g, '');
     let query = sb.from(VIEW_NAME).select('*').order('maturity_date', { ascending:true }).limit(500);
@@ -802,7 +868,7 @@
           ${escapeHtml(row.name)}
           ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
         </td>
-        <td>${escapeHtml(row.account_no || '-')}</td>
+        <td>${escapeHtml(row.account_no || '-')} ${branchBadge(row.account_no)}</td>
         <td>${escapeHtml(row.start_date || '-')}</td>
         <td>${escapeHtml(row.maturity_date || '-')}</td>
         <td class="amount-cell">${row.amount != null ? Number(row.amount).toLocaleString() : '-'}</td>
@@ -841,9 +907,11 @@
 
   searchBtn.addEventListener('click', runSearch);
   searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
-  thisMonthBtn.addEventListener('click', () => { searchBox.value = ''; loadByMonth(0, '이번달'); });
-  nextMonthBtn.addEventListener('click', () => { searchBox.value = ''; loadByMonth(1, '다음달'); });
-  showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAll(); });
+  thisMonthBtn.addEventListener('click', () => { searchBox.value = ''; clearBranchActive(); loadByMonth(0, '이번달'); });
+  nextMonthBtn.addEventListener('click', () => { searchBox.value = ''; clearBranchActive(); loadByMonth(1, '다음달'); });
+  showAllBtn.addEventListener('click', () => { searchBox.value = ''; clearBranchActive(); loadAll(); });
+  hqFilterBtn.addEventListener('click', () => { searchBox.value = ''; loadByBranch('본점'); });
+  brFilterBtn.addEventListener('click', () => { searchBox.value = ''; loadByBranch('지점'); });
 
   // ---- VIP 등록 ----
   function openAddModal(){
@@ -869,6 +937,20 @@
     if (digits.length <= 3) return digits;
     if (digits.length <= 5) return `${digits.slice(0,3)}-${digits.slice(3)}`;
     return `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`;
+  }
+
+  // 계좌번호 앞자리로 본점/지점 구분 (201=본점, 254=지점)
+  function branchType(accountNo){
+    if (!accountNo) return null;
+    if (accountNo.startsWith('201')) return '본점';
+    if (accountNo.startsWith('254')) return '지점';
+    return null;
+  }
+  function branchBadge(accountNo){
+    const type = branchType(accountNo);
+    if (!type) return '';
+    const cls = type === '본점' ? 'branch-hq' : 'branch-br';
+    return `<span class="branch-badge ${cls}">${type === '본점' ? '🏢' : '🏬'} ${type}</span>`;
   }
   inAccount.addEventListener('input', () => {
     const pos = inAccount.selectionStart;
