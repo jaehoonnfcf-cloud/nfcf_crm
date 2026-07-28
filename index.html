@@ -1437,7 +1437,7 @@
   let csvParsedRows = []; // { no, name, info, status, valid }
 
   function findColumn(headers, aliases){
-    const norm = headers.map(h => (h || '').trim().toLowerCase());
+    const norm = headers.map(h => (h || '').replace(/^\uFEFF/, '').trim().toLowerCase());
     for (const alias of aliases){
       const idx = norm.indexOf(alias.toLowerCase());
       if (idx !== -1) return idx;
