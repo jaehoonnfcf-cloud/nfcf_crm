@@ -169,6 +169,17 @@
   .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
   .h-diff ins{ color:var(--accent); text-decoration:none; }
 
+  .history-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; margin-bottom:8px;
+  }
+  .history-item .h-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .history-item .h-meta{ font-size:11.5px; color:var(--muted); }
+  .h-action{ font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  .h-action.insert{ background:var(--accent-soft); color:var(--accent); }
+  .h-action.update{ background:#eaf1fb; color:#2b5e9e; }
+  .h-action.delete{ background:#fbeceb; color:var(--danger); }
+
   /* ---- 모달 ---- */
   .modal-overlay{
     display:none; position:fixed; inset:0; background:rgba(28,32,36,0.4);
@@ -295,6 +306,7 @@
         <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
         <button class="tab-btn" data-tab="members">🏅 조합원 관리</button>
         <button class="tab-btn" data-tab="assignments">🙋 담당자/접점활동</button>
+        <button class="tab-btn" data-tab="vip-history">💎 VIP 수정이력</button>
       </div>
 
       <!-- ===== 대시보드 ===== -->
@@ -452,6 +464,24 @@
           <button class="btn-outline" id="activityPrevBtn">‹ 이전</button>
           <span class="page-indicator" id="activityPageIndicator"></span>
           <button class="btn-outline" id="activityNextBtn">다음 ›</button>
+        </div>
+      </div>
+
+      <!-- ===== VIP 수정이력 ===== -->
+      <div class="tab-panel" id="panel-vip-history">
+        <h1 class="page-title">💎 VIP 수정이력</h1>
+        <p class="page-sub">VIP 만기일자내역의 등록/수정/삭제 기록입니다.</p>
+        <div class="toolbar">
+          <input type="text" id="vipHistorySearch" placeholder="고객번호로 검색" />
+          <button class="btn" id="vipHistorySearchBtn">🔍 검색</button>
+          <button class="btn-outline" id="vipHistoryAllBtn">📋 전체 보기</button>
+        </div>
+        <div id="vipHistoryList"></div>
+        <div class="empty-note" id="vipHistoryEmpty" style="display:none;">검색어를 입력하거나 "전체 보기"를 눌러주세요.</div>
+        <div class="pagination" id="vipHistoryPagination" style="display:none;">
+          <button class="btn-outline" id="vipHistoryPrevBtn">‹ 이전</button>
+          <span class="page-indicator" id="vipHistoryPageIndicator"></span>
+          <button class="btn-outline" id="vipHistoryNextBtn">다음 ›</button>
         </div>
       </div>
     </main>
@@ -613,6 +643,7 @@
       if (btn.dataset.tab === 'csv-history') loadCsvHistory();
       if (btn.dataset.tab === 'members') loadMemberCount();
       if (btn.dataset.tab === 'assignments') { loadAssignSummary(); loadActivityLog(1); }
+      if (btn.dataset.tab === 'vip-history') loadVipHistory(1);
     });
   });
 
@@ -1349,6 +1380,116 @@
   activityNextBtn.addEventListener('click', () => {
     const totalPages = Math.max(1, Math.ceil(activityTotalCount / ACTIVITY_PAGE_SIZE));
     if (activityPage < totalPages) loadActivityLog(activityPage + 1);
+  });
+
+  // ==================== VIP 수정이력 ====================
+  const vipHistorySearch = document.getElementById('vipHistorySearch');
+  const vipHistorySearchBtn = document.getElementById('vipHistorySearchBtn');
+  const vipHistoryAllBtn = document.getElementById('vipHistoryAllBtn');
+  const vipHistoryList = document.getElementById('vipHistoryList');
+  const vipHistoryEmpty = document.getElementById('vipHistoryEmpty');
+  const vipHistoryPagination = document.getElementById('vipHistoryPagination');
+  const vipHistoryPageIndicator = document.getElementById('vipHistoryPageIndicator');
+  const vipHistoryPrevBtn = document.getElementById('vipHistoryPrevBtn');
+  const vipHistoryNextBtn = document.getElementById('vipHistoryNextBtn');
+
+  let vipHistoryPage = 1;
+  const VIP_HISTORY_PAGE_SIZE = 30;
+  let vipHistoryTotalCount = 0;
+  let vipHistoryKeyword = '';
+
+  const VIP_ACTION_LABEL = { insert: '🆕 등록', update: '✏️ 수정', delete: '🗑️ 삭제' };
+  const VIP_FIELD_LABEL = {
+    name: '성명', account_no: '계좌번호', start_date: '신규일자',
+    maturity_date: '만기일자', amount: '금액', note: '특이사항'
+  };
+
+  function fmtVipVal(field, val){
+    if (val === null || val === undefined || val === '') return '(없음)';
+    if (field === 'amount') return Number(val).toLocaleString();
+    return String(val);
+  }
+
+  function buildVipDiffHtml(row){
+    if (row.action === 'insert'){
+      const d = row.new_data || {};
+      return `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">만기일자:</span> ${escapeHtml(d.maturity_date)} · <span class="field-name">금액:</span> ${fmtVipVal('amount', d.amount)}`;
+    } else if (row.action === 'delete'){
+      const d = row.old_data || {};
+      return `<span class="field-name">성명:</span> ${escapeHtml(d.name)} · <span class="field-name">만기일자:</span> ${escapeHtml(d.maturity_date)} · <span class="field-name">금액:</span> ${fmtVipVal('amount', d.amount)}`;
+    } else {
+      const o = row.old_data || {}, n = row.new_data || {};
+      const parts = [];
+      Object.keys(VIP_FIELD_LABEL).forEach(field => {
+        if (String(o[field] ?? '') !== String(n[field] ?? '')){
+          parts.push(`<span class="field-name">${VIP_FIELD_LABEL[field]}:</span> <del>${escapeHtml(fmtVipVal(field, o[field]))}</del> <ins>${escapeHtml(fmtVipVal(field, n[field]))}</ins>`);
+        }
+      });
+      return parts.join(' · ') || '변경된 값 없음';
+    }
+  }
+
+  function renderVipHistoryItem(row){
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="h-top">
+        <span class="h-action ${row.action}">${VIP_ACTION_LABEL[row.action] || row.action}</span>
+        <span class="h-meta">🔢 ${row.customer_no} · ${fmtDate(row.changed_at)} · ${escapeHtml(row.changed_by || '알 수 없음')}</span>
+      </div>
+      <div class="h-diff">${buildVipDiffHtml(row)}</div>
+    `;
+    return div;
+  }
+
+  async function loadVipHistory(page){
+    vipHistoryPage = page || 1;
+    const from = (vipHistoryPage - 1) * VIP_HISTORY_PAGE_SIZE;
+    const to = from + VIP_HISTORY_PAGE_SIZE - 1;
+
+    let query = sb.from('vip_deposits_history').select('*', { count:'exact' }).order('changed_at', { ascending:false }).range(from, to);
+    if (vipHistoryKeyword) query = query.eq('customer_no', Number(vipHistoryKeyword));
+
+    const { data, error, count } = await query;
+    if (error){
+      vipHistoryList.innerHTML = '';
+      vipHistoryEmpty.style.display = 'block';
+      vipHistoryEmpty.textContent = '불러오기 실패: ' + error.message;
+      vipHistoryPagination.style.display = 'none';
+      return;
+    }
+    vipHistoryTotalCount = count || 0;
+    vipHistoryEmpty.style.display = (!data || data.length === 0) ? 'block' : 'none';
+    vipHistoryEmpty.textContent = vipHistoryKeyword ? '검색 결과가 없습니다.' : '기록된 이력이 없습니다.';
+
+    vipHistoryList.innerHTML = '';
+    (data || []).forEach(row => vipHistoryList.appendChild(renderVipHistoryItem(row)));
+
+    const totalPages = Math.max(1, Math.ceil(vipHistoryTotalCount / VIP_HISTORY_PAGE_SIZE));
+    vipHistoryPagination.style.display = vipHistoryTotalCount > 0 ? 'flex' : 'none';
+    vipHistoryPageIndicator.textContent = `📄 ${vipHistoryPage} / ${totalPages} 페이지`;
+    vipHistoryPrevBtn.disabled = vipHistoryPage <= 1;
+    vipHistoryNextBtn.disabled = vipHistoryPage >= totalPages;
+  }
+
+  vipHistorySearchBtn.addEventListener('click', () => {
+    const kw = vipHistorySearch.value.trim();
+    if (!kw || isNaN(Number(kw))){
+      vipHistoryList.innerHTML = '';
+      vipHistoryEmpty.style.display = 'block';
+      vipHistoryEmpty.textContent = '숫자로 된 고객번호를 입력해주세요.';
+      vipHistoryPagination.style.display = 'none';
+      return;
+    }
+    vipHistoryKeyword = kw;
+    loadVipHistory(1);
+  });
+  vipHistorySearch.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); vipHistorySearchBtn.click(); } });
+  vipHistoryAllBtn.addEventListener('click', () => { vipHistoryKeyword = ''; vipHistorySearch.value = ''; loadVipHistory(1); });
+  vipHistoryPrevBtn.addEventListener('click', () => { if (vipHistoryPage > 1) loadVipHistory(vipHistoryPage - 1); });
+  vipHistoryNextBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(vipHistoryTotalCount / VIP_HISTORY_PAGE_SIZE));
+    if (vipHistoryPage < totalPages) loadVipHistory(vipHistoryPage + 1);
   });
 
   // ---- 시작: 세션 확인 ----
