@@ -329,6 +329,7 @@
     #myCustomersBtn{ flex:1 1 calc(50% - 4px); order:3; }
     .reset-btn{ flex:1 1 calc(50% - 4px); order:4; }
     .csv-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:5; }
+    #downloadCsvBtn{ flex:1 1 calc(50% - 4px); order:5; }
     .add-btn{ flex:1 1 100%; justify-content:center; order:6; }
 
     .table-scroll{ overflow-x:visible; }
@@ -370,7 +371,7 @@
   }
 
   @media (max-width: 420px){
-    .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, #myCustomersBtn, .reset-btn, .csv-btn{ flex:1 1 100%; }
+    .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, #myCustomersBtn, .reset-btn, .csv-btn, #downloadCsvBtn{ flex:1 1 100%; }
   }
 </style>
 </head>
@@ -445,6 +446,7 @@
           <button class="reset-btn" id="resetBtn">🧹 초기화</button>
           <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
           <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+          <button class="btn-secondary" id="downloadCsvBtn">⬇️ 결과 다운로드</button>
           <button class="add-btn" id="openAddBtn">➕ 고객 추가</button>
         </div>
       </div>
@@ -692,6 +694,7 @@
   const csvTableBody = document.getElementById('csvTableBody');
   const cancelCsvBtn = document.getElementById('cancelCsvBtn');
   const applyCsvBtn = document.getElementById('applyCsvBtn');
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
   const openAddBtn = document.getElementById('openAddBtn');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const addForm = document.getElementById('addForm');
@@ -1049,6 +1052,49 @@
     if (currentMode === 'search') return searchCustomers(currentKeyword);
     return Promise.resolve();
   }
+
+  // ---- 현재 화면 결과 CSV 다운로드 ----
+  function csvEscape(val){
+    const s = String(val ?? '');
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function assigneeDisplayName(email){
+    if (!email) return '';
+    const u = directoryUsers.find(x => x.email === email);
+    return u ? (u.name || u.email) : email;
+  }
+  function downloadCurrentResultsCsv(){
+    if (!currentRows || currentRows.length === 0){
+      setStatus('다운로드할 목록이 없습니다. 먼저 검색하거나 목록을 불러와주세요.', 'err-flash');
+      return;
+    }
+    const headers = ['고객번호', '성명', '조합원여부', '담당자', '고객정보'];
+    const lines = [headers.join(',')];
+    currentRows.forEach(r => {
+      const line = [
+        r.customer_no,
+        r.name,
+        r.membership || '',
+        assigneeDisplayName(r.assigned_to),
+        r.customer_info || ''
+      ].map(csvEscape).join(',');
+      lines.push(line);
+    });
+    const csvContent = '\uFEFF' + lines.join('\r\n'); // BOM 추가로 엑셀에서 한글 안 깨지게
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `고객정보_${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus(`${currentRows.length}건 다운로드했습니다`, 'saved-flash');
+  }
+  downloadCsvBtn.addEventListener('click', downloadCurrentResultsCsv);
 
   function renderTable(rows){
     tableBody.innerHTML = '';
