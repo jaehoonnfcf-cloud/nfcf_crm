@@ -192,6 +192,26 @@
 
   let currentUserEmail = '';
   let staffList = [];
+  let allCustomerNoSet = null;
+
+  async function getAllCustomerNoSet(){
+    if (allCustomerNoSet) return allCustomerNoSet;
+    const set = new Set();
+    const pageSize = 1000;
+    let from = 0;
+    while (true){
+      const { data, error } = await sb
+        .from('customers')
+        .select('customer_no')
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      for (const row of (data || [])) set.add(row.customer_no);
+      if (!data || data.length < pageSize) break;
+      from += pageSize;
+    }
+    allCustomerNoSet = set;
+    return set;
+  }
 
   googleLoginBtn.addEventListener('click', async () => {
     loginError.style.display = 'none';
@@ -421,19 +441,16 @@
     const snapshotDate = lastDayOfMonth(balanceMonthInput.value);
     const allNos = parsedBalanceRows.map(r => Number(r.customer_no));
 
-    const { data: existing, error: checkError } = await sb
-      .from('customers')
-      .select('customer_no')
-      .in('customer_no', allNos);
-
-    if (checkError){
+    let existingSet;
+    try {
+      existingSet = await getAllCustomerNoSet();
+    } catch (checkError){
       balanceUploadStatus.className = 'status-msg error';
       balanceUploadStatus.textContent = `고객번호 확인 실패: ${checkError.message}`;
       checkBalanceReady();
       return;
     }
 
-    const existingSet = new Set((existing || []).map(c => c.customer_no));
     const missing = allNos.filter(no => !existingSet.has(no));
     const validRows = parsedBalanceRows
       .filter(r => existingSet.has(Number(r.customer_no)))
@@ -537,19 +554,16 @@
     unionActivityUploadStatus.textContent = '고객번호 확인 중...';
 
     const allNos = parsedUnionActivityRows.map(r => Number(r.customer_no));
-    const { data: existing, error: checkError } = await sb
-      .from('customers')
-      .select('customer_no')
-      .in('customer_no', allNos);
-
-    if (checkError){
+    let existingSet;
+    try {
+      existingSet = await getAllCustomerNoSet();
+    } catch (checkError){
       unionActivityUploadStatus.className = 'status-msg error';
       unionActivityUploadStatus.textContent = `고객번호 확인 실패: ${checkError.message}`;
       checkUnionActivityReady();
       return;
     }
 
-    const existingSet = new Set((existing || []).map(c => c.customer_no));
     const missing = allNos.filter(no => !existingSet.has(no));
     const { data: myName } = await sb.rpc('current_user_name');
     const rows = parsedUnionActivityRows
