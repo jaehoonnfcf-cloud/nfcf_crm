@@ -68,7 +68,7 @@
   .readonly-note{ font-size:12px; color:var(--muted); }
   .feature-text{ font-size:16px; color:var(--ink); line-height:1.5; margin:0; }
   @media print{
-    header .nav-btn, #activityFormWrap, #balanceFormWrap, .status-msg { display:none !important; }
+    header .nav-btn, #activityFormWrap, #editInfoBtn, #infoEditMode, .status-msg { display:none !important; }
     body{ background:#fff; }
     section.card{ border:none; box-shadow:none; padding:0; margin-bottom:20px; }
   }
@@ -102,7 +102,14 @@
   <main>
     <section class="card">
       <p class="readonly-note" id="customerNoLabel" style="margin:0 0 8px;"></p>
-      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+
+      <div id="infoDisplayMode" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
+        <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
+        <button class="nav-btn" id="editInfoBtn" title="이름·특징 수정">✏️ 수정</button>
+      </div>
+
+      <div id="infoEditMode" style="display:none; gap:10px; align-items:flex-end; flex-wrap:wrap;">
         <div style="flex:1; min-width:140px;">
           <label class="readonly-note">이름</label>
           <input type="text" id="nameInput" placeholder="이름 입력" />
@@ -112,7 +119,9 @@
           <input type="text" id="featureInput" placeholder="특징 입력" />
         </div>
         <button class="primary-btn" id="saveInfoBtn">저장</button>
+        <button class="nav-btn" id="cancelInfoBtn">취소</button>
       </div>
+
       <div class="status-msg" id="infoSaveStatus"></div>
       <p class="desc" id="customerInfo" style="margin-top:14px"></p>
       <div class="summary-grid" id="summaryGrid"></div>
@@ -139,17 +148,8 @@
 
     <section class="card">
       <h1>💰 잔액 이력</h1>
-      <p class="desc">재업로드된 수신/여신 잔액 이력입니다.</p>
-      <div id="balanceFormWrap">
-        <div class="form-row narrow">
-          <div><label class="readonly-note">기준일</label><input type="date" id="snapshotDate" /></div>
-          <div><label class="readonly-note">수신잔액</label><input type="number" id="snapshotDeposit" /></div>
-          <div><label class="readonly-note">여신잔액</label><input type="number" id="snapshotLoan" /></div>
-        </div>
-        <button class="primary-btn" id="addSnapshotBtn">잔액 기록 추가</button>
-        <div class="status-msg" id="snapshotStatus"></div>
-      </div>
-      <div id="snapshotTable" style="margin-top:16px"></div>
+      <p class="desc">월말 잔액은 관리자가 일괄 업로드로만 등록합니다 (🗂️ 배정관리 화면의 "월말 잔액 일괄 업로드" 참고). 아래는 등록된 이력입니다.</p>
+      <div id="snapshotTable" style="margin-top:8px"></div>
     </section>
   </main>
 </div>
@@ -244,13 +244,31 @@
     isAdmin = !!admin;
 
     document.getElementById('activityDate').valueAsDate = new Date();
-    document.getElementById('snapshotDate').valueAsDate = new Date();
 
     await loadCustomerSummary();
     await loadUnionActivities();
     await loadActivities();
     await loadSnapshots();
   }
+
+  const infoDisplayMode = document.getElementById('infoDisplayMode');
+  const infoEditMode = document.getElementById('infoEditMode');
+
+  function enterEditMode(){
+    document.getElementById('nameInput').value = customerSummary?.name || '';
+    document.getElementById('featureInput').value = customerSummary?.customer_info || '';
+    infoDisplayMode.style.display = 'none';
+    infoEditMode.style.display = 'flex';
+    document.getElementById('infoSaveStatus').textContent = '';
+  }
+
+  function exitEditMode(){
+    infoDisplayMode.style.display = 'flex';
+    infoEditMode.style.display = 'none';
+  }
+
+  document.getElementById('editInfoBtn').addEventListener('click', enterEditMode);
+  document.getElementById('cancelInfoBtn').addEventListener('click', exitEditMode);
 
   document.getElementById('saveInfoBtn').addEventListener('click', async () => {
     const infoStatus = document.getElementById('infoSaveStatus');
@@ -273,6 +291,7 @@
     }
     infoStatus.className = 'status-msg success';
     infoStatus.textContent = '저장되었습니다.';
+    exitEditMode();
     await loadCustomerSummary();
   });
 
@@ -287,8 +306,8 @@
     customerSummary = data;
     document.getElementById('pageTitle').textContent = `${data.name||'(이름 미등록)'} (${data.customer_no})`;
     document.getElementById('customerNoLabel').textContent = `고객번호 ${data.customer_no}`;
-    document.getElementById('nameInput').value = data.name || '';
-    document.getElementById('featureInput').value = data.customer_info || '';
+    document.getElementById('nameDisplay').textContent = data.name || '(이름 미등록)';
+    document.getElementById('featureDisplay').textContent = data.customer_info || '(특징 없음)';
 
     let assigneeLabel = '미배정';
     if (data.assigned_to){
@@ -312,7 +331,6 @@
       document.getElementById('activityFormWrap').style.display = 'none';
       document.getElementById('activityReadonlyNote').style.display = 'block';
     }
-    if (!isAdmin) document.getElementById('balanceFormWrap').style.display = 'none';
   }
 
   const activityTable = document.getElementById('activityTable');
@@ -377,46 +395,17 @@
   }
 
   const snapshotTable = document.getElementById('snapshotTable');
-  const snapshotStatus = document.getElementById('snapshotStatus');
-
-  document.getElementById('addSnapshotBtn').addEventListener('click', async () => {
-    const date = document.getElementById('snapshotDate').value;
-    const deposit = document.getElementById('snapshotDeposit').value;
-    const loan = document.getElementById('snapshotLoan').value;
-    if (!date || (!deposit && !loan)){
-      snapshotStatus.className = 'status-msg error';
-      snapshotStatus.textContent = '기준일과 잔액을 입력하세요.';
-      return;
-    }
-    const { error } = await sb.from('balance_snapshots').insert({
-      customer_no: customerNo, snapshot_date: date,
-      deposit_balance: deposit ? Number(deposit) : null,
-      loan_balance: loan ? Number(loan) : null,
-      uploaded_by: currentUserEmail
-    });
-    if (error){
-      snapshotStatus.className = 'status-msg error';
-      snapshotStatus.textContent = `등록 실패: ${error.message}`;
-      return;
-    }
-    snapshotStatus.className = 'status-msg success';
-    snapshotStatus.textContent = '등록되었습니다.';
-    document.getElementById('snapshotDeposit').value = '';
-    document.getElementById('snapshotLoan').value = '';
-    await loadSnapshots();
-    await loadCustomerSummary();
-  });
 
   async function loadSnapshots(){
     const { data, error } = await sb.from('balance_snapshots')
-      .select('snapshot_date, deposit_balance, loan_balance, uploaded_by')
+      .select('snapshot_date, deposit_balance, loan_balance')
       .eq('customer_no', customerNo)
       .order('snapshot_date', { ascending: true });
 
     if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
 
     const chrono = (data || []).map(s => ({
-      label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance, uploaded_by: s.uploaded_by
+      label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance
     }));
 
     if (!chrono.length){ snapshotTable.innerHTML = `<p class="empty">등록된 잔액 이력이 없습니다.</p>`; return; }
@@ -428,14 +417,13 @@
       chrono[i].loanDiff = prev && prev.loan != null && chrono[i].loan != null ? chrono[i].loan - prev.loan : null;
     }
 
-    let html = `<table><thead><tr><th>기준월</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th><th>등록자</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>기준월</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th></tr></thead><tbody>`;
     for (let i = chrono.length - 1; i >= 0; i--){
       const s = chrono[i];
       html += `<tr>
         <td>${s.label}</td>
         <td>${fmtNum(s.deposit)}</td><td>${i === 0 ? '-' : diffText(s.depositDiff)}</td>
         <td>${fmtNum(s.loan)}</td><td>${i === 0 ? '-' : diffText(s.loanDiff)}</td>
-        <td>${s.uploaded_by||''}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
