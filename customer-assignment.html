@@ -163,7 +163,7 @@
 
       <section class="card">
         <h1>🏅 조합활동 일괄 등록</h1>
-        <p class="desc">활동일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 이력 (예: "임도트래킹 1차", "임산물교육수강"). 담당자와 무관하게 등록됩니다.</p>
+        <p class="desc">활동일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 이력, 성명(선택) — 예: "임도트래킹 1차". 성명은 아직 등록 안 된 고객번호를 새로 만들 때만 사용되고, 이미 등록된 고객의 이름은 바뀌지 않습니다. 담당자와 무관하게 등록됩니다.</p>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
           <label style="font-size:12.5px; color:var(--muted);">활동일자</label>
           <input type="date" id="unionActivityDateInput" />
@@ -536,7 +536,8 @@
 
   const UNION_HEADER_MAP = {
     '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
-    '이력':'content', '활동내용':'content', '내용':'content', 'content':'content'
+    '이력':'content', '활동내용':'content', '내용':'content', 'content':'content',
+    '성명':'name', '이름':'name', 'name':'name'
   };
 
   function checkUnionActivityReady(){
@@ -566,9 +567,9 @@
           return;
         }
 
-        let html = `<table><thead><tr><th>고객번호</th><th>이력</th></tr></thead><tbody>`;
+        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>이력</th></tr></thead><tbody>`;
         for (const r of parsedUnionActivityRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no}</td><td>${r.content}</td></tr>`;
+          html += `<tr><td>${r.customer_no}</td><td>${r.name||''}</td><td>${r.content}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedUnionActivityRows.length > 50) html += `<p class="empty">외 ${parsedUnionActivityRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -595,10 +596,15 @@
     }
 
     const missing = allNos.filter(no => !existingSet.has(no));
+    const nameByCustomerNo = {};
+    for (const r of parsedUnionActivityRows){
+      const no = Number(r.customer_no);
+      if (r.name && !nameByCustomerNo[no]) nameByCustomerNo[no] = r.name;
+    }
 
     if (missing.length){
       unionActivityUploadStatus.textContent = `신규 고객번호 ${missing.length}건 자동 등록 중...`;
-      const newCustomerRows = Array.from(new Set(missing)).map(no => ({ customer_no: no, name: '' }));
+      const newCustomerRows = Array.from(new Set(missing)).map(no => ({ customer_no: no, name: nameByCustomerNo[no] || '' }));
       const { error: createError } = await sb.from('customers').upsert(newCustomerRows, { onConflict: 'customer_no', ignoreDuplicates: true });
       if (createError){
         unionActivityUploadStatus.className = 'status-msg error';
@@ -635,8 +641,11 @@
 
     if (missing.length){
       const uniqueMissing = Array.from(new Set(missing));
+      const stillNoName = uniqueMissing.filter(no => !nameByCustomerNo[no]);
       unionActivityUploadStatus.className = 'status-msg success';
-      unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료. 이름 없이 신규 등록된 고객번호 ${uniqueMissing.length}건: ${uniqueMissing.slice(0, 20).join(', ')}${uniqueMissing.length > 20 ? ' 외' : ''} (🗂️ 고객정보 관리에서 이름·특징을 보완해주세요)`;
+      let msg = `${rows.length}건 등록 완료. 신규 등록된 고객번호 ${uniqueMissing.length}건: ${uniqueMissing.slice(0, 20).join(', ')}${uniqueMissing.length > 20 ? ' 외' : ''}`;
+      if (stillNoName.length) msg += ` (이 중 이름 없이 등록된 ${stillNoName.length}건은 🗂️ 고객정보 관리 또는 고객 상세 화면에서 보완해주세요)`;
+      unionActivityUploadStatus.textContent = msg;
     } else {
       unionActivityUploadStatus.className = 'status-msg success';
       unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료`;
