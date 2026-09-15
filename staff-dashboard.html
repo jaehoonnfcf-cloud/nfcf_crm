@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>내 전담고객</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
+    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+    --green:#2f5d50; --green-soft:#e7efec;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
+  .nav-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; display:flex; flex-direction:column; gap:28px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
+  tbody td{ padding:9px 12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:nth-child(even){ background:#fcfcfb; }
+  tr.clickable{ cursor:pointer; }
+  tr.clickable:hover{ background:var(--accent-soft); }
+
+  .diff-up{ color:#1a7a4c; font-weight:600; }
+  .diff-down{ color:var(--danger); font-weight:600; }
+  .diff-flat{ color:var(--muted); }
+  .badge{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; }
+  .badge.pending{ background:#fdf1e0; color:#a3690f; }
+  .badge.approved{ background:var(--green-soft); color:var(--green); }
+  .badge.rejected{ background:#fbeceb; color:var(--danger); }
+  .small-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; color:var(--ink); }
+  .small-btn:hover{ background:#f2f1ee; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">🙋</div>
+    <h1>내 전담고객</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">🙋</div>
+      <h2>내 전담고객</h2>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="customer-assignment.html" class="nav-btn" id="adminAssignBtn" style="display:none">🗂️ 배정관리</a>
+      <a href="manual.html" class="nav-btn">📖 사용설명서</a>
+      <a href="vip.html" class="nav-btn">💎 VIP 만기내역</a>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h1>🙋 내 고객</h1>
+      <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 잔액 이력을 볼 수 있습니다.</p>
+      <div id="myCustomerTable"></div>
+    </section>
+
+    <section class="card">
+      <h1>📋 미배정 고객 - 배정 신청</h1>
+      <p class="desc">담당자가 없는 고객입니다. 신청하면 관리자 승인 후 배정됩니다.</p>
+      <div id="unassignedTable"></div>
+    </section>
+
+    <section class="card">
+      <h1>📝 내 신청 현황</h1>
+      <div id="myRequestsTable"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+  const adminAssignBtn = document.getElementById('adminAssignBtn');
+
+  let currentUserEmail = '';
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    userEmail.textContent = name || currentUserEmail;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    adminAssignBtn.style.display = admin ? 'inline-flex' : 'none';
+
+    await loadMyCustomers();
+    await loadUnassigned();
+    await loadMyRequests();
+  }
+
+  function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
+  function diffCell(diff){
+    if (diff === null || diff === undefined) return `<span class="diff-flat">-</span>`;
+    const n = Number(diff);
+    if (n > 0) return `<span class="diff-up">+${fmtNum(n)}</span>`;
+    if (n < 0) return `<span class="diff-down">${fmtNum(n)}</span>`;
+    return `<span class="diff-flat">0</span>`;
+  }
+
+  const myCustomerTable = document.getElementById('myCustomerTable');
+
+  async function loadMyCustomers(){
+    const { data, error } = await sb
+      .from('customer_balance_diff')
+      .select('*')
+      .eq('assigned_to', currentUserEmail)
+      .order('customer_no');
+
+    if (error){ myCustomerTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ myCustomerTable.innerHTML = `<p class="empty">배정된 고객이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr>
+      <th>고객번호</th><th>성명</th><th>최초수신</th><th>현재수신</th><th>수신증감</th>
+      <th>최초여신</th><th>현재여신</th><th>여신증감</th><th>최근 스냅샷</th>
+    </tr></thead><tbody>`;
+    for (const c of data){
+      html += `<tr class="clickable" data-customer="${c.customer_no}">
+        <td>${c.customer_no}</td><td>${c.name||''}</td>
+        <td>${fmtNum(c.initial_deposit_balance)}</td><td>${fmtNum(c.current_deposit_balance)}</td><td>${diffCell(c.deposit_diff)}</td>
+        <td>${fmtNum(c.initial_loan_balance)}</td><td>${fmtNum(c.current_loan_balance)}</td><td>${diffCell(c.loan_diff)}</td>
+        <td>${c.latest_snapshot_date || '-'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    myCustomerTable.innerHTML = html;
+
+    myCustomerTable.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+      });
+    });
+  }
+
+  const unassignedTable = document.getElementById('unassignedTable');
+
+  async function loadUnassigned(){
+    const { data, error } = await sb
+      .from('customers')
+      .select('customer_no, name, customer_info')
+      .eq('is_deleted', false)
+      .is('assigned_to', null)
+      .order('customer_no');
+
+    if (error){ unassignedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ unassignedTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th></th></tr></thead><tbody>`;
+    for (const c of data){
+      html += `<tr>
+        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
+        <td><button class="small-btn" data-customer="${c.customer_no}">🙋 배정 신청</button></td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    unassignedTable.innerHTML = html;
+
+    unassignedTable.querySelectorAll('button[data-customer]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = '신청 중...';
+        const { error } = await sb.from('assignment_requests').insert({
+          customer_no: Number(btn.dataset.customer),
+          requested_by: currentUserEmail
+        });
+        if (error){ alert(`신청 실패: ${error.message}`); btn.disabled = false; btn.textContent = '🙋 배정 신청'; return; }
+        btn.textContent = '✅ 신청 완료';
+        await loadMyRequests();
+      });
+    });
+  }
+
+  const myRequestsTable = document.getElementById('myRequestsTable');
+  const statusLabel = { pending: '대기중', approved: '승인됨', rejected: '반려됨' };
+
+  async function loadMyRequests(){
+    const { data, error } = await sb
+      .from('assignment_requests')
+      .select('id, customer_no, status, requested_at, reviewed_at, customers(name)')
+      .eq('requested_by', currentUserEmail)
+      .order('requested_at', { ascending: false });
+
+    if (error){ myRequestsTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ myRequestsTable.innerHTML = `<p class="empty">신청 내역이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>신청일</th><th>상태</th></tr></thead><tbody>`;
+    for (const r of data){
+      html += `<tr>
+        <td>${r.customer_no}</td><td>${r.customers?.name||''}</td>
+        <td>${new Date(r.requested_at).toLocaleDateString('ko-KR')}</td>
+        <td><span class="badge ${r.status}">${statusLabel[r.status] || r.status}</span></td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    myRequestsTable.innerHTML = html;
+  }
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session, false); else showLogin();
+  });
+</script>
+</body>
+</html>

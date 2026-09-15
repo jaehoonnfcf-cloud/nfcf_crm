@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>전담고객 배정 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
+    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+    --blue:#2b5e9e; --amber:#a3690f; --amber-soft:#fdf1e0;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:44px 40px; width:100%; max-width:360px; text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%; padding:11px 16px; border-radius:9px;
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    font-size:14.5px; font-weight:600; cursor:pointer;
+  }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .google-btn:disabled{ opacity:.6; cursor:default; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
+  .nav-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; display:flex; flex-direction:column; gap:28px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+
+  input[type=file]{ font-size:13px; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:14px; }
+  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
+  tbody td{ padding:9px 12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:nth-child(even){ background:#fcfcfb; }
+  select{ font-family:inherit; font-size:12.5px; padding:5px 6px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+
+  .row-actions{ display:flex; gap:10px; margin-top:16px; }
+  .primary-btn{ padding:9px 18px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .primary-btn:hover{ opacity:.9; }
+  .primary-btn:disabled{ opacity:.5; cursor:default; }
+  .csv-btn{ background:var(--blue); border-color:var(--blue); }
+  .secondary-btn{ padding:9px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:13.5px; cursor:pointer; }
+  .secondary-btn:hover{ background:#f2f1ee; }
+  .small-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; color:var(--ink); }
+  .small-btn.approve{ border-color:var(--accent); color:var(--accent); }
+  .small-btn.reject{ border-color:#e8d3d0; color:var(--danger); }
+
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.success{ color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">🙋</div>
+    <h1>전담고객 배정 관리</h1>
+    <p>승인된 관리자 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">🙋</div>
+      <h2>전담고객 배정 관리</h2>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="staff-dashboard.html" class="nav-btn">🙋 내 고객</a>
+      <a href="manual.html" class="nav-btn">📖 사용설명서</a>
+      <a href="vip.html" class="nav-btn">💎 VIP 만기내역</a>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="notAdminCard" style="display:none">
+      <p class="empty">🔒 이 화면은 관리자 전용입니다.</p>
+    </section>
+
+    <div id="adminArea" style="display:none; display:flex; flex-direction:column; gap:28px;">
+
+      <section class="card">
+        <h1>📤 신규 고객 일괄 등록</h1>
+        <p class="desc">CSV 파일을 업로드하세요. 헤더: 고객번호, 성명, 특징, 최초수신잔액, 최초여신잔액 (이미 있는 고객번호는 정보가 갱신됩니다)</p>
+        <input type="file" id="csvInput" accept=".csv" />
+        <div id="csvPreview"></div>
+        <div class="row-actions">
+          <button class="primary-btn csv-btn" id="uploadBtn" disabled>업로드 실행</button>
+        </div>
+        <div class="status-msg" id="uploadStatus"></div>
+      </section>
+
+      <section class="card">
+        <h1>🙋 담당자 배정</h1>
+        <p class="desc">담당자가 지정되지 않은 고객입니다. 담당자를 선택하고 저장하세요.</p>
+        <div id="assignTable"></div>
+        <div class="row-actions">
+          <button class="primary-btn" id="saveAssignBtn">배정 저장</button>
+          <button class="secondary-btn" id="refreshAssignBtn">🔄 새로고침</button>
+        </div>
+        <div class="status-msg" id="assignStatus"></div>
+      </section>
+
+      <section class="card">
+        <h1>📝 배정 셀프 신청 승인 대기</h1>
+        <p class="desc">담당자가 스스로 신청한 배정 건입니다. 승인하면 즉시 배정되고 이력에 기록됩니다.</p>
+        <div id="requestTable"></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+  const notAdminCard = document.getElementById('notAdminCard');
+  const adminArea = document.getElementById('adminArea');
+
+  let currentUserEmail = '';
+  let staffList = [];
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut();
+    showLogin();
+  });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    userEmail.textContent = name || currentUserEmail;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    if (!admin){
+      notAdminCard.style.display = 'block';
+      adminArea.style.display = 'none';
+      return;
+    }
+    notAdminCard.style.display = 'none';
+    adminArea.style.display = 'flex';
+
+    await loadStaffList();
+    await loadAssignTable();
+    await loadRequestTable();
+  }
+
+  async function loadStaffList(){
+    const { data } = await sb.from('allowed_emails').select('email, name').order('name');
+    staffList = data || [];
+  }
+
+  function staffOptions(selected){
+    let html = `<option value="">미배정</option>`;
+    for (const s of staffList){
+      html += `<option value="${s.email}" ${s.email === selected ? 'selected' : ''}>${s.name || s.email}</option>`;
+    }
+    return html;
+  }
+
+  // ---- CSV 업로드 ----
+  const csvInput = document.getElementById('csvInput');
+  const csvPreview = document.getElementById('csvPreview');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const uploadStatus = document.getElementById('uploadStatus');
+  let parsedCsvRows = [];
+
+  const HEADER_MAP = {
+    '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
+    '성명':'name', 'name':'name', '이름':'name',
+    '특징':'customer_info', 'customer_info':'customer_info', '고객정보':'customer_info', '메모':'customer_info',
+    '최초수신잔액':'initial_deposit_balance', 'initial_deposit_balance':'initial_deposit_balance',
+    '최초여신잔액':'initial_loan_balance', 'initial_loan_balance':'initial_loan_balance'
+  };
+
+  csvInput.addEventListener('change', () => {
+    const file = csvInput.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        parsedCsvRows = results.data.map(row => {
+          const mapped = {};
+          for (const key of Object.keys(row)){
+            const mappedKey = HEADER_MAP[key.trim()];
+            if (mappedKey) mapped[mappedKey] = (row[key] || '').trim();
+          }
+          return mapped;
+        }).filter(r => r.customer_no);
+
+        if (!parsedCsvRows.length){
+          csvPreview.innerHTML = `<p class="empty">인식된 행이 없습니다. 헤더를 확인해주세요.</p>`;
+          uploadBtn.disabled = true;
+          return;
+        }
+
+        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th></tr></thead><tbody>`;
+        for (const r of parsedCsvRows.slice(0, 50)){
+          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td><td>${r.initial_deposit_balance||''}</td><td>${r.initial_loan_balance||''}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        if (parsedCsvRows.length > 50) html += `<p class="empty">외 ${parsedCsvRows.length - 50}건 (미리보기는 50건까지)</p>`;
+        csvPreview.innerHTML = html;
+        uploadBtn.disabled = false;
+      }
+    });
+  });
+
+  uploadBtn.addEventListener('click', async () => {
+    uploadBtn.disabled = true;
+    uploadStatus.className = 'status-msg';
+    uploadStatus.textContent = '업로드 중...';
+
+    const rows = parsedCsvRows.map(r => ({
+      customer_no: Number(r.customer_no),
+      name: r.name || null,
+      customer_info: r.customer_info || null,
+      initial_deposit_balance: r.initial_deposit_balance ? Number(r.initial_deposit_balance) : null,
+      initial_loan_balance: r.initial_loan_balance ? Number(r.initial_loan_balance) : null,
+      initial_balance_date: new Date().toISOString().slice(0, 10)
+    }));
+
+    const { error } = await sb.from('customers').upsert(rows, { onConflict: 'customer_no' });
+    if (error){
+      uploadStatus.className = 'status-msg error';
+      uploadStatus.textContent = `업로드 실패: ${error.message}`;
+      uploadBtn.disabled = false;
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: rows.length, p_updated: 0,
+      p_summary: `전담고객 잔액 일괄등록 ${rows.length}건 (${csvInput.files[0]?.name || ''})`
+    });
+
+    uploadStatus.className = 'status-msg success';
+    uploadStatus.textContent = `${rows.length}건 업로드 완료`;
+    csvInput.value = '';
+    csvPreview.innerHTML = '';
+    await loadAssignTable();
+  });
+
+  // ---- 담당자 배정 ----
+  const assignTable = document.getElementById('assignTable');
+  const assignStatus = document.getElementById('assignStatus');
+  document.getElementById('refreshAssignBtn').addEventListener('click', loadAssignTable);
+  let pendingAssignChanges = {};
+
+  async function loadAssignTable(){
+    pendingAssignChanges = {};
+    const { data, error } = await sb
+      .from('customers')
+      .select('customer_no, name, customer_info, initial_deposit_balance, initial_loan_balance, assigned_to')
+      .eq('is_deleted', false)
+      .is('assigned_to', null)
+      .order('customer_no');
+
+    if (error){ assignTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ assignTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th><th>담당자 배정</th></tr></thead><tbody>`;
+    for (const c of data){
+      html += `<tr>
+        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
+        <td>${c.initial_deposit_balance ?? ''}</td><td>${c.initial_loan_balance ?? ''}</td>
+        <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions('')}</select></td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    assignTable.innerHTML = html;
+
+    assignTable.querySelectorAll('.assign-select').forEach(sel => {
+      sel.addEventListener('change', () => { pendingAssignChanges[sel.dataset.customer] = sel.value; });
+    });
+  }
+
+  document.getElementById('saveAssignBtn').addEventListener('click', async () => {
+    const entries = Object.entries(pendingAssignChanges).filter(([, v]) => v);
+    if (!entries.length){
+      assignStatus.className = 'status-msg';
+      assignStatus.textContent = '변경된 배정이 없습니다.';
+      return;
+    }
+    assignStatus.className = 'status-msg';
+    assignStatus.textContent = '저장 중...';
+
+    for (const [customerNo, email] of entries){
+      const { error } = await sb.from('customers').update({ assigned_to: email }).eq('customer_no', Number(customerNo));
+      if (error){
+        assignStatus.className = 'status-msg error';
+        assignStatus.textContent = `저장 실패 (고객번호 ${customerNo}): ${error.message}`;
+        return;
+      }
+    }
+    assignStatus.className = 'status-msg success';
+    assignStatus.textContent = `${entries.length}건 배정 완료`;
+    await loadAssignTable();
+  });
+
+  // ---- 셀프 신청 승인 ----
+  const requestTable = document.getElementById('requestTable');
+
+  async function loadRequestTable(){
+    const { data, error } = await sb
+      .from('assignment_requests')
+      .select('id, customer_no, requested_by, requested_at, note, customers(name)')
+      .eq('status', 'pending')
+      .order('requested_at');
+
+    if (error){ requestTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ requestTable.innerHTML = `<p class="empty">대기 중인 신청이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>신청자</th><th>신청일</th><th>메모</th><th>처리</th></tr></thead><tbody>`;
+    for (const r of data){
+      html += `<tr>
+        <td>${r.customer_no}</td><td>${r.customers?.name||''}</td><td>${r.requested_by}</td>
+        <td>${new Date(r.requested_at).toLocaleDateString('ko-KR')}</td><td>${r.note||''}</td>
+        <td>
+          <button class="small-btn approve" data-id="${r.id}" data-action="approve">✅ 승인</button>
+          <button class="small-btn reject" data-id="${r.id}" data-action="reject">❌ 반려</button>
+        </td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    requestTable.innerHTML = html;
+
+    requestTable.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
+        btn.disabled = true;
+        const { error } = await sb.from('assignment_requests')
+          .update({ status, reviewed_by: currentUserEmail, reviewed_at: new Date().toISOString() })
+          .eq('id', btn.dataset.id);
+        if (error){ alert(`처리 실패: ${error.message}`); btn.disabled = false; return; }
+        await loadRequestTable();
+        await loadAssignTable();
+      });
+    });
+  }
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session, false); else showLogin();
+  });
+</script>
+</body>
+</html>

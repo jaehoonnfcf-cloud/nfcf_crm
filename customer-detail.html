@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>고객 상세</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
+    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
+  header .left{ display:flex; align-items:center; gap:14px; }
+  header h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
+  .nav-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:900px; margin:0 auto; padding:32px; display:flex; flex-direction:column; gap:24px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  section.card h1{ font-size:16px; margin:0 0 4px; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+
+  .summary-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+  .summary-item{ border:1px solid var(--line); border-radius:12px; padding:14px; background:#fafaf8; }
+  .summary-item .label{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .summary-item .value{ font-size:15px; font-weight:600; }
+  .diff-up{ color:#1a7a4c; }
+  .diff-down{ color:var(--danger); }
+  .diff-flat{ color:var(--muted); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th, td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th{ color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+
+  textarea, input[type=text], input[type=date], input[type=number]{
+    font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--line);
+    border-radius:8px; background:#fff; width:100%;
+  }
+  textarea:focus, input:focus{ outline:none; border-color:var(--accent); }
+  textarea{ resize:vertical; min-height:60px; }
+  .form-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .form-row > div{ flex:1; }
+  .form-row.narrow > div{ flex:none; width:160px; }
+
+  .primary-btn{ padding:9px 18px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .primary-btn:hover{ opacity:.9; }
+  .primary-btn:disabled{ opacity:.5; cursor:default; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:16px 0; text-align:center; }
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.success{ color:var(--accent); }
+  .readonly-note{ font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">🙋</div>
+    <h1>고객 상세</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="left">
+      <a href="staff-dashboard.html" class="nav-btn">← 내 고객으로</a>
+      <h2 id="pageTitle">고객 상세</h2>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h1 id="customerName">-</h1>
+      <p class="desc" id="customerInfo"></p>
+      <div class="summary-grid" id="summaryGrid"></div>
+    </section>
+
+    <section class="card">
+      <h1>🤝 활동 이력</h1>
+      <p class="desc">날짜와 내용을 입력하면 누적으로 기록됩니다.</p>
+      <div id="activityFormWrap">
+        <div class="form-row narrow"><div><input type="date" id="activityDate" /></div></div>
+        <div class="form-row"><div><textarea id="activityContent" placeholder="이번에 어떤 업무를 진행했는지 입력하세요"></textarea></div></div>
+        <button class="primary-btn" id="addActivityBtn">등록</button>
+        <div class="status-msg" id="activityStatus"></div>
+      </div>
+      <p class="readonly-note" id="activityReadonlyNote" style="display:none">담당자만 활동을 입력할 수 있습니다. (조회만 가능)</p>
+      <div id="activityTable" style="margin-top:16px"></div>
+    </section>
+
+    <section class="card">
+      <h1>💰 잔액 이력</h1>
+      <p class="desc">재업로드된 수신/여신 잔액 이력입니다.</p>
+      <div id="balanceFormWrap">
+        <div class="form-row narrow">
+          <div><label class="readonly-note">기준일</label><input type="date" id="snapshotDate" /></div>
+          <div><label class="readonly-note">수신잔액</label><input type="number" id="snapshotDeposit" /></div>
+          <div><label class="readonly-note">여신잔액</label><input type="number" id="snapshotLoan" /></div>
+        </div>
+        <button class="primary-btn" id="addSnapshotBtn">잔액 기록 추가</button>
+        <div class="status-msg" id="snapshotStatus"></div>
+      </div>
+      <div id="snapshotTable" style="margin-top:16px"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const params = new URLSearchParams(window.location.search);
+  const customerNo = Number(params.get('customer_no'));
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+
+  let currentUserEmail = '';
+  let isAdmin = false;
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname + window.location.search }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
+  function diffText(diff){
+    if (diff === null || diff === undefined) return '-';
+    const n = Number(diff);
+    if (n > 0) return `<span class="diff-up">+${fmtNum(n)}</span>`;
+    if (n < 0) return `<span class="diff-down">${fmtNum(n)}</span>`;
+    return `<span class="diff-flat">0</span>`;
+  }
+
+  async function showApp(session){
+    if (!customerNo){
+      loginScreen.style.display = 'flex';
+      loginScreen.querySelector('h1').textContent = '고객번호가 없습니다';
+      loginScreen.querySelector('p').textContent = '내 고객 목록에서 다시 접속해주세요.';
+      googleLoginBtn.style.display = 'none';
+      return;
+    }
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    userEmail.textContent = name || currentUserEmail;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    isAdmin = !!admin;
+
+    document.getElementById('activityDate').valueAsDate = new Date();
+    document.getElementById('snapshotDate').valueAsDate = new Date();
+
+    await loadCustomerSummary();
+    await loadActivities();
+    await loadSnapshots();
+  }
+
+  async function loadCustomerSummary(){
+    const { data, error } = await sb.from('customer_balance_diff').select('*').eq('customer_no', customerNo).maybeSingle();
+    if (error || !data){
+      document.getElementById('customerName').textContent = '고객 정보를 불러올 수 없습니다';
+      return;
+    }
+    document.getElementById('pageTitle').textContent = `${data.name||''} (${data.customer_no})`;
+    document.getElementById('customerName').textContent = `${data.name||''} (${data.customer_no})`;
+    document.getElementById('customerInfo').textContent = `담당자: ${data.assigned_to || '미배정'}`;
+
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="summary-item"><div class="label">수신잔액 (최초 → 현재)</div>
+        <div class="value">${fmtNum(data.initial_deposit_balance)} → ${fmtNum(data.current_deposit_balance)}</div>
+        <div class="value">${diffText(data.deposit_diff)}</div></div>
+      <div class="summary-item"><div class="label">여신잔액 (최초 → 현재)</div>
+        <div class="value">${fmtNum(data.initial_loan_balance)} → ${fmtNum(data.current_loan_balance)}</div>
+        <div class="value">${diffText(data.loan_diff)}</div></div>
+      <div class="summary-item"><div class="label">최근 잔액 기준일</div><div class="value">${data.latest_snapshot_date || '-'}</div></div>
+    `;
+
+    const isMine = data.assigned_to === currentUserEmail;
+    if (!isMine){
+      document.getElementById('activityFormWrap').style.display = 'none';
+      document.getElementById('activityReadonlyNote').style.display = 'block';
+    }
+    if (!isAdmin) document.getElementById('balanceFormWrap').style.display = 'none';
+  }
+
+  const activityTable = document.getElementById('activityTable');
+  const activityStatus = document.getElementById('activityStatus');
+
+  document.getElementById('addActivityBtn').addEventListener('click', async () => {
+    const date = document.getElementById('activityDate').value;
+    const content = document.getElementById('activityContent').value.trim();
+    if (!date || !content){
+      activityStatus.className = 'status-msg error';
+      activityStatus.textContent = '날짜와 내용을 모두 입력하세요.';
+      return;
+    }
+    const { data: name } = await sb.rpc('current_user_name');
+    const { error } = await sb.from('customer_activities').insert({
+      customer_no: customerNo, activity_type: '일반', activity_date: date, content,
+      created_by: name || currentUserEmail, created_by_email: currentUserEmail
+    });
+    if (error){
+      activityStatus.className = 'status-msg error';
+      activityStatus.textContent = `등록 실패: ${error.message}`;
+      return;
+    }
+    activityStatus.className = 'status-msg success';
+    activityStatus.textContent = '등록되었습니다.';
+    document.getElementById('activityContent').value = '';
+    await loadActivities();
+  });
+
+  async function loadActivities(){
+    const { data, error } = await sb.from('customer_activities')
+      .select('activity_date, content, created_by')
+      .eq('customer_no', customerNo)
+      .order('activity_date', { ascending: false });
+
+    if (error){ activityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ activityTable.innerHTML = `<p class="empty">등록된 활동이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th style="width:110px">날짜</th><th>내용</th><th style="width:120px">작성자</th></tr></thead><tbody>`;
+    for (const a of data) html += `<tr><td>${a.activity_date}</td><td>${a.content}</td><td>${a.created_by||''}</td></tr>`;
+    html += `</tbody></table>`;
+    activityTable.innerHTML = html;
+  }
+
+  const snapshotTable = document.getElementById('snapshotTable');
+  const snapshotStatus = document.getElementById('snapshotStatus');
+
+  document.getElementById('addSnapshotBtn').addEventListener('click', async () => {
+    const date = document.getElementById('snapshotDate').value;
+    const deposit = document.getElementById('snapshotDeposit').value;
+    const loan = document.getElementById('snapshotLoan').value;
+    if (!date || (!deposit && !loan)){
+      snapshotStatus.className = 'status-msg error';
+      snapshotStatus.textContent = '기준일과 잔액을 입력하세요.';
+      return;
+    }
+    const { error } = await sb.from('balance_snapshots').insert({
+      customer_no: customerNo, snapshot_date: date,
+      deposit_balance: deposit ? Number(deposit) : null,
+      loan_balance: loan ? Number(loan) : null,
+      uploaded_by: currentUserEmail
+    });
+    if (error){
+      snapshotStatus.className = 'status-msg error';
+      snapshotStatus.textContent = `등록 실패: ${error.message}`;
+      return;
+    }
+    snapshotStatus.className = 'status-msg success';
+    snapshotStatus.textContent = '등록되었습니다.';
+    document.getElementById('snapshotDeposit').value = '';
+    document.getElementById('snapshotLoan').value = '';
+    await loadSnapshots();
+    await loadCustomerSummary();
+  });
+
+  async function loadSnapshots(){
+    const { data, error } = await sb.from('balance_snapshots')
+      .select('snapshot_date, deposit_balance, loan_balance, uploaded_by')
+      .eq('customer_no', customerNo)
+      .order('snapshot_date', { ascending: false });
+
+    if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ snapshotTable.innerHTML = `<p class="empty">등록된 잔액 이력이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th>기준일</th><th>수신잔액</th><th>여신잔액</th><th>등록자</th></tr></thead><tbody>`;
+    for (const s of data) html += `<tr><td>${s.snapshot_date}</td><td>${fmtNum(s.deposit_balance)}</td><td>${fmtNum(s.loan_balance)}</td><td>${s.uploaded_by||''}</td></tr>`;
+    html += `</tbody></table>`;
+    snapshotTable.innerHTML = html;
+  }
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session, false); else showLogin();
+  });
+</script>
+</body>
+</html>
