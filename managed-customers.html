@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>전체 관리 고객</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
+    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
+  .brand h2{ font-size:16px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .nav-btn:hover{ background:#f2f1ee; }
+
+  main{ max-width:1440px; margin:0 auto; padding:32px 24px 60px; display:flex; flex-direction:column; gap:28px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 8px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
+  tbody td{ padding:6px 6px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:nth-child(even){ background:#fcfcfb; }
+  tr.clickable{ cursor:pointer; }
+  tr.clickable:hover{ background:var(--accent-soft); }
+
+  .diff-up{ color:#1a7a4c; font-weight:600; }
+  .diff-down{ color:var(--danger); font-weight:600; }
+  .diff-flat{ color:var(--muted); }
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+
+  .compact-table{ table-layout:fixed; width:100%; }
+  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:7%; }
+  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:8%; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:25%; }
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:14%; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:20%; }
+  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:13%; }
+  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:13%; }
+  .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
+  .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
+  .compact-table th:nth-child(6), .compact-table th:nth-child(7){ text-align:right; }
+
+  @media print{
+    header .nav-btn, #managedSearchBox{ display:none !important; }
+    body{ background:#fff; }
+    section.card{ border:none; box-shadow:none; padding:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">👥</div>
+    <h1>전체 관리 고객</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">👥</div>
+      <h2>전체 관리 고객</h2>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="staff-dashboard.html" class="nav-btn">🙋 내 고객</a>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <button class="nav-btn" id="printBtn">🖨️ 인쇄</button>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h1>👥 전체 관리 고객</h1>
+      <p class="desc">담당자와 무관하게, 현재 배정되어 관리 중인 모든 고객입니다. 조합활동·마케팅활동은 가장 최근 항목만 표시됩니다.</p>
+      <input type="text" id="managedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <div id="managedTable"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+  const managedTable = document.getElementById('managedTable');
+  const managedSearchBox = document.getElementById('managedSearchBox');
+  let managedRows = [];
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+  document.getElementById('printBtn').addEventListener('click', () => { window.print(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    const { data: name } = await sb.rpc('current_user_name');
+    userEmail.textContent = name || session.user.email;
+    await loadManagedCustomers();
+  }
+
+  function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
+  function diffCell(diff){
+    if (diff === null || diff === undefined) return `<span class="diff-flat">-</span>`;
+    const n = Number(diff);
+    if (n > 0) return `<span class="diff-up">+${fmtNum(n)}</span>`;
+    if (n < 0) return `<span class="diff-down">${fmtNum(n)}</span>`;
+    return `<span class="diff-flat">0</span>`;
+  }
+  function balanceCell(current, diff){
+    return `<div>${fmtNum(current)}</div><div class="sub-line">(${diffCell(diff)})</div>`;
+  }
+
+  async function loadManagedCustomers(){
+    managedTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data, error } = await sb
+      .from('customer_balance_diff')
+      .select('customer_no, name, customer_info, current_deposit_balance, deposit_diff, current_loan_balance, loan_diff')
+      .not('assigned_to', 'is', null)
+      .order('customer_no');
+
+    if (error){ managedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    const rows = data || [];
+
+    let unionMap = {}, marketingMap = {};
+    if (rows.length){
+      const customerNos = rows.map(r => r.customer_no);
+      const [{ data: unionData }, { data: marketingData }] = await Promise.all([
+        sb.from('customer_activities').select('customer_no, content, activity_date')
+          .in('customer_no', customerNos).eq('activity_type', '조합활동')
+          .order('activity_date', { ascending: false }),
+        sb.from('customer_activities').select('customer_no, content, activity_date')
+          .in('customer_no', customerNos).eq('activity_type', '마케팅활동')
+          .order('activity_date', { ascending: false })
+      ]);
+      for (const a of (unionData || [])) if (!(a.customer_no in unionMap)) unionMap[a.customer_no] = a.content;
+      for (const a of (marketingData || [])) if (!(a.customer_no in marketingMap)) marketingMap[a.customer_no] = a;
+    }
+
+    managedRows = rows.map(r => ({
+      ...r,
+      unionActivity: unionMap[r.customer_no] || '-',
+      marketing: marketingMap[r.customer_no] ? `${marketingMap[r.customer_no].activity_date} · ${marketingMap[r.customer_no].content}` : '-'
+    }));
+    renderManagedTable(managedRows);
+  }
+
+  function renderManagedTable(rows){
+    if (!rows.length){ managedTable.innerHTML = `<p class="empty">관리 중인 고객이 없습니다.</p>`; return; }
+    let html = `<table class="compact-table"><thead><tr>
+      <th>고객번호</th><th>성명</th><th>특징</th><th>조합활동</th><th>마케팅활동(최종)</th>
+      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th>
+    </tr></thead><tbody>`;
+    for (const c of rows){
+      html += `<tr class="clickable" data-customer="${c.customer_no}">
+        <td>${c.customer_no}</td>
+        <td>${c.name||''}</td>
+        <td class="ellipsis" title="${(c.customer_info||'').replace(/"/g,'&quot;')}">${c.customer_info||''}</td>
+        <td class="ellipsis" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}">${c.unionActivity}</td>
+        <td class="ellipsis" title="${(c.marketing||'').replace(/"/g,'&quot;')}">${c.marketing}</td>
+        <td class="num">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
+        <td class="num">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    managedTable.innerHTML = html;
+
+    managedTable.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+      });
+    });
+  }
+
+  managedSearchBox.addEventListener('input', () => {
+    const kw = managedSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderManagedTable(managedRows); return; }
+    const filtered = managedRows.filter(c =>
+      String(c.customer_no).includes(kw) ||
+      (c.name || '').toLowerCase().includes(kw) ||
+      (c.customer_info || '').toLowerCase().includes(kw)
+    );
+    renderManagedTable(filtered);
+  });
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session, false); else showLogin();
+  });
+</script>
+</body>
+</html>
