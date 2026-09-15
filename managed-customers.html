@@ -50,20 +50,21 @@
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
 
   .compact-table{ table-layout:fixed; width:100%; }
-  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:7%; }
-  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:8%; }
-  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:25%; }
-  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:14%; }
-  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:20%; }
-  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:13%; }
-  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:13%; }
+  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:6%; }
+  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:7%; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:21%; }
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:12%; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:18%; }
+  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:12%; }
+  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:12%; }
+  .compact-table th:nth-child(8), .compact-table td:nth-child(8){ width:12%; }
   .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
   .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
   .compact-table th:nth-child(6), .compact-table th:nth-child(7){ text-align:right; }
 
   @media print{
-    header .nav-btn, #managedSearchBox{ display:none !important; }
+    header .nav-btn, #managedSearchBox, #staffFilterSelect{ display:none !important; }
     body{ background:#fff; }
     section.card{ border:none; box-shadow:none; padding:0; }
   }
@@ -101,6 +102,9 @@
       <h1>👥 전체 관리 고객</h1>
       <p class="desc">담당자와 무관하게, 현재 배정되어 관리 중인 모든 고객입니다. 조합활동·마케팅활동은 가장 최근 항목만 표시됩니다.</p>
       <input type="text" id="managedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <select id="staffFilterSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px; margin-left:8px;">
+        <option value="">전체 담당자</option>
+      </select>
       <div id="managedTable"></div>
     </section>
   </main>
@@ -120,7 +124,9 @@
   const userEmail = document.getElementById('userEmail');
   const managedTable = document.getElementById('managedTable');
   const managedSearchBox = document.getElementById('managedSearchBox');
+  const staffFilterSelect = document.getElementById('staffFilterSelect');
   let managedRows = [];
+  let staffNameMap = {};
 
   googleLoginBtn.addEventListener('click', async () => {
     loginError.style.display = 'none';
@@ -189,14 +195,22 @@
   async function loadManagedCustomers(){
     managedTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
 
+    const { data: staffRows } = await sb.from('allowed_emails').select('email, name').order('name');
+    staffNameMap = {};
+    for (const s of (staffRows || [])) staffNameMap[s.email] = s.name || s.email;
+
     const { data, error } = await sb
       .from('customer_balance_diff')
-      .select('customer_no, name, customer_info, current_deposit_balance, deposit_diff, current_loan_balance, loan_diff')
+      .select('customer_no, name, customer_info, assigned_to, current_deposit_balance, deposit_diff, current_loan_balance, loan_diff')
       .not('assigned_to', 'is', null)
       .order('customer_no');
 
     if (error){ managedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
     const rows = data || [];
+
+    const usedEmails = Array.from(new Set(rows.map(r => r.assigned_to))).sort((a, b) => (staffNameMap[a]||a).localeCompare(staffNameMap[b]||b));
+    staffFilterSelect.innerHTML = `<option value="">전체 담당자</option>` +
+      usedEmails.map(email => `<option value="${email}">${staffNameMap[email] || email}</option>`).join('');
 
     let unionMap = {}, marketingMap = {};
     if (rows.length){
@@ -222,10 +236,10 @@
   }
 
   function renderManagedTable(rows){
-    if (!rows.length){ managedTable.innerHTML = `<p class="empty">관리 중인 고객이 없습니다.</p>`; return; }
+    if (!rows.length){ managedTable.innerHTML = `<p class="empty">조건에 맞는 고객이 없습니다.</p>`; return; }
     let html = `<table class="compact-table"><thead><tr>
       <th>고객번호</th><th>성명</th><th>특징</th><th>조합활동</th><th>마케팅활동(최종)</th>
-      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th>
+      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th><th>담당자</th>
     </tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr class="clickable" data-customer="${c.customer_no}">
@@ -236,6 +250,7 @@
         <td class="ellipsis" title="${(c.marketing||'').replace(/"/g,'&quot;')}">${c.marketing}</td>
         <td class="num">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
         <td class="num">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
+        <td class="ellipsis">${staffNameMap[c.assigned_to] || c.assigned_to || ''}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -248,16 +263,23 @@
     });
   }
 
-  managedSearchBox.addEventListener('input', () => {
+  function applyFilters(){
     const kw = managedSearchBox.value.trim().toLowerCase();
-    if (!kw){ renderManagedTable(managedRows); return; }
-    const filtered = managedRows.filter(c =>
-      String(c.customer_no).includes(kw) ||
-      (c.name || '').toLowerCase().includes(kw) ||
-      (c.customer_info || '').toLowerCase().includes(kw)
-    );
+    const staffEmail = staffFilterSelect.value;
+    let filtered = managedRows;
+    if (staffEmail) filtered = filtered.filter(c => c.assigned_to === staffEmail);
+    if (kw){
+      filtered = filtered.filter(c =>
+        String(c.customer_no).includes(kw) ||
+        (c.name || '').toLowerCase().includes(kw) ||
+        (c.customer_info || '').toLowerCase().includes(kw)
+      );
+    }
     renderManagedTable(filtered);
-  });
+  }
+
+  managedSearchBox.addEventListener('input', applyFilters);
+  staffFilterSelect.addEventListener('change', applyFilters);
 
   sb.auth.getSession().then(({ data: { session } }) => {
     if (session) handleSession(session, false); else showLogin();
