@@ -126,12 +126,28 @@
       <section class="card">
         <h1>🙋 담당자 배정</h1>
         <p class="desc">담당자가 지정되지 않은 고객입니다. 담당자를 선택하고 저장하세요.</p>
+        <input type="text" id="assignSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
         <div id="assignTable"></div>
         <div class="row-actions">
           <button class="primary-btn" id="saveAssignBtn">배정 저장</button>
           <button class="secondary-btn" id="refreshAssignBtn">🔄 새로고침</button>
         </div>
         <div class="status-msg" id="assignStatus"></div>
+      </section>
+
+      <section class="card">
+        <h1>📊 월말 잔액 일괄 업로드</h1>
+        <p class="desc">기준월을 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 수신잔액, 여신잔액. 같은 월을 다시 업로드하면 값이 갱신됩니다 (누적 기록은 고객 상세 화면에서 확인).</p>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="font-size:12.5px; color:var(--muted);">기준월(월말 기준)</label>
+          <input type="month" id="balanceMonthInput" />
+          <input type="file" id="balanceCsvInput" accept=".csv" />
+        </div>
+        <div id="balanceCsvPreview"></div>
+        <div class="row-actions">
+          <button class="primary-btn csv-btn" id="balanceUploadBtn" disabled>업로드 실행</button>
+        </div>
+        <div class="status-msg" id="balanceUploadStatus"></div>
       </section>
 
       <section class="card">
@@ -324,11 +340,106 @@
     await loadAssignTable();
   });
 
+  // ---- 월말 잔액 일괄 업로드 ----
+  const balanceMonthInput = document.getElementById('balanceMonthInput');
+  const balanceCsvInput = document.getElementById('balanceCsvInput');
+  const balanceCsvPreview = document.getElementById('balanceCsvPreview');
+  const balanceUploadBtn = document.getElementById('balanceUploadBtn');
+  const balanceUploadStatus = document.getElementById('balanceUploadStatus');
+  let parsedBalanceRows = [];
+
+  const BALANCE_HEADER_MAP = {
+    '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
+    '수신잔액':'deposit_balance', '수신':'deposit_balance', 'deposit_balance':'deposit_balance',
+    '여신잔액':'loan_balance', '여신':'loan_balance', 'loan_balance':'loan_balance'
+  };
+
+  function lastDayOfMonth(yyyyMm){
+    const [y, m] = yyyyMm.split('-').map(Number);
+    const d = new Date(y, m, 0);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function checkBalanceReady(){
+    balanceUploadBtn.disabled = !(balanceMonthInput.value && parsedBalanceRows.length);
+  }
+  balanceMonthInput.addEventListener('change', checkBalanceReady);
+
+  balanceCsvInput.addEventListener('change', () => {
+    const file = balanceCsvInput.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        parsedBalanceRows = results.data.map(row => {
+          const mapped = {};
+          for (const key of Object.keys(row)){
+            const mappedKey = BALANCE_HEADER_MAP[key.trim()];
+            if (mappedKey) mapped[mappedKey] = (row[key] || '').trim();
+          }
+          return mapped;
+        }).filter(r => r.customer_no);
+
+        if (!parsedBalanceRows.length){
+          balanceCsvPreview.innerHTML = `<p class="empty">인식된 행이 없습니다. 헤더(고객번호, 수신잔액, 여신잔액)를 확인해주세요.</p>`;
+          checkBalanceReady();
+          return;
+        }
+
+        let html = `<table><thead><tr><th>고객번호</th><th>수신잔액</th><th>여신잔액</th></tr></thead><tbody>`;
+        for (const r of parsedBalanceRows.slice(0, 50)){
+          html += `<tr><td>${r.customer_no||''}</td><td>${r.deposit_balance||''}</td><td>${r.loan_balance||''}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        if (parsedBalanceRows.length > 50) html += `<p class="empty">외 ${parsedBalanceRows.length - 50}건 (미리보기는 50건까지)</p>`;
+        balanceCsvPreview.innerHTML = html;
+        checkBalanceReady();
+      }
+    });
+  });
+
+  balanceUploadBtn.addEventListener('click', async () => {
+    balanceUploadBtn.disabled = true;
+    balanceUploadStatus.className = 'status-msg';
+    balanceUploadStatus.textContent = '업로드 중...';
+
+    const snapshotDate = lastDayOfMonth(balanceMonthInput.value);
+    const rows = parsedBalanceRows.map(r => ({
+      customer_no: Number(r.customer_no),
+      snapshot_date: snapshotDate,
+      deposit_balance: r.deposit_balance ? Number(r.deposit_balance) : null,
+      loan_balance: r.loan_balance ? Number(r.loan_balance) : null,
+      uploaded_by: currentUserEmail
+    }));
+
+    const { error } = await sb.from('balance_snapshots').upsert(rows, { onConflict: 'customer_no,snapshot_date' });
+    if (error){
+      balanceUploadStatus.className = 'status-msg error';
+      balanceUploadStatus.textContent = `업로드 실패: ${error.message}`;
+      checkBalanceReady();
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: 0, p_updated: rows.length,
+      p_summary: `${balanceMonthInput.value} 월말 잔액 ${rows.length}건 업로드`
+    });
+
+    balanceUploadStatus.className = 'status-msg success';
+    balanceUploadStatus.textContent = `${snapshotDate} 기준 ${rows.length}건 업로드 완료`;
+    balanceCsvInput.value = '';
+    parsedBalanceRows = [];
+    balanceCsvPreview.innerHTML = '';
+    checkBalanceReady();
+  });
+
   // ---- 담당자 배정 ----
   const assignTable = document.getElementById('assignTable');
   const assignStatus = document.getElementById('assignStatus');
+  const assignSearchBox = document.getElementById('assignSearchBox');
   document.getElementById('refreshAssignBtn').addEventListener('click', loadAssignTable);
   let pendingAssignChanges = {};
+  let unassignedRows = [];
 
   async function loadAssignTable(){
     pendingAssignChanges = {};
@@ -340,14 +451,18 @@
       .order('customer_no');
 
     if (error){ assignTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
-    if (!data.length){ assignTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
+    unassignedRows = data || [];
+    renderAssignTable(unassignedRows);
+  }
 
+  function renderAssignTable(rows){
+    if (!rows.length){ assignTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th><th>담당자 배정</th></tr></thead><tbody>`;
-    for (const c of data){
+    for (const c of rows){
       html += `<tr>
         <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
         <td>${c.initial_deposit_balance ?? ''}</td><td>${c.initial_loan_balance ?? ''}</td>
-        <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions('')}</select></td>
+        <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions(pendingAssignChanges[c.customer_no] || '')}</select></td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -357,6 +472,17 @@
       sel.addEventListener('change', () => { pendingAssignChanges[sel.dataset.customer] = sel.value; });
     });
   }
+
+  assignSearchBox.addEventListener('input', () => {
+    const kw = assignSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderAssignTable(unassignedRows); return; }
+    const filtered = unassignedRows.filter(c =>
+      String(c.customer_no).includes(kw) ||
+      (c.name || '').toLowerCase().includes(kw) ||
+      (c.customer_info || '').toLowerCase().includes(kw)
+    );
+    renderAssignTable(filtered);
+  });
 
   document.getElementById('saveAssignBtn').addEventListener('click', async () => {
     const entries = Object.entries(pendingAssignChanges).filter(([, v]) => v);

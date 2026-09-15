@@ -225,12 +225,15 @@
     await loadSnapshots();
   }
 
+  let customerSummary = null;
+
   async function loadCustomerSummary(){
     const { data, error } = await sb.from('customer_balance_diff').select('*').eq('customer_no', customerNo).maybeSingle();
     if (error || !data){
       document.getElementById('customerName').textContent = '고객 정보를 불러올 수 없습니다';
       return;
     }
+    customerSummary = data;
     document.getElementById('pageTitle').textContent = `${data.name||''} (${data.customer_no})`;
     document.getElementById('customerName').textContent = `${data.name||''} (${data.customer_no})`;
     document.getElementById('customerInfo').textContent = `담당자: ${data.assigned_to || '미배정'}`;
@@ -330,13 +333,43 @@
     const { data, error } = await sb.from('balance_snapshots')
       .select('snapshot_date, deposit_balance, loan_balance, uploaded_by')
       .eq('customer_no', customerNo)
-      .order('snapshot_date', { ascending: false });
+      .order('snapshot_date', { ascending: true });
 
     if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
-    if (!data.length){ snapshotTable.innerHTML = `<p class="empty">등록된 잔액 이력이 없습니다.</p>`; return; }
 
-    let html = `<table><thead><tr><th>기준일</th><th>수신잔액</th><th>여신잔액</th><th>등록자</th></tr></thead><tbody>`;
-    for (const s of data) html += `<tr><td>${s.snapshot_date}</td><td>${fmtNum(s.deposit_balance)}</td><td>${fmtNum(s.loan_balance)}</td><td>${s.uploaded_by||''}</td></tr>`;
+    // 최초 잔액을 맨 앞에 두고, 그 뒤로 월말 스냅샷을 시간순으로 이어붙여
+    // "직전 기록 대비 증감"을 계산한다.
+    const chrono = [];
+    if (customerSummary && customerSummary.initial_balance_date){
+      chrono.push({
+        label: `${customerSummary.initial_balance_date} (최초)`,
+        deposit: customerSummary.initial_deposit_balance,
+        loan: customerSummary.initial_loan_balance,
+        uploaded_by: ''
+      });
+    }
+    for (const s of (data || [])){
+      chrono.push({ label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance, uploaded_by: s.uploaded_by });
+    }
+
+    if (!chrono.length){ snapshotTable.innerHTML = `<p class="empty">등록된 잔액 이력이 없습니다.</p>`; return; }
+
+    for (let i = 0; i < chrono.length; i++){
+      const prev = i > 0 ? chrono[i - 1] : null;
+      chrono[i].depositDiff = prev && prev.deposit != null && chrono[i].deposit != null ? chrono[i].deposit - prev.deposit : null;
+      chrono[i].loanDiff = prev && prev.loan != null && chrono[i].loan != null ? chrono[i].loan - prev.loan : null;
+    }
+
+    let html = `<table><thead><tr><th>기준일</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th><th>등록자</th></tr></thead><tbody>`;
+    for (let i = chrono.length - 1; i >= 0; i--){
+      const s = chrono[i];
+      html += `<tr>
+        <td>${s.label}</td>
+        <td>${fmtNum(s.deposit)}</td><td>${diffText(s.depositDiff)}</td>
+        <td>${fmtNum(s.loan)}</td><td>${diffText(s.loanDiff)}</td>
+        <td>${s.uploaded_by||''}</td>
+      </tr>`;
+    }
     html += `</tbody></table>`;
     snapshotTable.innerHTML = html;
   }

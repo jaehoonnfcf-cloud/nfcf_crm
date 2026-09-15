@@ -175,6 +175,7 @@
   .assign-select:hover{ border-color:var(--line); }
   .assign-select:focus{ outline:none; border-color:var(--accent); background:#fff; }
   .assign-select.unassigned{ color:var(--muted); }
+  .assignee-readonly{ font-size:13px; color:var(--ink); }
   td input[type=text], td textarea{
     display:block;
     width:100%; border:1px solid transparent; border-radius:6px; padding:5px 7px;
@@ -450,6 +451,7 @@
           <button class="btn-secondary" id="downloadCsvBtn">⬇️ 결과 다운로드</button>
           <button class="add-btn" id="openAddBtn">➕ 고객 추가</button>
         </div>
+        <p style="font-size:12.5px; color:var(--muted); margin:8px 0 0;">담당자 배정·활동 기록은 <a href="staff-dashboard.html" style="color:var(--accent);">🙋 전담고객 관리</a>에서 합니다.</p>
       </div>
 
       <div class="empty-state" id="idleState">🔍 검색어를 입력해 검색하거나, "📋 전체고객 보기"를 눌러 전체 목록을 불러오세요.</div>
@@ -1157,15 +1159,11 @@
           </div>
         </td>
         <td class="assign-col">
-          <select class="assign-select ${row.assigned_to ? '' : 'unassigned'}">
-            <option value="">미배정</option>
-            ${directoryUsers.map(u => `<option value="${escapeHtml(u.email)}" ${u.email === row.assigned_to ? 'selected' : ''}>${escapeHtml(u.name || u.email)}</option>`).join('')}
-          </select>
+          <span class="assignee-readonly">${row.assigned_to ? escapeHtml(directoryUsers.find(u => u.email === row.assigned_to)?.name || row.assigned_to) : '미배정'}</span>
         </td>
         <td class="info-col"><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
         <td class="actions-col">
           <div class="row-actions">
-            ${row.assigned_to === currentUserEmail ? '<button class="icon-btn contact">🤝 접점</button>' : ''}
             <button class="icon-btn hist">🕘 이력</button>
             <button class="icon-btn save" disabled>💾 저장</button>
             <button class="icon-btn del">🗑️ 삭제</button>
@@ -1174,34 +1172,12 @@
 
       const nameInput = tr.querySelector('.name-input');
       const infoInput = tr.querySelector('.info-input');
-      const assignSelect = tr.querySelector('.assign-select');
       const saveBtn = tr.querySelector('.save');
       const delBtn = tr.querySelector('.del');
       const histBtn = tr.querySelector('.hist');
-      const contactBtn = tr.querySelector('.contact');
       const markDirty = () => { saveBtn.disabled = false; };
       nameInput.addEventListener('input', markDirty);
       infoInput.addEventListener('input', () => { markDirty(); autoResize(infoInput); });
-
-      assignSelect.addEventListener('change', async () => {
-        const newAssignee = assignSelect.value || null;
-        assignSelect.disabled = true;
-        const { error } = await sb.from(TABLE_NAME).update({ assigned_to: newAssignee }).eq('customer_no', row.customer_no);
-        assignSelect.disabled = false;
-        if (error){
-          setStatus('담당자 변경 실패: ' + error.message, 'err-flash');
-          assignSelect.value = row.assigned_to || '';
-        } else {
-          row.assigned_to = newAssignee;
-          assignSelect.classList.toggle('unassigned', !newAssignee);
-          const label = newAssignee ? (directoryUsers.find(u => u.email === newAssignee)?.name || newAssignee) : '미배정';
-          setStatus(`고객번호 ${row.customer_no} 담당자를 ${label}(으)로 변경했습니다`, 'saved-flash');
-        }
-      });
-
-      if (contactBtn){
-        contactBtn.addEventListener('click', () => openActivity(row.customer_no, row.name));
-      }
 
       saveBtn.addEventListener('click', async () => {
         saveBtn.disabled = true;

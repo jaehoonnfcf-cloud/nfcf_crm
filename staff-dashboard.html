@@ -89,7 +89,8 @@
   <main>
     <section class="card">
       <h1>🙋 내 고객</h1>
-      <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 잔액 이력을 볼 수 있습니다.</p>
+      <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 월별 잔액 이력을 볼 수 있습니다.</p>
+      <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
       <div id="myCustomerTable"></div>
     </section>
 
@@ -190,27 +191,31 @@
   }
 
   const myCustomerTable = document.getElementById('myCustomerTable');
+  const myCustomerSearchBox = document.getElementById('myCustomerSearchBox');
+  let myCustomerRows = [];
 
   async function loadMyCustomers(){
     const { data, error } = await sb
-      .from('customer_balance_diff')
-      .select('*')
+      .from('customers')
+      .select('customer_no, name, customer_info, initial_deposit_balance, initial_loan_balance')
       .eq('assigned_to', currentUserEmail)
+      .eq('is_deleted', false)
       .order('customer_no');
 
     if (error){ myCustomerTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
-    if (!data.length){ myCustomerTable.innerHTML = `<p class="empty">배정된 고객이 없습니다.</p>`; return; }
+    myCustomerRows = data || [];
+    renderMyCustomerTable(myCustomerRows);
+  }
 
+  function renderMyCustomerTable(rows){
+    if (!rows.length){ myCustomerTable.innerHTML = `<p class="empty">배정된 고객이 없습니다.</p>`; return; }
     let html = `<table><thead><tr>
-      <th>고객번호</th><th>성명</th><th>최초수신</th><th>현재수신</th><th>수신증감</th>
-      <th>최초여신</th><th>현재여신</th><th>여신증감</th><th>최근 스냅샷</th>
+      <th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th>
     </tr></thead><tbody>`;
-    for (const c of data){
+    for (const c of rows){
       html += `<tr class="clickable" data-customer="${c.customer_no}">
-        <td>${c.customer_no}</td><td>${c.name||''}</td>
-        <td>${fmtNum(c.initial_deposit_balance)}</td><td>${fmtNum(c.current_deposit_balance)}</td><td>${diffCell(c.deposit_diff)}</td>
-        <td>${fmtNum(c.initial_loan_balance)}</td><td>${fmtNum(c.current_loan_balance)}</td><td>${diffCell(c.loan_diff)}</td>
-        <td>${c.latest_snapshot_date || '-'}</td>
+        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
+        <td>${fmtNum(c.initial_deposit_balance)}</td><td>${fmtNum(c.initial_loan_balance)}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -222,6 +227,17 @@
       });
     });
   }
+
+  myCustomerSearchBox.addEventListener('input', () => {
+    const kw = myCustomerSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderMyCustomerTable(myCustomerRows); return; }
+    const filtered = myCustomerRows.filter(c =>
+      String(c.customer_no).includes(kw) ||
+      (c.name || '').toLowerCase().includes(kw) ||
+      (c.customer_info || '').toLowerCase().includes(kw)
+    );
+    renderMyCustomerTable(filtered);
+  });
 
   const unassignedTable = document.getElementById('unassignedTable');
 
