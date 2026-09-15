@@ -100,8 +100,14 @@
     </section>
 
     <section class="card">
-      <h1>🤝 활동 이력</h1>
-      <p class="desc">날짜와 내용을 입력하면 누적으로 기록됩니다.</p>
+      <h1>🏅 조합활동</h1>
+      <p class="desc">조합 행사·교육 참여 이력입니다. 관리자가 일괄 등록하며, 이 화면에서는 조회만 가능합니다.</p>
+      <div id="unionActivityTable" style="margin-top:8px"></div>
+    </section>
+
+    <section class="card">
+      <h1>📣 마케팅활동</h1>
+      <p class="desc">담당자가 고객과 나눈 접점을 직접 기록합니다. 날짜와 내용을 입력하면 누적으로 쌓입니다.</p>
       <div id="activityFormWrap">
         <div class="form-row narrow"><div><input type="date" id="activityDate" /></div></div>
         <div class="form-row"><div><textarea id="activityContent" placeholder="이번에 어떤 업무를 진행했는지 입력하세요"></textarea></div></div>
@@ -221,6 +227,7 @@
     document.getElementById('snapshotDate').valueAsDate = new Date();
 
     await loadCustomerSummary();
+    await loadUnionActivities();
     await loadActivities();
     await loadSnapshots();
   }
@@ -269,7 +276,7 @@
     }
     const { data: name } = await sb.rpc('current_user_name');
     const { error } = await sb.from('customer_activities').insert({
-      customer_no: customerNo, activity_type: '일반', activity_date: date, content,
+      customer_no: customerNo, activity_type: '마케팅활동', activity_date: date, content,
       created_by: name || currentUserEmail, created_by_email: currentUserEmail
     });
     if (error){
@@ -287,15 +294,34 @@
     const { data, error } = await sb.from('customer_activities')
       .select('activity_date, content, created_by')
       .eq('customer_no', customerNo)
+      .eq('activity_type', '마케팅활동')
       .order('activity_date', { ascending: false });
 
     if (error){ activityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
-    if (!data.length){ activityTable.innerHTML = `<p class="empty">등록된 활동이 없습니다.</p>`; return; }
+    if (!data.length){ activityTable.innerHTML = `<p class="empty">등록된 마케팅활동이 없습니다.</p>`; return; }
 
     let html = `<table><thead><tr><th style="width:110px">날짜</th><th>내용</th><th style="width:120px">작성자</th></tr></thead><tbody>`;
     for (const a of data) html += `<tr><td>${a.activity_date}</td><td>${a.content}</td><td>${a.created_by||''}</td></tr>`;
     html += `</tbody></table>`;
     activityTable.innerHTML = html;
+  }
+
+  const unionActivityTable = document.getElementById('unionActivityTable');
+
+  async function loadUnionActivities(){
+    const { data, error } = await sb.from('customer_activities')
+      .select('activity_date, content, created_by')
+      .eq('customer_no', customerNo)
+      .eq('activity_type', '조합활동')
+      .order('activity_date', { ascending: false });
+
+    if (error){ unionActivityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ unionActivityTable.innerHTML = `<p class="empty">등록된 조합활동이 없습니다.</p>`; return; }
+
+    let html = `<table><thead><tr><th style="width:110px">날짜</th><th>이력</th><th style="width:120px">등록자</th></tr></thead><tbody>`;
+    for (const a of data) html += `<tr><td>${a.activity_date}</td><td>${a.content}</td><td>${a.created_by||''}</td></tr>`;
+    html += `</tbody></table>`;
+    unionActivityTable.innerHTML = html;
   }
 
   const snapshotTable = document.getElementById('snapshotTable');

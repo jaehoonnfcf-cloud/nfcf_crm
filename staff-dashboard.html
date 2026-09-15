@@ -96,7 +96,8 @@
 
     <section class="card">
       <h1>📋 미배정 고객 - 바로 배정받기</h1>
-      <p class="desc">담당자가 없는 고객입니다. 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
+      <p class="desc">담당자가 없는 고객입니다. 최근 등록된 고객이 위로 정렬되며, 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
+      <input type="text" id="unassignedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
       <div id="unassignedTable"></div>
     </section>
 
@@ -210,20 +211,39 @@
   function renderMyCustomerTable(rows){
     if (!rows.length){ myCustomerTable.innerHTML = `<p class="empty">배정된 고객이 없습니다.</p>`; return; }
     let html = `<table><thead><tr>
-      <th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th>
+      <th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th><th></th>
     </tr></thead><tbody>`;
     for (const c of rows){
-      html += `<tr class="clickable" data-customer="${c.customer_no}">
-        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
-        <td>${fmtNum(c.initial_deposit_balance)}</td><td>${fmtNum(c.initial_loan_balance)}</td>
+      html += `<tr>
+        <td class="clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.name||''}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${fmtNum(c.initial_deposit_balance)}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${fmtNum(c.initial_loan_balance)}</td>
+        <td><button class="small-btn unassign-btn" data-customer="${c.customer_no}">🗑️ 담당 해제</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;
     myCustomerTable.innerHTML = html;
 
-    myCustomerTable.querySelectorAll('tr.clickable').forEach(row => {
-      row.addEventListener('click', () => {
-        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+    myCustomerTable.querySelectorAll('td.clickable').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${cell.dataset.customer}`;
+      });
+    });
+
+    myCustomerTable.querySelectorAll('.unassign-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`고객번호 ${btn.dataset.customer}의 담당을 해제할까요?`)) return;
+        btn.disabled = true;
+        const { error } = await sb.from('customers')
+          .update({ assigned_to: null })
+          .eq('customer_no', Number(btn.dataset.customer));
+        if (error){ alert(`해제 실패: ${error.message}`); btn.disabled = false; return; }
+        await loadMyCustomers();
+        await loadUnassigned();
       });
     });
   }
@@ -240,6 +260,8 @@
   });
 
   const unassignedTable = document.getElementById('unassignedTable');
+  const unassignedSearchBox = document.getElementById('unassignedSearchBox');
+  let unassignedRows = [];
 
   async function loadUnassigned(){
     const { data, error } = await sb
@@ -247,13 +269,17 @@
       .select('customer_no, name, customer_info')
       .eq('is_deleted', false)
       .is('assigned_to', null)
-      .order('customer_no');
+      .order('created_at', { ascending: false });
 
     if (error){ unassignedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
-    if (!data.length){ unassignedTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
+    unassignedRows = data || [];
+    renderUnassignedTable(unassignedRows);
+  }
 
+  function renderUnassignedTable(rows){
+    if (!rows.length){ unassignedTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th></th></tr></thead><tbody>`;
-    for (const c of data){
+    for (const c of rows){
       html += `<tr>
         <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
         <td><button class="small-btn" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
@@ -276,6 +302,17 @@
       });
     });
   }
+
+  unassignedSearchBox.addEventListener('input', () => {
+    const kw = unassignedSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderUnassignedTable(unassignedRows); return; }
+    const filtered = unassignedRows.filter(c =>
+      String(c.customer_no).includes(kw) ||
+      (c.name || '').toLowerCase().includes(kw) ||
+      (c.customer_info || '').toLowerCase().includes(kw)
+    );
+    renderUnassignedTable(filtered);
+  });
 
   const myRequestsTable = document.getElementById('myRequestsTable');
   const statusLabel = { pending: '대기중', approved: '승인됨', rejected: '반려됨' };

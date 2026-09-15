@@ -151,6 +151,21 @@
       </section>
 
       <section class="card">
+        <h1>🏅 조합활동 일괄 등록</h1>
+        <p class="desc">활동일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 이력 (예: "임도트래킹 1차", "임산물교육수강"). 담당자와 무관하게 등록됩니다.</p>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="font-size:12.5px; color:var(--muted);">활동일자</label>
+          <input type="date" id="unionActivityDateInput" />
+          <input type="file" id="unionActivityCsvInput" accept=".csv" />
+        </div>
+        <div id="unionActivityCsvPreview"></div>
+        <div class="row-actions">
+          <button class="primary-btn csv-btn" id="unionActivityUploadBtn" disabled>업로드 실행</button>
+        </div>
+        <div class="status-msg" id="unionActivityUploadStatus"></div>
+      </section>
+
+      <section class="card">
         <h1>📝 배정 셀프 신청 승인 대기</h1>
         <p class="desc">담당자가 스스로 신청한 배정 건입니다. 승인하면 즉시 배정되고 이력에 기록됩니다.</p>
         <div id="requestTable"></div>
@@ -433,6 +448,94 @@
     checkBalanceReady();
   });
 
+  // ---- 조합활동 일괄 등록 ----
+  const unionActivityDateInput = document.getElementById('unionActivityDateInput');
+  const unionActivityCsvInput = document.getElementById('unionActivityCsvInput');
+  const unionActivityCsvPreview = document.getElementById('unionActivityCsvPreview');
+  const unionActivityUploadBtn = document.getElementById('unionActivityUploadBtn');
+  const unionActivityUploadStatus = document.getElementById('unionActivityUploadStatus');
+  let parsedUnionActivityRows = [];
+
+  const UNION_HEADER_MAP = {
+    '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
+    '이력':'content', '활동내용':'content', '내용':'content', 'content':'content'
+  };
+
+  function checkUnionActivityReady(){
+    unionActivityUploadBtn.disabled = !(unionActivityDateInput.value && parsedUnionActivityRows.length);
+  }
+  unionActivityDateInput.addEventListener('change', checkUnionActivityReady);
+  unionActivityDateInput.valueAsDate = new Date();
+
+  unionActivityCsvInput.addEventListener('change', () => {
+    const file = unionActivityCsvInput.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        parsedUnionActivityRows = results.data.map(row => {
+          const mapped = {};
+          for (const key of Object.keys(row)){
+            const mappedKey = UNION_HEADER_MAP[key.trim()];
+            if (mappedKey) mapped[mappedKey] = (row[key] || '').trim();
+          }
+          return mapped;
+        }).filter(r => r.customer_no && r.content);
+
+        if (!parsedUnionActivityRows.length){
+          unionActivityCsvPreview.innerHTML = `<p class="empty">인식된 행이 없습니다. 헤더(고객번호, 이력)를 확인해주세요.</p>`;
+          checkUnionActivityReady();
+          return;
+        }
+
+        let html = `<table><thead><tr><th>고객번호</th><th>이력</th></tr></thead><tbody>`;
+        for (const r of parsedUnionActivityRows.slice(0, 50)){
+          html += `<tr><td>${r.customer_no}</td><td>${r.content}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        if (parsedUnionActivityRows.length > 50) html += `<p class="empty">외 ${parsedUnionActivityRows.length - 50}건 (미리보기는 50건까지)</p>`;
+        unionActivityCsvPreview.innerHTML = html;
+        checkUnionActivityReady();
+      }
+    });
+  });
+
+  unionActivityUploadBtn.addEventListener('click', async () => {
+    unionActivityUploadBtn.disabled = true;
+    unionActivityUploadStatus.className = 'status-msg';
+    unionActivityUploadStatus.textContent = '업로드 중...';
+
+    const { data: myName } = await sb.rpc('current_user_name');
+    const rows = parsedUnionActivityRows.map(r => ({
+      customer_no: Number(r.customer_no),
+      activity_type: '조합활동',
+      activity_date: unionActivityDateInput.value,
+      content: r.content,
+      created_by: myName || currentUserEmail,
+      created_by_email: currentUserEmail
+    }));
+
+    const { error } = await sb.from('customer_activities').insert(rows);
+    if (error){
+      unionActivityUploadStatus.className = 'status-msg error';
+      unionActivityUploadStatus.textContent = `업로드 실패: ${error.message}`;
+      checkUnionActivityReady();
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: rows.length, p_updated: 0,
+      p_summary: `조합활동 일괄등록 ${rows.length}건 (${unionActivityDateInput.value})`
+    });
+
+    unionActivityUploadStatus.className = 'status-msg success';
+    unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료`;
+    unionActivityCsvInput.value = '';
+    parsedUnionActivityRows = [];
+    unionActivityCsvPreview.innerHTML = '';
+    checkUnionActivityReady();
+  });
+
   // ---- 담당자 배정 ----
   const assignTable = document.getElementById('assignTable');
   const assignStatus = document.getElementById('assignStatus');
@@ -448,7 +551,7 @@
       .select('customer_no, name, customer_info, initial_deposit_balance, initial_loan_balance, assigned_to')
       .eq('is_deleted', false)
       .is('assigned_to', null)
-      .order('customer_no');
+      .order('created_at', { ascending: false });
 
     if (error){ assignTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
     unassignedRows = data || [];
