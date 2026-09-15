@@ -380,7 +380,7 @@
 
   async function loadUnionActivities(){
     const { data, error } = await sb.from('customer_activities')
-      .select('activity_date, content, created_by')
+      .select('activity_date, content')
       .eq('customer_no', customerNo)
       .eq('activity_type', '조합활동')
       .order('activity_date', { ascending: false });
@@ -388,8 +388,8 @@
     if (error){ unionActivityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
     if (!data.length){ unionActivityTable.innerHTML = `<p class="empty">등록된 조합활동이 없습니다.</p>`; return; }
 
-    let html = `<table><thead><tr><th style="width:110px">날짜</th><th>이력</th><th style="width:120px">등록자</th></tr></thead><tbody>`;
-    for (const a of data) html += `<tr><td>${a.activity_date}</td><td>${a.content}</td><td>${a.created_by||''}</td></tr>`;
+    let html = `<table><thead><tr><th style="width:110px">날짜</th><th>이력</th></tr></thead><tbody>`;
+    for (const a of data) html += `<tr><td>${a.activity_date}</td><td>${a.content}</td></tr>`;
     html += `</tbody></table>`;
     unionActivityTable.innerHTML = html;
   }
