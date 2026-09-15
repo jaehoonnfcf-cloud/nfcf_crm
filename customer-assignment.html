@@ -416,18 +416,44 @@
   balanceUploadBtn.addEventListener('click', async () => {
     balanceUploadBtn.disabled = true;
     balanceUploadStatus.className = 'status-msg';
-    balanceUploadStatus.textContent = '업로드 중...';
+    balanceUploadStatus.textContent = '고객번호 확인 중...';
 
     const snapshotDate = lastDayOfMonth(balanceMonthInput.value);
-    const rows = parsedBalanceRows.map(r => ({
-      customer_no: Number(r.customer_no),
-      snapshot_date: snapshotDate,
-      deposit_balance: r.deposit_balance ? Number(r.deposit_balance) : null,
-      loan_balance: r.loan_balance ? Number(r.loan_balance) : null,
-      uploaded_by: currentUserEmail
-    }));
+    const allNos = parsedBalanceRows.map(r => Number(r.customer_no));
 
-    const { error } = await sb.from('balance_snapshots').upsert(rows, { onConflict: 'customer_no,snapshot_date' });
+    const { data: existing, error: checkError } = await sb
+      .from('customers')
+      .select('customer_no')
+      .in('customer_no', allNos);
+
+    if (checkError){
+      balanceUploadStatus.className = 'status-msg error';
+      balanceUploadStatus.textContent = `고객번호 확인 실패: ${checkError.message}`;
+      checkBalanceReady();
+      return;
+    }
+
+    const existingSet = new Set((existing || []).map(c => c.customer_no));
+    const missing = allNos.filter(no => !existingSet.has(no));
+    const validRows = parsedBalanceRows
+      .filter(r => existingSet.has(Number(r.customer_no)))
+      .map(r => ({
+        customer_no: Number(r.customer_no),
+        snapshot_date: snapshotDate,
+        deposit_balance: r.deposit_balance ? Number(r.deposit_balance) : null,
+        loan_balance: r.loan_balance ? Number(r.loan_balance) : null,
+        uploaded_by: currentUserEmail
+      }));
+
+    if (!validRows.length){
+      balanceUploadStatus.className = 'status-msg error';
+      balanceUploadStatus.textContent = `업로드 실패: CSV의 고객번호가 전부 등록되지 않은 번호입니다 (${missing.length}건). 먼저 "신규 고객 일괄 등록"으로 등록해주세요.`;
+      checkBalanceReady();
+      return;
+    }
+
+    balanceUploadStatus.textContent = '업로드 중...';
+    const { error } = await sb.from('balance_snapshots').upsert(validRows, { onConflict: 'customer_no,snapshot_date' });
     if (error){
       balanceUploadStatus.className = 'status-msg error';
       balanceUploadStatus.textContent = `업로드 실패: ${error.message}`;
@@ -436,12 +462,17 @@
     }
 
     await sb.rpc('log_csv_upload', {
-      p_inserted: 0, p_updated: rows.length,
-      p_summary: `${balanceMonthInput.value} 월말 잔액 ${rows.length}건 업로드`
+      p_inserted: 0, p_updated: validRows.length,
+      p_summary: `${balanceMonthInput.value} 월말 잔액 ${validRows.length}건 업로드`
     });
 
-    balanceUploadStatus.className = 'status-msg success';
-    balanceUploadStatus.textContent = `${snapshotDate} 기준 ${rows.length}건 업로드 완료`;
+    if (missing.length){
+      balanceUploadStatus.className = 'status-msg error';
+      balanceUploadStatus.textContent = `${snapshotDate} 기준 ${validRows.length}건 업로드 완료. 다만 등록되지 않은 고객번호 ${missing.length}건은 건너뛰었습니다: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ' 외' : ''}`;
+    } else {
+      balanceUploadStatus.className = 'status-msg success';
+      balanceUploadStatus.textContent = `${snapshotDate} 기준 ${validRows.length}건 업로드 완료`;
+    }
     balanceCsvInput.value = '';
     parsedBalanceRows = [];
     balanceCsvPreview.innerHTML = '';
@@ -503,18 +534,43 @@
   unionActivityUploadBtn.addEventListener('click', async () => {
     unionActivityUploadBtn.disabled = true;
     unionActivityUploadStatus.className = 'status-msg';
-    unionActivityUploadStatus.textContent = '업로드 중...';
+    unionActivityUploadStatus.textContent = '고객번호 확인 중...';
 
+    const allNos = parsedUnionActivityRows.map(r => Number(r.customer_no));
+    const { data: existing, error: checkError } = await sb
+      .from('customers')
+      .select('customer_no')
+      .in('customer_no', allNos);
+
+    if (checkError){
+      unionActivityUploadStatus.className = 'status-msg error';
+      unionActivityUploadStatus.textContent = `고객번호 확인 실패: ${checkError.message}`;
+      checkUnionActivityReady();
+      return;
+    }
+
+    const existingSet = new Set((existing || []).map(c => c.customer_no));
+    const missing = allNos.filter(no => !existingSet.has(no));
     const { data: myName } = await sb.rpc('current_user_name');
-    const rows = parsedUnionActivityRows.map(r => ({
-      customer_no: Number(r.customer_no),
-      activity_type: '조합활동',
-      activity_date: unionActivityDateInput.value,
-      content: r.content,
-      created_by: myName || currentUserEmail,
-      created_by_email: currentUserEmail
-    }));
+    const rows = parsedUnionActivityRows
+      .filter(r => existingSet.has(Number(r.customer_no)))
+      .map(r => ({
+        customer_no: Number(r.customer_no),
+        activity_type: '조합활동',
+        activity_date: unionActivityDateInput.value,
+        content: r.content,
+        created_by: myName || currentUserEmail,
+        created_by_email: currentUserEmail
+      }));
 
+    if (!rows.length){
+      unionActivityUploadStatus.className = 'status-msg error';
+      unionActivityUploadStatus.textContent = `업로드 실패: CSV의 고객번호가 전부 등록되지 않은 번호입니다 (${missing.length}건).`;
+      checkUnionActivityReady();
+      return;
+    }
+
+    unionActivityUploadStatus.textContent = '업로드 중...';
     const { error } = await sb.from('customer_activities').insert(rows);
     if (error){
       unionActivityUploadStatus.className = 'status-msg error';
@@ -528,8 +584,13 @@
       p_summary: `조합활동 일괄등록 ${rows.length}건 (${unionActivityDateInput.value})`
     });
 
-    unionActivityUploadStatus.className = 'status-msg success';
-    unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료`;
+    if (missing.length){
+      unionActivityUploadStatus.className = 'status-msg error';
+      unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료. 다만 등록되지 않은 고객번호 ${missing.length}건은 건너뛰었습니다: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ' 외' : ''}`;
+    } else {
+      unionActivityUploadStatus.className = 'status-msg success';
+      unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료`;
+    }
     unionActivityCsvInput.value = '';
     parsedUnionActivityRows = [];
     unionActivityCsvPreview.innerHTML = '';
