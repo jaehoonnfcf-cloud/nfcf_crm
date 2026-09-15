@@ -114,7 +114,7 @@
 
       <section class="card">
         <h1>📤 신규 고객 일괄 등록</h1>
-        <p class="desc">CSV 파일을 업로드하세요. 헤더: 고객번호, 성명, 특징, 최초수신잔액, 최초여신잔액 (이미 있는 고객번호는 정보가 갱신됩니다)</p>
+        <p class="desc">CSV 파일을 업로드하세요. 헤더: 고객번호, 성명, 특징 (이미 있는 고객번호는 정보가 갱신됩니다). 잔액은 월말 잔액 업로드에서 매달 등록합니다.</p>
         <input type="file" id="csvInput" accept=".csv" />
         <div id="csvPreview"></div>
         <div class="row-actions">
@@ -303,9 +303,7 @@
   const HEADER_MAP = {
     '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
     '성명':'name', 'name':'name', '이름':'name',
-    '특징':'customer_info', 'customer_info':'customer_info', '고객정보':'customer_info', '메모':'customer_info',
-    '최초수신잔액':'initial_deposit_balance', 'initial_deposit_balance':'initial_deposit_balance',
-    '최초여신잔액':'initial_loan_balance', 'initial_loan_balance':'initial_loan_balance'
+    '특징':'customer_info', 'customer_info':'customer_info', '고객정보':'customer_info', '메모':'customer_info'
   };
 
   csvInput.addEventListener('change', () => {
@@ -329,9 +327,9 @@
           return;
         }
 
-        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th></tr></thead><tbody>`;
+        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th></tr></thead><tbody>`;
         for (const r of parsedCsvRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td><td>${r.initial_deposit_balance||''}</td><td>${r.initial_loan_balance||''}</td></tr>`;
+          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedCsvRows.length > 50) html += `<p class="empty">외 ${parsedCsvRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -349,10 +347,7 @@
     const rows = parsedCsvRows.map(r => ({
       customer_no: Number(r.customer_no),
       name: r.name || null,
-      customer_info: r.customer_info || null,
-      initial_deposit_balance: r.initial_deposit_balance ? Number(r.initial_deposit_balance) : null,
-      initial_loan_balance: r.initial_loan_balance ? Number(r.initial_loan_balance) : null,
-      initial_balance_date: new Date().toISOString().slice(0, 10)
+      customer_info: r.customer_info || null
     }));
 
     const { error } = await sb.from('customers').upsert(rows, { onConflict: 'customer_no' });
@@ -452,7 +447,7 @@
     }
 
     const missing = allNos.filter(no => !existingSet.has(no));
-    const validRows = parsedBalanceRows
+    const validRowsRaw = parsedBalanceRows
       .filter(r => existingSet.has(Number(r.customer_no)))
       .map(r => ({
         customer_no: Number(r.customer_no),
@@ -461,6 +456,13 @@
         loan_balance: r.loan_balance ? Number(r.loan_balance) : null,
         uploaded_by: currentUserEmail
       }));
+
+    // 같은 고객번호가 CSV에 중복으로 들어있으면 ON CONFLICT가 같은 행을
+    // 두 번 갱신하려다 오류가 나므로, 마지막에 나온 값만 남긴다.
+    const dedupMap = new Map();
+    for (const row of validRowsRaw) dedupMap.set(row.customer_no, row);
+    const validRows = Array.from(dedupMap.values());
+    const duplicateCount = validRowsRaw.length - validRows.length;
 
     if (!validRows.length){
       balanceUploadStatus.className = 'status-msg error';
@@ -483,9 +485,13 @@
       p_summary: `${balanceMonthInput.value} 월말 잔액 ${validRows.length}건 업로드`
     });
 
-    if (missing.length){
+    const notes = [];
+    if (missing.length) notes.push(`등록되지 않은 고객번호 ${missing.length}건 건너뜀: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ' 외' : ''}`);
+    if (duplicateCount) notes.push(`CSV 내 중복 고객번호 ${duplicateCount}건은 마지막 값으로만 반영`);
+
+    if (notes.length){
       balanceUploadStatus.className = 'status-msg error';
-      balanceUploadStatus.textContent = `${snapshotDate} 기준 ${validRows.length}건 업로드 완료. 다만 등록되지 않은 고객번호 ${missing.length}건은 건너뛰었습니다: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ' 외' : ''}`;
+      balanceUploadStatus.textContent = `${snapshotDate} 기준 ${validRows.length}건 업로드 완료. ${notes.join(' / ')}`;
     } else {
       balanceUploadStatus.className = 'status-msg success';
       balanceUploadStatus.textContent = `${snapshotDate} 기준 ${validRows.length}건 업로드 완료`;
@@ -623,7 +629,7 @@
     pendingAssignChanges = {};
     const { data, error } = await sb
       .from('customers')
-      .select('customer_no, name, customer_info, initial_deposit_balance, initial_loan_balance, assigned_to')
+      .select('customer_no, name, customer_info, assigned_to')
       .eq('is_deleted', false)
       .is('assigned_to', null)
       .order('created_at', { ascending: false });
@@ -635,11 +641,10 @@
 
   function renderAssignTable(rows){
     if (!rows.length){ assignTable.innerHTML = `<p class="empty">미배정 고객이 없습니다.</p>`; return; }
-    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>최초수신</th><th>최초여신</th><th>담당자 배정</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>담당자 배정</th></tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr>
         <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
-        <td>${c.initial_deposit_balance ?? ''}</td><td>${c.initial_loan_balance ?? ''}</td>
         <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions(pendingAssignChanges[c.customer_no] || '')}</select></td>
       </tr>`;
     }

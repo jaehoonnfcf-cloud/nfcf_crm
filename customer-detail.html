@@ -262,13 +262,13 @@
     document.getElementById('customerFeature').textContent = `📝 특징: ${data.customer_info || '등록된 특징이 없습니다'}`;
 
     document.getElementById('summaryGrid').innerHTML = `
-      <div class="summary-item"><div class="label">수신잔액 (최초 → 현재)</div>
-        <div class="value">${fmtNum(data.initial_deposit_balance)} → ${fmtNum(data.current_deposit_balance)}</div>
+      <div class="summary-item"><div class="label">수신잔액 (최근월 기준)</div>
+        <div class="value">${fmtNum(data.current_deposit_balance)}</div>
         <div class="value">${diffText(data.deposit_diff)}</div></div>
-      <div class="summary-item"><div class="label">여신잔액 (최초 → 현재)</div>
-        <div class="value">${fmtNum(data.initial_loan_balance)} → ${fmtNum(data.current_loan_balance)}</div>
+      <div class="summary-item"><div class="label">여신잔액 (최근월 기준)</div>
+        <div class="value">${fmtNum(data.current_loan_balance)}</div>
         <div class="value">${diffText(data.loan_diff)}</div></div>
-      <div class="summary-item"><div class="label">최근 잔액 기준일</div><div class="value">${data.latest_snapshot_date || '-'}</div></div>
+      <div class="summary-item"><div class="label">최근 잔액 기준월</div><div class="value">${data.latest_snapshot_date || '-'}</div></div>
     `;
 
     const isMine = data.assigned_to === currentUserEmail;
@@ -379,36 +379,26 @@
 
     if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
 
-    // 최초 잔액을 맨 앞에 두고, 그 뒤로 월말 스냅샷을 시간순으로 이어붙여
-    // "직전 기록 대비 증감"을 계산한다.
-    const chrono = [];
-    if (customerSummary && customerSummary.initial_balance_date){
-      chrono.push({
-        label: `${customerSummary.initial_balance_date} (최초)`,
-        deposit: customerSummary.initial_deposit_balance,
-        loan: customerSummary.initial_loan_balance,
-        uploaded_by: ''
-      });
-    }
-    for (const s of (data || [])){
-      chrono.push({ label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance, uploaded_by: s.uploaded_by });
-    }
+    const chrono = (data || []).map(s => ({
+      label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance, uploaded_by: s.uploaded_by
+    }));
 
     if (!chrono.length){ snapshotTable.innerHTML = `<p class="empty">등록된 잔액 이력이 없습니다.</p>`; return; }
 
+    // 매월 말잔액을 시간순으로 쌓고, 각 기록은 바로 직전 월 대비 증감을 표시한다.
     for (let i = 0; i < chrono.length; i++){
       const prev = i > 0 ? chrono[i - 1] : null;
       chrono[i].depositDiff = prev && prev.deposit != null && chrono[i].deposit != null ? chrono[i].deposit - prev.deposit : null;
       chrono[i].loanDiff = prev && prev.loan != null && chrono[i].loan != null ? chrono[i].loan - prev.loan : null;
     }
 
-    let html = `<table><thead><tr><th>기준일</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th><th>등록자</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>기준월</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th><th>등록자</th></tr></thead><tbody>`;
     for (let i = chrono.length - 1; i >= 0; i--){
       const s = chrono[i];
       html += `<tr>
         <td>${s.label}</td>
-        <td>${fmtNum(s.deposit)}</td><td>${diffText(s.depositDiff)}</td>
-        <td>${fmtNum(s.loan)}</td><td>${diffText(s.loanDiff)}</td>
+        <td>${fmtNum(s.deposit)}</td><td>${i === 0 ? '-' : diffText(s.depositDiff)}</td>
+        <td>${fmtNum(s.loan)}</td><td>${i === 0 ? '-' : diffText(s.loanDiff)}</td>
         <td>${s.uploaded_by||''}</td>
       </tr>`;
     }
