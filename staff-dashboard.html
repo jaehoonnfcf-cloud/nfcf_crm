@@ -59,18 +59,17 @@
 
   .compact-table{ table-layout:fixed; width:100%; }
   .compact-table th, .compact-table td{ padding:7px 8px; font-size:12.5px; }
-  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:8%; }
-  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:9%; }
-  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:15%; }
-  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:15%; }
-  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:12%; }
-  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:10%; }
-  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:12%; }
-  .compact-table th:nth-child(8), .compact-table td:nth-child(8){ width:10%; }
-  .compact-table th:nth-child(9), .compact-table td:nth-child(9){ width:9%; }
+  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:9%; }
+  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:10%; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:20%; }
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:20%; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:15%; }
+  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:15%; }
+  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:11%; }
   .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .compact-table th:nth-child(n+5){ text-align:right; }
+  .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
+  .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
+  .compact-table th:nth-child(5), .compact-table th:nth-child(6){ text-align:right; }
 
   @media print{
     body.print-customers-only header,
@@ -279,11 +278,16 @@
     renderMyCustomerTable(myCustomerRows);
   }
 
+  function balanceCell(current, diff){
+    const diffHtml = diff != null ? `<div class="sub-line">(${diffCell(diff)})</div>` : `<div class="sub-line diff-flat">(-)</div>`;
+    return `<div>${fmtNum(current)}</div>${diffHtml}`;
+  }
+
   function renderMyCustomerTable(rows){
     if (!rows.length){ myCustomerTable.innerHTML = `<p class="empty">배정된 고객이 없습니다.</p>`; return; }
     let html = `<table class="compact-table"><thead><tr>
       <th>고객번호</th><th>성명</th><th>특징</th><th>조합활동</th>
-      <th>수신잔액(최근월)</th><th>수신증감</th><th>여신잔액(최근월)</th><th>여신증감</th><th></th>
+      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th><th></th>
     </tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr>
@@ -291,10 +295,8 @@
         <td class="clickable" data-customer="${c.customer_no}">${c.name||''}</td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" title="${(c.customer_info||'').replace(/"/g,'&quot;')}">${c.customer_info||''}</td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}">${c.unionActivity}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${fmtNum(c.current_deposit_balance)}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${diffCell(c.deposit_diff)}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${fmtNum(c.current_loan_balance)}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${diffCell(c.loan_diff)}</td>
+        <td class="clickable num" data-customer="${c.customer_no}">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
+        <td class="clickable num" data-customer="${c.customer_no}">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
         <td><button class="small-btn unassign-btn" data-customer="${c.customer_no}">🗑️ 해제</button></td>
       </tr>`;
     }
