@@ -97,6 +97,7 @@
       <h1 id="customerName">-</h1>
       <p class="desc" id="customerInfo"></p>
       <div class="summary-grid" id="summaryGrid"></div>
+      <p class="readonly-note" id="customerFeature" style="margin-top:14px"></p>
     </section>
 
     <section class="card">
@@ -243,7 +244,14 @@
     customerSummary = data;
     document.getElementById('pageTitle').textContent = `${data.name||''} (${data.customer_no})`;
     document.getElementById('customerName').textContent = `${data.name||''} (${data.customer_no})`;
-    document.getElementById('customerInfo').textContent = `담당자: ${data.assigned_to || '미배정'}`;
+
+    let assigneeLabel = '미배정';
+    if (data.assigned_to){
+      const { data: staffRow } = await sb.from('allowed_emails').select('name').eq('email', data.assigned_to).maybeSingle();
+      assigneeLabel = staffRow?.name || data.assigned_to;
+    }
+    document.getElementById('customerInfo').textContent = `담당자: ${assigneeLabel}`;
+    document.getElementById('customerFeature').textContent = `📝 특징: ${data.customer_info || '등록된 특징이 없습니다'}`;
 
     document.getElementById('summaryGrid').innerHTML = `
       <div class="summary-item"><div class="label">수신잔액 (최초 → 현재)</div>
