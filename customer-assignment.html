@@ -755,14 +755,24 @@
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>담당자 배정</th></tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr>
-        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
+        <td class="assign-clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
+        <td class="assign-clickable" data-customer="${c.customer_no}">${c.name||'<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
+        <td class="assign-clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
         <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions(pendingAssignChanges[c.customer_no] || '')}</select></td>
       </tr>`;
     }
     html += `</tbody></table>`;
     assignTable.innerHTML = html;
 
+    assignTable.querySelectorAll('.assign-clickable').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${cell.dataset.customer}`;
+      });
+    });
+
     assignTable.querySelectorAll('.assign-select').forEach(sel => {
+      sel.addEventListener('click', e => e.stopPropagation());
       sel.addEventListener('change', () => { pendingAssignChanges[sel.dataset.customer] = sel.value; });
     });
   }

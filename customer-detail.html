@@ -101,10 +101,21 @@
 
   <main>
     <section class="card">
-      <h1 id="customerName">-</h1>
-      <p class="desc" id="customerInfo"></p>
+      <p class="readonly-note" id="customerNoLabel" style="margin:0 0 8px;"></p>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="flex:1; min-width:140px;">
+          <label class="readonly-note">이름</label>
+          <input type="text" id="nameInput" placeholder="이름 입력" />
+        </div>
+        <div style="flex:2; min-width:220px;">
+          <label class="readonly-note">특징</label>
+          <input type="text" id="featureInput" placeholder="특징 입력" />
+        </div>
+        <button class="primary-btn" id="saveInfoBtn">저장</button>
+      </div>
+      <div class="status-msg" id="infoSaveStatus"></div>
+      <p class="desc" id="customerInfo" style="margin-top:14px"></p>
       <div class="summary-grid" id="summaryGrid"></div>
-      <p class="feature-text" id="customerFeature" style="margin-top:14px"></p>
     </section>
 
     <section class="card">
@@ -241,17 +252,43 @@
     await loadSnapshots();
   }
 
+  document.getElementById('saveInfoBtn').addEventListener('click', async () => {
+    const infoStatus = document.getElementById('infoSaveStatus');
+    const name = document.getElementById('nameInput').value.trim();
+    const customerInfo = document.getElementById('featureInput').value.trim();
+    if (!name){
+      infoStatus.className = 'status-msg error';
+      infoStatus.textContent = '이름을 입력하세요.';
+      return;
+    }
+    infoStatus.className = 'status-msg';
+    infoStatus.textContent = '저장 중...';
+    const { error } = await sb.from('customers')
+      .update({ name, customer_info: customerInfo || null })
+      .eq('customer_no', customerNo);
+    if (error){
+      infoStatus.className = 'status-msg error';
+      infoStatus.textContent = `저장 실패: ${error.message}`;
+      return;
+    }
+    infoStatus.className = 'status-msg success';
+    infoStatus.textContent = '저장되었습니다.';
+    await loadCustomerSummary();
+  });
+
   let customerSummary = null;
 
   async function loadCustomerSummary(){
     const { data, error } = await sb.from('customer_balance_diff').select('*').eq('customer_no', customerNo).maybeSingle();
     if (error || !data){
-      document.getElementById('customerName').textContent = '고객 정보를 불러올 수 없습니다';
+      document.getElementById('customerNoLabel').textContent = '고객 정보를 불러올 수 없습니다';
       return;
     }
     customerSummary = data;
-    document.getElementById('pageTitle').textContent = `${data.name||''} (${data.customer_no})`;
-    document.getElementById('customerName').textContent = `${data.name||''} (${data.customer_no})`;
+    document.getElementById('pageTitle').textContent = `${data.name||'(이름 미등록)'} (${data.customer_no})`;
+    document.getElementById('customerNoLabel').textContent = `고객번호 ${data.customer_no}`;
+    document.getElementById('nameInput').value = data.name || '';
+    document.getElementById('featureInput').value = data.customer_info || '';
 
     let assigneeLabel = '미배정';
     if (data.assigned_to){
@@ -259,7 +296,6 @@
       assigneeLabel = staffRow?.name || data.assigned_to;
     }
     document.getElementById('customerInfo').textContent = `담당자: ${assigneeLabel}`;
-    document.getElementById('customerFeature').textContent = `📝 특징: ${data.customer_info || '등록된 특징이 없습니다'}`;
 
     document.getElementById('summaryGrid').innerHTML = `
       <div class="summary-item"><div class="label">수신잔액 (최근월 기준)</div>

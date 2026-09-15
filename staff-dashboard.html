@@ -305,15 +305,25 @@
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th></th></tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr>
-        <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.name||'<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
         <td><button class="small-btn" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;
     unassignedTable.innerHTML = html;
 
+    unassignedTable.querySelectorAll('td.clickable').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${cell.dataset.customer}`;
+      });
+    });
+
     unassignedTable.querySelectorAll('button[data-customer]').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         btn.disabled = true;
         btn.textContent = '지정 중...';
         const { error } = await sb.from('customers')
