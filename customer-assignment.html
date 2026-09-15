@@ -595,24 +595,29 @@
     }
 
     const missing = allNos.filter(no => !existingSet.has(no));
-    const { data: myName } = await sb.rpc('current_user_name');
-    const rows = parsedUnionActivityRows
-      .filter(r => existingSet.has(Number(r.customer_no)))
-      .map(r => ({
-        customer_no: Number(r.customer_no),
-        activity_type: '조합활동',
-        activity_date: unionActivityDateInput.value,
-        content: r.content,
-        created_by: myName || currentUserEmail,
-        created_by_email: currentUserEmail
-      }));
 
-    if (!rows.length){
-      unionActivityUploadStatus.className = 'status-msg error';
-      unionActivityUploadStatus.textContent = `업로드 실패: CSV의 고객번호가 전부 등록되지 않은 번호입니다 (${missing.length}건).`;
-      checkUnionActivityReady();
-      return;
+    if (missing.length){
+      unionActivityUploadStatus.textContent = `신규 고객번호 ${missing.length}건 자동 등록 중...`;
+      const newCustomerRows = Array.from(new Set(missing)).map(no => ({ customer_no: no, name: '' }));
+      const { error: createError } = await sb.from('customers').upsert(newCustomerRows, { onConflict: 'customer_no', ignoreDuplicates: true });
+      if (createError){
+        unionActivityUploadStatus.className = 'status-msg error';
+        unionActivityUploadStatus.textContent = `신규 고객 자동 등록 실패: ${createError.message}`;
+        checkUnionActivityReady();
+        return;
+      }
+      for (const no of missing) existingSet.add(no);
     }
+
+    const { data: myName } = await sb.rpc('current_user_name');
+    const rows = parsedUnionActivityRows.map(r => ({
+      customer_no: Number(r.customer_no),
+      activity_type: '조합활동',
+      activity_date: unionActivityDateInput.value,
+      content: r.content,
+      created_by: myName || currentUserEmail,
+      created_by_email: currentUserEmail
+    }));
 
     unionActivityUploadStatus.textContent = '업로드 중...';
     const { error } = await sb.from('customer_activities').insert(rows);
@@ -629,8 +634,9 @@
     });
 
     if (missing.length){
-      unionActivityUploadStatus.className = 'status-msg error';
-      unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료. 다만 등록되지 않은 고객번호 ${missing.length}건은 건너뛰었습니다: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ' 외' : ''}`;
+      const uniqueMissing = Array.from(new Set(missing));
+      unionActivityUploadStatus.className = 'status-msg success';
+      unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료. 이름 없이 신규 등록된 고객번호 ${uniqueMissing.length}건: ${uniqueMissing.slice(0, 20).join(', ')}${uniqueMissing.length > 20 ? ' 외' : ''} (🗂️ 고객정보 관리에서 이름·특징을 보완해주세요)`;
     } else {
       unionActivityUploadStatus.className = 'status-msg success';
       unionActivityUploadStatus.textContent = `${rows.length}건 등록 완료`;
