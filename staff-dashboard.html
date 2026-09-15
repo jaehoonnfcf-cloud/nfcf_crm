@@ -58,9 +58,25 @@
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
 
   @media print{
-    header .nav-btn, #myCustomerSearchBox, .unassign-btn, #unassignedSection, #myRequestsSection { display:none !important; }
-    body{ background:#fff; }
-    section.card{ border:none; box-shadow:none; padding:0; margin-bottom:20px; }
+    body.print-customers-only header,
+    body.print-customers-only #myCustomerSearchBox,
+    body.print-customers-only .unassign-btn,
+    body.print-customers-only #unassignedSection,
+    body.print-customers-only #myRequestsSection,
+    body.print-customers-only #unionReportSection{
+      display:none !important;
+    }
+    body.print-customers-only{ background:#fff; }
+    body.print-customers-only section.card{ border:none; box-shadow:none; padding:0; margin-bottom:20px; }
+
+    body.print-report-only header,
+    body.print-report-only section.card:not(#unionReportSection),
+    body.print-report-only #unionReportSelect,
+    body.print-report-only #unionReportPrintBtn,
+    body.print-report-only #unionReportSection p.desc{
+      display:none !important;
+    }
+    body.print-report-only section.card{ border:none; box-shadow:none; padding:0; }
   }
 </style>
 </head>
@@ -99,6 +115,18 @@
       <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 월별 잔액 이력을 볼 수 있습니다.</p>
       <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
       <div id="myCustomerTable"></div>
+    </section>
+
+    <section class="card" id="unionReportSection">
+      <h1>📊 조합활동별 고객 보고서</h1>
+      <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다.</p>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+        <select id="unionReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+          <option value="">조합활동 선택...</option>
+        </select>
+        <button class="nav-btn" id="unionReportPrintBtn">🖨️ 인쇄</button>
+      </div>
+      <div id="unionReportTable"><p class="empty">조합활동을 선택하면 참여 고객이 표시됩니다.</p></div>
     </section>
 
     <section class="card" id="unassignedSection">
@@ -146,7 +174,11 @@
   });
 
   signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
-  document.getElementById('printBtn').addEventListener('click', () => { window.print(); });
+  document.getElementById('printBtn').addEventListener('click', () => {
+    document.body.classList.add('print-customers-only');
+    window.print();
+    setTimeout(() => document.body.classList.remove('print-customers-only'), 500);
+  });
 
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'TOKEN_REFRESHED') return;
@@ -188,6 +220,7 @@
     await loadMyCustomers();
     await loadUnassigned();
     await loadMyRequests();
+    await loadUnionReportOptions();
   }
 
   function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
@@ -372,6 +405,100 @@
     html += `</tbody></table>`;
     myRequestsTable.innerHTML = html;
   }
+
+  // ---- 조합활동별 고객 보고서 ----
+  const unionReportSelect = document.getElementById('unionReportSelect');
+  const unionReportTable = document.getElementById('unionReportTable');
+  let staffNameMapCache = null;
+
+  async function getStaffNameMap(){
+    if (staffNameMapCache) return staffNameMapCache;
+    const { data } = await sb.from('allowed_emails').select('email, name');
+    staffNameMapCache = {};
+    for (const s of (data || [])) staffNameMapCache[s.email] = s.name || s.email;
+    return staffNameMapCache;
+  }
+
+  async function loadUnionReportOptions(){
+    const { data, error } = await sb
+      .from('customer_activities')
+      .select('content')
+      .eq('activity_type', '조합활동');
+    if (error) return;
+
+    const names = Array.from(new Set((data || []).map(r => r.content))).sort();
+    const currentValue = unionReportSelect.value;
+    unionReportSelect.innerHTML = `<option value="">조합활동 선택...</option>` +
+      names.map(n => `<option value="${n}">${n}</option>`).join('');
+    if (names.includes(currentValue)) unionReportSelect.value = currentValue;
+  }
+
+  unionReportSelect.addEventListener('change', async () => {
+    const activityName = unionReportSelect.value;
+    if (!activityName){
+      unionReportTable.innerHTML = `<p class="empty">조합활동을 선택하면 참여 고객이 표시됩니다.</p>`;
+      return;
+    }
+    unionReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data: participants, error } = await sb
+      .from('customer_activities')
+      .select('customer_no, activity_date')
+      .eq('activity_type', '조합활동')
+      .eq('content', activityName)
+      .order('activity_date', { ascending: false });
+
+    if (error){ unionReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!participants.length){ unionReportTable.innerHTML = `<p class="empty">참여 고객이 없습니다.</p>`; return; }
+
+    const participationDate = {};
+    for (const p of participants) if (!(p.customer_no in participationDate)) participationDate[p.customer_no] = p.activity_date;
+    const customerNos = Object.keys(participationDate).map(Number);
+
+    const staffNameMap = await getStaffNameMap();
+    const [{ data: diffRows }, { data: marketingRows }] = await Promise.all([
+      sb.from('customer_balance_diff').select('*').in('customer_no', customerNos),
+      sb.from('customer_activities').select('customer_no, activity_date, content')
+        .in('customer_no', customerNos).eq('activity_type', '마케팅활동')
+        .order('activity_date', { ascending: false })
+    ]);
+
+    const diffMap = {};
+    for (const d of (diffRows || [])) diffMap[d.customer_no] = d;
+    const marketingMap = {};
+    for (const m of (marketingRows || [])) if (!(m.customer_no in marketingMap)) marketingMap[m.customer_no] = m;
+
+    let html = `<table><thead><tr>
+      <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th>
+      <th>수신증감</th><th>여신증감</th><th>최근 마케팅활동</th>
+    </tr></thead><tbody>`;
+    for (const no of customerNos){
+      const d = diffMap[no] || {};
+      const m = marketingMap[no];
+      html += `<tr class="clickable" data-customer="${no}">
+        <td>${no}</td><td>${d.name||''}</td>
+        <td>${d.assigned_to ? (staffNameMap[d.assigned_to] || d.assigned_to) : '미배정'}</td>
+        <td>${participationDate[no]}</td>
+        <td>${d.deposit_diff != null ? Number(d.deposit_diff).toLocaleString('ko-KR') : '-'}</td>
+        <td>${d.loan_diff != null ? Number(d.loan_diff).toLocaleString('ko-KR') : '-'}</td>
+        <td>${m ? `${m.activity_date} · ${m.content}` : '-'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    unionReportTable.innerHTML = html;
+
+    unionReportTable.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+      });
+    });
+  });
+
+  document.getElementById('unionReportPrintBtn').addEventListener('click', () => {
+    document.body.classList.add('print-report-only');
+    window.print();
+    setTimeout(() => document.body.classList.remove('print-report-only'), 500);
+  });
 
   sb.auth.getSession().then(({ data: { session } }) => {
     if (session) handleSession(session, false); else showLogin();
