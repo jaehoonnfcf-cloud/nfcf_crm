@@ -95,12 +95,12 @@
     </section>
 
     <section class="card">
-      <h1>📋 미배정 고객 - 배정 신청</h1>
-      <p class="desc">담당자가 없는 고객입니다. 신청하면 관리자 승인 후 배정됩니다.</p>
+      <h1>📋 미배정 고객 - 바로 배정받기</h1>
+      <p class="desc">담당자가 없는 고객입니다. 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
       <div id="unassignedTable"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="myRequestsSection" style="display:none">
       <h1>📝 내 신청 현황</h1>
       <div id="myRequestsTable"></div>
     </section>
@@ -256,7 +256,7 @@
     for (const c of data){
       html += `<tr>
         <td>${c.customer_no}</td><td>${c.name||''}</td><td>${c.customer_info||''}</td>
-        <td><button class="small-btn" data-customer="${c.customer_no}">🙋 배정 신청</button></td>
+        <td><button class="small-btn" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -265,14 +265,14 @@
     unassignedTable.querySelectorAll('button[data-customer]').forEach(btn => {
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-        btn.textContent = '신청 중...';
-        const { error } = await sb.from('assignment_requests').insert({
-          customer_no: Number(btn.dataset.customer),
-          requested_by: currentUserEmail
-        });
-        if (error){ alert(`신청 실패: ${error.message}`); btn.disabled = false; btn.textContent = '🙋 배정 신청'; return; }
-        btn.textContent = '✅ 신청 완료';
-        await loadMyRequests();
+        btn.textContent = '지정 중...';
+        const { error } = await sb.from('customers')
+          .update({ assigned_to: currentUserEmail })
+          .eq('customer_no', Number(btn.dataset.customer));
+        if (error){ alert(`배정 실패: ${error.message}`); btn.disabled = false; btn.textContent = '🙋 담당자 지정'; return; }
+        btn.textContent = '✅ 배정 완료';
+        await loadMyCustomers();
+        await loadUnassigned();
       });
     });
   }
