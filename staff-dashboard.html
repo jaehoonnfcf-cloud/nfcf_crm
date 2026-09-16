@@ -86,6 +86,7 @@
     body.print-report-only header,
     body.print-report-only section.card:not(#unionReportSection),
     body.print-report-only #unionReportSelect,
+    body.print-report-only #unionReportBaselineSelect,
     body.print-report-only #unionReportPrintBtn,
     body.print-report-only #unionReportSection p.desc{
       display:none !important;
@@ -134,10 +135,13 @@
 
     <section class="card" id="unionReportSection">
       <h1>📊 조합활동별 고객 보고서</h1>
-      <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다.</p>
+      <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다. 증감은 "기준월" 대비 최근월 잔액 기준입니다.</p>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
         <select id="unionReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
           <option value="">조합활동 선택...</option>
+        </select>
+        <select id="unionReportBaselineSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+          <option value="">기준월: 자동 (참여일 기준 직전월)</option>
         </select>
         <button class="nav-btn" id="unionReportPrintBtn">🖨️ 인쇄</button>
       </div>
@@ -429,6 +433,7 @@
 
   // ---- 조합활동별 고객 보고서 ----
   const unionReportSelect = document.getElementById('unionReportSelect');
+  const unionReportBaselineSelect = document.getElementById('unionReportBaselineSelect');
   const unionReportTable = document.getElementById('unionReportTable');
   let staffNameMapCache = null;
 
@@ -452,10 +457,30 @@
     unionReportSelect.innerHTML = `<option value="">조합활동 선택...</option>` +
       names.map(n => `<option value="${n}">${n}</option>`).join('');
     if (names.includes(currentValue)) unionReportSelect.value = currentValue;
+
+    const { data: snapshotDates } = await sb.from('balance_snapshots').select('snapshot_date');
+    const months = Array.from(new Set((snapshotDates || []).map(r => r.snapshot_date))).sort().reverse();
+    const currentBaseline = unionReportBaselineSelect.value;
+    unionReportBaselineSelect.innerHTML = `<option value="">기준월: 자동 (참여일 기준 직전월)</option>` +
+      months.map(m => `<option value="${m}">기준월: ${m}로 고정</option>`).join('');
+    if (months.includes(currentBaseline)) unionReportBaselineSelect.value = currentBaseline;
   }
 
-  unionReportSelect.addEventListener('change', async () => {
+  // 참여일 기준으로, 참여일보다 늦지 않은 가장 최근 스냅샷을 기준월로 고른다.
+  // 참여일 이전 자료가 하나도 없으면 그 고객의 가장 오래된 자료로 대체한다.
+  function pickAutoBaseline(snapshotsAsc, participationDate){
+    let candidate = null;
+    for (const s of snapshotsAsc){
+      if (s.snapshot_date <= participationDate) candidate = s;
+      else break;
+    }
+    if (!candidate && snapshotsAsc.length) candidate = snapshotsAsc[0];
+    return candidate;
+  }
+
+  async function renderUnionReport(){
     const activityName = unionReportSelect.value;
+    const baselineMode = unionReportBaselineSelect.value; // '' = 자동, 아니면 특정 날짜 고정
     if (!activityName){
       unionReportTable.innerHTML = `<p class="empty">조합활동을 선택하면 참여 고객이 표시됩니다.</p>`;
       return;
@@ -477,31 +502,52 @@
     const customerNos = Object.keys(participationDate).map(Number);
 
     const staffNameMap = await getStaffNameMap();
-    const [{ data: diffRows }, { data: marketingRows }] = await Promise.all([
-      sb.from('customer_balance_diff').select('*').in('customer_no', customerNos),
+    const [{ data: custRows }, { data: snapshotRows }, { data: marketingRows }] = await Promise.all([
+      sb.from('customers').select('customer_no, name, assigned_to').in('customer_no', customerNos),
+      sb.from('balance_snapshots').select('customer_no, snapshot_date, deposit_balance, loan_balance')
+        .in('customer_no', customerNos).order('snapshot_date', { ascending: true }),
       sb.from('customer_activities').select('customer_no, activity_date, content')
         .in('customer_no', customerNos).eq('activity_type', '마케팅활동')
         .order('activity_date', { ascending: false })
     ]);
 
-    const diffMap = {};
-    for (const d of (diffRows || [])) diffMap[d.customer_no] = d;
+    const custMap = {};
+    for (const c of (custRows || [])) custMap[c.customer_no] = c;
     const marketingMap = {};
     for (const m of (marketingRows || [])) if (!(m.customer_no in marketingMap)) marketingMap[m.customer_no] = m;
+    const snapshotsByCustomer = {};
+    for (const s of (snapshotRows || [])){
+      if (!snapshotsByCustomer[s.customer_no]) snapshotsByCustomer[s.customer_no] = [];
+      snapshotsByCustomer[s.customer_no].push(s);
+    }
 
     let html = `<table><thead><tr>
-      <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th>
+      <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th><th>기준월</th>
       <th>수신증감</th><th>여신증감</th><th>최근 마케팅활동</th>
     </tr></thead><tbody>`;
     for (const no of customerNos){
-      const d = diffMap[no] || {};
+      const c = custMap[no] || {};
       const m = marketingMap[no];
+      const snapshots = snapshotsByCustomer[no] || [];
+      const latest = snapshots.length ? snapshots[snapshots.length - 1] : null;
+      const baseline = baselineMode
+        ? snapshots.find(s => s.snapshot_date === baselineMode) || null
+        : pickAutoBaseline(snapshots, participationDate[no]);
+
+      let depositDiff = null, loanDiff = null, baselineLabel = '자료없음';
+      if (baseline && latest){
+        baselineLabel = baseline.snapshot_date;
+        if (baseline.deposit_balance != null && latest.deposit_balance != null) depositDiff = latest.deposit_balance - baseline.deposit_balance;
+        if (baseline.loan_balance != null && latest.loan_balance != null) loanDiff = latest.loan_balance - baseline.loan_balance;
+      }
+
       html += `<tr class="clickable" data-customer="${no}">
-        <td>${no}</td><td>${d.name||''}</td>
-        <td>${d.assigned_to ? (staffNameMap[d.assigned_to] || d.assigned_to) : '미배정'}</td>
+        <td>${no}</td><td>${c.name||''}</td>
+        <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
         <td>${participationDate[no]}</td>
-        <td>${d.deposit_diff != null ? Number(d.deposit_diff).toLocaleString('ko-KR') : '-'}</td>
-        <td>${d.loan_diff != null ? Number(d.loan_diff).toLocaleString('ko-KR') : '-'}</td>
+        <td>${baselineLabel}</td>
+        <td>${diffCell(depositDiff)}</td>
+        <td>${diffCell(loanDiff)}</td>
         <td>${m ? `${m.activity_date} · ${m.content}` : '-'}</td>
       </tr>`;
     }
@@ -513,7 +559,10 @@
         window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
       });
     });
-  });
+  }
+
+  unionReportSelect.addEventListener('change', renderUnionReport);
+  unionReportBaselineSelect.addEventListener('change', renderUnionReport);
 
   document.getElementById('unionReportPrintBtn').addEventListener('click', () => {
     document.body.classList.add('print-report-only');
