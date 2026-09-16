@@ -107,8 +107,9 @@
       <div id="infoDisplayMode" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
         <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
-        <button class="nav-btn" id="editInfoBtn" title="이름·특징 수정">✏️ 수정</button>
+        <button class="nav-btn" id="editInfoBtn" title="이름·특징·추천인 수정">✏️ 수정</button>
       </div>
+      <p class="readonly-note" id="referrerDisplay" style="margin:6px 0 0;"></p>
 
       <div id="infoEditMode" style="display:none; gap:10px; align-items:flex-end; flex-wrap:wrap;">
         <div style="flex:1; min-width:140px;">
@@ -119,6 +120,10 @@
           <label class="readonly-note">특징</label>
           <input type="text" id="featureInput" placeholder="특징 입력" />
         </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="readonly-note">추천인 고객번호</label>
+          <input type="number" id="referrerInput" placeholder="예: 12345" />
+        </div>
         <button class="primary-btn" id="saveInfoBtn">저장</button>
         <button class="nav-btn" id="cancelInfoBtn">취소</button>
       </div>
@@ -126,6 +131,8 @@
       <div class="status-msg" id="infoSaveStatus"></div>
       <p class="desc" id="customerInfo" style="margin-top:14px"></p>
       <div class="summary-grid" id="summaryGrid"></div>
+      <p class="readonly-note" style="margin:14px 0 4px;">🌟 이 고객이 추천한 조합원</p>
+      <div id="referredList" class="readonly-note"></div>
     </section>
 
     <section class="card">
@@ -258,6 +265,7 @@
   function enterEditMode(){
     document.getElementById('nameInput').value = customerSummary?.name || '';
     document.getElementById('featureInput').value = customerSummary?.customer_info || '';
+    document.getElementById('referrerInput').value = customerSummary?.referred_by || '';
     infoDisplayMode.style.display = 'none';
     infoEditMode.style.display = 'flex';
     document.getElementById('infoSaveStatus').textContent = '';
@@ -275,15 +283,36 @@
     const infoStatus = document.getElementById('infoSaveStatus');
     const name = document.getElementById('nameInput').value.trim();
     const customerInfo = document.getElementById('featureInput').value.trim();
+    const referrerRaw = document.getElementById('referrerInput').value.trim();
     if (!name){
       infoStatus.className = 'status-msg error';
       infoStatus.textContent = '이름을 입력하세요.';
       return;
     }
+
+    let referredBy = null;
+    if (referrerRaw){
+      const refNo = Number(referrerRaw);
+      if (refNo === customerNo){
+        infoStatus.className = 'status-msg error';
+        infoStatus.textContent = '본인을 추천인으로 지정할 수 없습니다.';
+        return;
+      }
+      infoStatus.className = 'status-msg';
+      infoStatus.textContent = '추천인 확인 중...';
+      const { data: refRow } = await sb.from('customers').select('customer_no').eq('customer_no', refNo).maybeSingle();
+      if (!refRow){
+        infoStatus.className = 'status-msg error';
+        infoStatus.textContent = `추천인 고객번호 ${refNo}를 찾을 수 없습니다.`;
+        return;
+      }
+      referredBy = refNo;
+    }
+
     infoStatus.className = 'status-msg';
     infoStatus.textContent = '저장 중...';
     const { error } = await sb.from('customers')
-      .update({ name, customer_info: customerInfo || null })
+      .update({ name, customer_info: customerInfo || null, referred_by: referredBy })
       .eq('customer_no', customerNo);
     if (error){
       infoStatus.className = 'status-msg error';
@@ -316,6 +345,27 @@
       assigneeLabel = staffRow?.name || data.assigned_to;
     }
     document.getElementById('customerInfo').textContent = `담당자: ${assigneeLabel}`;
+
+    // 추천인(누구 추천으로 가입했는지) + 추천인수(내가 몇 명을 추천했는지)
+    const [{ data: referrerRow }, { data: countRow }, { data: referredList }] = await Promise.all([
+      data.referred_by ? sb.from('customers').select('customer_no, name').eq('customer_no', data.referred_by).maybeSingle() : Promise.resolve({ data: null }),
+      sb.from('customer_referral_counts').select('referral_count').eq('customer_no', customerNo).maybeSingle(),
+      sb.from('customers').select('customer_no, name').eq('referred_by', customerNo).eq('is_deleted', false).order('customer_no')
+    ]);
+
+    const referralCount = countRow?.referral_count || 0;
+    const referrerText = referrerRow ? `${referrerRow.name || '(이름없음)'} (${referrerRow.customer_no})` : (data.referred_by ? `고객번호 ${data.referred_by}` : '없음');
+    document.getElementById('referrerDisplay').innerHTML =
+      `👤 추천인: ${referrerText} &nbsp;·&nbsp; 🌟 추천인수: <strong>${referralCount}명</strong>`;
+
+    const referredListEl = document.getElementById('referredList');
+    if (referredList && referredList.length){
+      referredListEl.innerHTML = referredList.map(r =>
+        `<a href="customer-detail.html?customer_no=${r.customer_no}" style="margin-right:10px;">${r.name || '(이름없음)'}(${r.customer_no})</a>`
+      ).join('');
+    } else {
+      referredListEl.innerHTML = `<span class="readonly-note">추천한 조합원이 없습니다.</span>`;
+    }
 
     document.getElementById('summaryGrid').innerHTML = `
       <div class="summary-item"><div class="label">수신잔액 (최근월 기준)</div>

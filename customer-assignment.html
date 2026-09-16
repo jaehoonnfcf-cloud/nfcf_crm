@@ -304,7 +304,8 @@
   const HEADER_MAP = {
     '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
     '성명':'name', 'name':'name', '이름':'name',
-    '특징':'customer_info', 'customer_info':'customer_info', '고객정보':'customer_info', '메모':'customer_info'
+    '특징':'customer_info', 'customer_info':'customer_info', '고객정보':'customer_info', '메모':'customer_info',
+    '추천인고객번호':'referred_by', '추천인':'referred_by', 'referred_by':'referred_by'
   };
 
   csvInput.addEventListener('change', () => {
@@ -328,9 +329,9 @@
           return;
         }
 
-        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th></tr></thead><tbody>`;
+        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>추천인고객번호</th></tr></thead><tbody>`;
         for (const r of parsedCsvRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td></tr>`;
+          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td><td>${r.referred_by||''}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedCsvRows.length > 50) html += `<p class="empty">외 ${parsedCsvRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -343,14 +344,40 @@
   uploadBtn.addEventListener('click', async () => {
     uploadBtn.disabled = true;
     uploadStatus.className = 'status-msg';
+    uploadStatus.textContent = '추천인 확인 중...';
+
+    let existingSet;
+    try {
+      existingSet = await getAllCustomerNoSet();
+    } catch (checkError){
+      uploadStatus.className = 'status-msg error';
+      uploadStatus.textContent = `확인 실패: ${checkError.message}`;
+      uploadBtn.disabled = false;
+      return;
+    }
+    // 이번 CSV 안에서 서로 추천하는 경우(같은 배치에 신규 등록)도 허용
+    const batchNos = new Set(parsedCsvRows.map(r => Number(r.customer_no)));
+
+    const invalidReferrers = [];
+    const rows = parsedCsvRows.map(r => {
+      let referredBy = null;
+      if (r.referred_by){
+        const refNo = Number(r.referred_by);
+        if (existingSet.has(refNo) || batchNos.has(refNo)){
+          referredBy = refNo;
+        } else {
+          invalidReferrers.push(`${r.customer_no}(추천인 ${r.referred_by} 없음)`);
+        }
+      }
+      return {
+        customer_no: Number(r.customer_no),
+        name: r.name || null,
+        customer_info: r.customer_info || null,
+        referred_by: referredBy
+      };
+    });
+
     uploadStatus.textContent = '업로드 중...';
-
-    const rows = parsedCsvRows.map(r => ({
-      customer_no: Number(r.customer_no),
-      name: r.name || null,
-      customer_info: r.customer_info || null
-    }));
-
     const { error } = await sb.from('customers').upsert(rows, { onConflict: 'customer_no' });
     if (error){
       uploadStatus.className = 'status-msg error';
@@ -359,13 +386,20 @@
       return;
     }
 
+    if (allCustomerNoSet) for (const no of batchNos) allCustomerNoSet.add(no);
+
     await sb.rpc('log_csv_upload', {
       p_inserted: rows.length, p_updated: 0,
       p_summary: `전담고객 잔액 일괄등록 ${rows.length}건 (${csvInput.files[0]?.name || ''})`
     });
 
-    uploadStatus.className = 'status-msg success';
-    uploadStatus.textContent = `${rows.length}건 업로드 완료`;
+    if (invalidReferrers.length){
+      uploadStatus.className = 'status-msg error';
+      uploadStatus.textContent = `${rows.length}건 업로드 완료. 다만 추천인 고객번호가 존재하지 않아 비워둔 건 ${invalidReferrers.length}건: ${invalidReferrers.slice(0, 15).join(', ')}${invalidReferrers.length > 15 ? ' 외' : ''}`;
+    } else {
+      uploadStatus.className = 'status-msg success';
+      uploadStatus.textContent = `${rows.length}건 업로드 완료`;
+    }
     csvInput.value = '';
     csvPreview.innerHTML = '';
     await loadAssignTable();

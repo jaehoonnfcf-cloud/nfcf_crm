@@ -52,16 +52,18 @@
   .compact-table{ table-layout:fixed; width:100%; }
   .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:6%; }
   .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:7%; }
-  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:21%; }
-  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:12%; }
-  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:18%; }
-  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:12%; }
-  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:12%; }
-  .compact-table th:nth-child(8), .compact-table td:nth-child(8){ width:12%; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:19%; }
+  .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:11%; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:16%; }
+  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:11%; }
+  .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:11%; }
+  .compact-table th:nth-child(8), .compact-table td:nth-child(8){ width:9%; }
+  .compact-table th:nth-child(9), .compact-table td:nth-child(9){ width:10%; }
   .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
   .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
   .compact-table th:nth-child(6), .compact-table th:nth-child(7){ text-align:right; }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
   @media print{
     header .nav-btn, #managedSearchBox, #staffFilterSelect{ display:none !important; }
@@ -212,25 +214,28 @@
     staffFilterSelect.innerHTML = `<option value="">전체 담당자</option>` +
       usedEmails.map(email => `<option value="${email}">${staffNameMap[email] || email}</option>`).join('');
 
-    let unionMap = {}, marketingMap = {};
+    let unionMap = {}, marketingMap = {}, referralMap = {};
     if (rows.length){
       const customerNos = rows.map(r => r.customer_no);
-      const [{ data: unionData }, { data: marketingData }] = await Promise.all([
+      const [{ data: unionData }, { data: marketingData }, { data: referralData }] = await Promise.all([
         sb.from('customer_activities').select('customer_no, content, activity_date')
           .in('customer_no', customerNos).eq('activity_type', '조합활동')
           .order('activity_date', { ascending: false }),
         sb.from('customer_activities').select('customer_no, content, activity_date')
           .in('customer_no', customerNos).eq('activity_type', '마케팅활동')
-          .order('activity_date', { ascending: false })
+          .order('activity_date', { ascending: false }),
+        sb.from('customer_referral_counts').select('customer_no, referral_count').in('customer_no', customerNos)
       ]);
       for (const a of (unionData || [])) if (!(a.customer_no in unionMap)) unionMap[a.customer_no] = a.content;
       for (const a of (marketingData || [])) if (!(a.customer_no in marketingMap)) marketingMap[a.customer_no] = a;
+      for (const r of (referralData || [])) referralMap[r.customer_no] = r.referral_count;
     }
 
     managedRows = rows.map(r => ({
       ...r,
       unionActivity: unionMap[r.customer_no] || '-',
-      marketing: marketingMap[r.customer_no] ? `${marketingMap[r.customer_no].activity_date} · ${marketingMap[r.customer_no].content}` : '-'
+      marketing: marketingMap[r.customer_no] ? `${marketingMap[r.customer_no].activity_date} · ${marketingMap[r.customer_no].content}` : '-',
+      referralCount: referralMap[r.customer_no] || 0
     }));
     renderManagedTable(managedRows);
   }
@@ -239,7 +244,7 @@
     if (!rows.length){ managedTable.innerHTML = `<p class="empty">조건에 맞는 고객이 없습니다.</p>`; return; }
     let html = `<table class="compact-table"><thead><tr>
       <th>고객번호</th><th>성명</th><th>특징</th><th>조합활동</th><th>마케팅활동(최종)</th>
-      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th><th>담당자</th>
+      <th>수신잔액<br>(증감)</th><th>여신잔액<br>(증감)</th><th class="num">추천인수</th><th>담당자</th>
     </tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr class="clickable" data-customer="${c.customer_no}">
@@ -250,6 +255,7 @@
         <td class="ellipsis" title="${(c.marketing||'').replace(/"/g,'&quot;')}">${c.marketing}</td>
         <td class="num">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
         <td class="num">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
+        <td class="num">${c.referralCount}명</td>
         <td class="ellipsis">${staffNameMap[c.assigned_to] || c.assigned_to || ''}</td>
       </tr>`;
     }
