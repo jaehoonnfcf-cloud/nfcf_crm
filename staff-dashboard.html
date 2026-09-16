@@ -270,7 +270,7 @@
       .from('customer_balance_diff')
       .select('customer_no, name, customer_info, current_deposit_balance, deposit_diff, current_loan_balance, loan_diff')
       .eq('assigned_to', currentUserEmail)
-      .order('customer_no');
+      .order('current_deposit_balance', { ascending: false, nullsFirst: false });
 
     if (error){ myCustomerTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
     const rows = data || [];
