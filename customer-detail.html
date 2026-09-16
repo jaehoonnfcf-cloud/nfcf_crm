@@ -136,6 +136,35 @@
     </section>
 
     <section class="card">
+      <h1>👪 가족</h1>
+      <p class="desc">가족 관계를 등록하면 상대방 화면에도 자동으로 반영됩니다 (양방향).</p>
+      <div id="familyList" style="margin-bottom:12px"></div>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="min-width:140px;">
+          <label class="readonly-note">가족 고객번호</label>
+          <input type="number" id="familyRelatedNo" placeholder="예: 12345" />
+        </div>
+        <div style="min-width:140px;">
+          <label class="readonly-note">관계 (이 고객에게 상대방은?)</label>
+          <select id="familyRelationType">
+            <option value="배우자">배우자</option>
+            <option value="부모">부모</option>
+            <option value="자녀">자녀</option>
+            <option value="조부모">조부모</option>
+            <option value="손자녀">손자녀</option>
+            <option value="형제자매">형제자매</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <button class="primary-btn" id="addFamilyBtn">가족 추가</button>
+      </div>
+      <div class="status-msg" id="familyStatus"></div>
+      <label class="readonly-note" style="display:flex; align-items:center; gap:6px; margin-top:14px; cursor:pointer;">
+        <input type="checkbox" id="familyRepCheckbox" /> 🌟 이 고객을 가족 대표로 지정
+      </label>
+    </section>
+
+    <section class="card">
       <h1>🏅 조합활동</h1>
       <p class="desc">조합 행사·교육 참여 이력입니다. 관리자가 일괄 등록하며, 이 화면에서는 조회만 가능합니다.</p>
       <div id="unionActivityTable" style="margin-top:8px"></div>
@@ -254,6 +283,7 @@
     document.getElementById('activityDate').valueAsDate = new Date();
 
     await loadCustomerSummary();
+    await loadFamily();
     await loadUnionActivities();
     await loadActivities();
     await loadSnapshots();
@@ -345,6 +375,7 @@
       assigneeLabel = staffRow?.name || data.assigned_to;
     }
     document.getElementById('customerInfo').textContent = `담당자: ${assigneeLabel}`;
+    document.getElementById('familyRepCheckbox').checked = !!data.is_family_representative;
 
     // 추천인(누구 추천으로 가입했는지) + 추천인수(내가 몇 명을 추천했는지)
     const [{ data: referrerRow }, { data: countRow }, { data: referredList }] = await Promise.all([
@@ -383,6 +414,112 @@
       document.getElementById('activityReadonlyNote').style.display = 'block';
     }
   }
+
+  // ---- 가족 ----
+  const REVERSE_RELATION = {
+    '배우자':'배우자', '형제자매':'형제자매', '기타':'기타',
+    '부모':'자녀', '자녀':'부모',
+    '조부모':'손자녀', '손자녀':'조부모'
+  };
+
+  const familyList = document.getElementById('familyList');
+
+  document.getElementById('familyRepCheckbox').addEventListener('change', async (e) => {
+    const checked = e.target.checked;
+    const { error } = await sb.from('customers').update({ is_family_representative: checked }).eq('customer_no', customerNo);
+    if (error){
+      alert(`저장 실패: ${error.message}`);
+      e.target.checked = !checked;
+    }
+  });
+
+  async function loadFamily(){
+    const { data, error } = await sb
+      .from('customer_family_links')
+      .select('customer_no, related_customer_no, relationship_type')
+      .or(`customer_no.eq.${customerNo},related_customer_no.eq.${customerNo}`);
+
+    if (error){ familyList.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!data.length){ familyList.innerHTML = `<p class="empty">등록된 가족이 없습니다.</p>`; return; }
+
+    // 각 링크를 "상대방 고객번호 + 이 고객 기준 관계"로 정규화
+    const entries = data.map(link => {
+      if (link.customer_no === customerNo){
+        return { otherNo: link.related_customer_no, relation: link.relationship_type, linkCustomerNo: link.customer_no, linkRelatedNo: link.related_customer_no };
+      } else {
+        return { otherNo: link.customer_no, relation: REVERSE_RELATION[link.relationship_type] || link.relationship_type, linkCustomerNo: link.customer_no, linkRelatedNo: link.related_customer_no };
+      }
+    });
+
+    const otherNos = entries.map(e => e.otherNo);
+    const { data: otherRows } = await sb.from('customers').select('customer_no, name').in('customer_no', otherNos);
+    const nameMap = {};
+    for (const r of (otherRows || [])) nameMap[r.customer_no] = r.name;
+
+    familyList.innerHTML = entries.map(e => `
+      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line);">
+        <span style="min-width:60px; color:var(--muted); font-size:12.5px;">${e.relation}</span>
+        <a href="customer-detail.html?customer_no=${e.otherNo}">${nameMap[e.otherNo] || '(이름없음)'} (${e.otherNo})</a>
+        <button class="nav-btn family-delete-btn" data-cno="${e.linkCustomerNo}" data-rno="${e.linkRelatedNo}" style="margin-left:auto;">삭제</button>
+      </div>
+    `).join('');
+
+    familyList.querySelectorAll('.family-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 가족 관계를 삭제할까요?')) return;
+        const { error } = await sb.from('customer_family_links')
+          .delete()
+          .eq('customer_no', Number(btn.dataset.cno))
+          .eq('related_customer_no', Number(btn.dataset.rno));
+        if (error){ alert(`삭제 실패: ${error.message}`); return; }
+        await loadFamily();
+      });
+    });
+  }
+
+  document.getElementById('addFamilyBtn').addEventListener('click', async () => {
+    const familyStatus = document.getElementById('familyStatus');
+    const relatedNo = Number(document.getElementById('familyRelatedNo').value);
+    const relationType = document.getElementById('familyRelationType').value;
+
+    if (!relatedNo){
+      familyStatus.className = 'status-msg error';
+      familyStatus.textContent = '가족의 고객번호를 입력하세요.';
+      return;
+    }
+    if (relatedNo === customerNo){
+      familyStatus.className = 'status-msg error';
+      familyStatus.textContent = '본인을 가족으로 등록할 수 없습니다.';
+      return;
+    }
+
+    familyStatus.className = 'status-msg';
+    familyStatus.textContent = '확인 중...';
+    const { data: existsRow } = await sb.from('customers').select('customer_no').eq('customer_no', relatedNo).maybeSingle();
+    if (!existsRow){
+      familyStatus.className = 'status-msg error';
+      familyStatus.textContent = `고객번호 ${relatedNo}를 찾을 수 없습니다.`;
+      return;
+    }
+
+    familyStatus.textContent = '등록 중...';
+    const { data: nameRow } = await sb.rpc('current_user_name');
+    const { error } = await sb.from('customer_family_links').insert({
+      customer_no: customerNo,
+      related_customer_no: relatedNo,
+      relationship_type: relationType,
+      created_by: nameRow || currentUserEmail
+    });
+    if (error){
+      familyStatus.className = 'status-msg error';
+      familyStatus.textContent = `등록 실패: ${error.message}`;
+      return;
+    }
+    familyStatus.className = 'status-msg success';
+    familyStatus.textContent = '등록되었습니다.';
+    document.getElementById('familyRelatedNo').value = '';
+    await loadFamily();
+  });
 
   const activityTable = document.getElementById('activityTable');
   const activityStatus = document.getElementById('activityStatus');

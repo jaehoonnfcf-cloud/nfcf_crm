@@ -78,7 +78,8 @@
     body.print-customers-only .unassign-btn,
     body.print-customers-only #unassignedSection,
     body.print-customers-only #myRequestsSection,
-    body.print-customers-only #unionReportSection{
+    body.print-customers-only #unionReportSection,
+    body.print-customers-only #familyReportSection{
       display:none !important;
     }
     body.print-customers-only{ background:#fff; }
@@ -147,6 +148,13 @@
         <button class="nav-btn" id="unionReportPrintBtn">🖨️ 인쇄</button>
       </div>
       <div id="unionReportTable"><p class="empty">조합활동을 선택하면 참여 고객이 표시됩니다.</p></div>
+    </section>
+
+    <section class="card" id="familyReportSection">
+      <h1>👪 가족단위 합계 보고서</h1>
+      <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
+      <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <div id="familyReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
 
     <section class="card" id="unassignedSection">
@@ -241,6 +249,7 @@
     await loadUnassigned();
     await loadMyRequests();
     await loadUnionReportOptions();
+    await loadFamilyReport();
   }
 
   function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
@@ -569,6 +578,86 @@
     document.body.classList.add('print-report-only');
     window.print();
     setTimeout(() => document.body.classList.remove('print-report-only'), 500);
+  });
+
+  // ---- 가족단위 합계 보고서 ----
+  const familyReportTable = document.getElementById('familyReportTable');
+  const familyReportSearchBox = document.getElementById('familyReportSearchBox');
+  let familyGroupsCache = [];
+
+  async function loadFamilyReport(){
+    familyReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data: links, error } = await sb.from('customer_family_links').select('customer_no, related_customer_no');
+    if (error){ familyReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!links.length){ familyReportTable.innerHTML = `<p class="empty">등록된 가족관계가 없습니다.</p>`; return; }
+
+    // Union-Find로 사슬 연결된 사람들을 하나의 그룹으로 묶기
+    const parent = {};
+    function find(x){ if (!(x in parent)) parent[x] = x; while (parent[x] !== x){ x = parent[x]; } return x; }
+    function union(a, b){
+      const ra = find(a), rb = find(b);
+      if (ra !== rb) parent[ra] = rb;
+    }
+    for (const l of links){ find(l.customer_no); find(l.related_customer_no); union(l.customer_no, l.related_customer_no); }
+
+    const groupMap = {};
+    for (const key of Object.keys(parent)){
+      const no = Number(key);
+      const root = find(no);
+      if (!groupMap[root]) groupMap[root] = [];
+      groupMap[root].push(no);
+    }
+    const groups = Object.values(groupMap).filter(g => g.length >= 2);
+    if (!groups.length){ familyReportTable.innerHTML = `<p class="empty">2인 이상 연결된 가족그룹이 없습니다.</p>`; return; }
+
+    const allNos = groups.flat();
+    const { data: custRows } = await sb
+      .from('customer_balance_diff')
+      .select('customer_no, name, current_deposit_balance, current_loan_balance, is_family_representative')
+      .in('customer_no', allNos);
+    const custMap = {};
+    for (const c of (custRows || [])) custMap[c.customer_no] = c;
+
+    familyGroupsCache = groups.map(memberNos => {
+      const members = memberNos.map(no => custMap[no] || { customer_no: no, name: '' });
+      const repCandidate = members.find(m => m.is_family_representative) || members.slice().sort((a, b) => a.customer_no - b.customer_no)[0];
+      const depositSum = members.reduce((sum, m) => sum + (Number(m.current_deposit_balance) || 0), 0);
+      const loanSum = members.reduce((sum, m) => sum + (Number(m.current_loan_balance) || 0), 0);
+      return { members, repCandidate, depositSum, loanSum };
+    }).sort((a, b) => b.depositSum - a.depositSum);
+
+    renderFamilyReport(familyGroupsCache);
+  }
+
+  function renderFamilyReport(groups){
+    if (!groups.length){ familyReportTable.innerHTML = `<p class="empty">조건에 맞는 가족그룹이 없습니다.</p>`; return; }
+    let html = `<table><thead><tr>
+      <th>대표자</th><th>구성원</th><th>인원</th><th class="num">수신잔액 합계</th><th class="num">여신잔액 합계</th>
+    </tr></thead><tbody>`;
+    for (const g of groups){
+      const memberLinks = g.members.map(m =>
+        `<a href="customer-detail.html?customer_no=${m.customer_no}">${m.name || '(이름없음)'}(${m.customer_no})</a>`
+      ).join(', ');
+      html += `<tr>
+        <td>${g.repCandidate.name || '(이름없음)'}(${g.repCandidate.customer_no})</td>
+        <td>${memberLinks}</td>
+        <td>${g.members.length}명</td>
+        <td class="num">${fmtNum(g.depositSum)}</td>
+        <td class="num">${fmtNum(g.loanSum)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    familyReportTable.innerHTML = html;
+  }
+
+  familyReportSearchBox.addEventListener('input', () => {
+    const kw = familyReportSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderFamilyReport(familyGroupsCache); return; }
+    const filtered = familyGroupsCache.filter(g =>
+      g.members.some(m => String(m.customer_no).includes(kw) || (m.name || '').toLowerCase().includes(kw))
+    );
+    renderFamilyReport(filtered);
   });
 
   sb.auth.getSession().then(({ data: { session } }) => {
