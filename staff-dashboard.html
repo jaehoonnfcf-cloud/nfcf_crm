@@ -68,6 +68,7 @@
   .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:11%; }
   .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
   .compact-table th:nth-child(5), .compact-table th:nth-child(6){ text-align:right; }
 
@@ -523,7 +524,7 @@
 
     let html = `<table><thead><tr>
       <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th><th>기준월</th>
-      <th>수신증감</th><th>여신증감</th><th>최근 마케팅활동</th>
+      <th class="num">수신증감</th><th class="num">여신증감</th><th>최근 마케팅활동</th>
     </tr></thead><tbody>`;
     for (const no of customerNos){
       const c = custMap[no] || {};
@@ -546,8 +547,8 @@
         <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
         <td>${participationDate[no]}</td>
         <td>${baselineLabel}</td>
-        <td>${diffCell(depositDiff)}</td>
-        <td>${diffCell(loanDiff)}</td>
+        <td class="num">${diffCell(depositDiff)}</td>
+        <td class="num">${diffCell(loanDiff)}</td>
         <td>${m ? `${m.activity_date} · ${m.content}` : '-'}</td>
       </tr>`;
     }

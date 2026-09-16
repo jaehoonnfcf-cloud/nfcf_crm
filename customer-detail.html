@@ -65,6 +65,7 @@
   .status-msg{ font-size:13px; margin-top:10px; }
   .status-msg.error{ color:var(--danger); }
   .status-msg.success{ color:var(--accent); }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .readonly-note{ font-size:12px; color:var(--muted); }
   .feature-text{ font-size:16px; color:var(--ink); line-height:1.5; margin:0; }
   @media print{
@@ -417,13 +418,13 @@
       chrono[i].loanDiff = prev && prev.loan != null && chrono[i].loan != null ? chrono[i].loan - prev.loan : null;
     }
 
-    let html = `<table><thead><tr><th>기준월</th><th>수신잔액</th><th>수신 증감</th><th>여신잔액</th><th>여신 증감</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>기준월</th><th class="num">수신잔액</th><th class="num">수신 증감</th><th class="num">여신잔액</th><th class="num">여신 증감</th></tr></thead><tbody>`;
     for (let i = chrono.length - 1; i >= 0; i--){
       const s = chrono[i];
       html += `<tr>
         <td>${s.label}</td>
-        <td>${fmtNum(s.deposit)}</td><td>${i === 0 ? '-' : diffText(s.depositDiff)}</td>
-        <td>${fmtNum(s.loan)}</td><td>${i === 0 ? '-' : diffText(s.loanDiff)}</td>
+        <td class="num">${fmtNum(s.deposit)}</td><td class="num">${i === 0 ? '-' : diffText(s.depositDiff)}</td>
+        <td class="num">${fmtNum(s.loan)}</td><td class="num">${i === 0 ? '-' : diffText(s.loanDiff)}</td>
       </tr>`;
     }
     html += `</tbody></table>`;

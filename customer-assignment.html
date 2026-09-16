@@ -75,6 +75,7 @@
   .status-msg{ font-size:13px; margin-top:10px; }
   .status-msg.error{ color:var(--danger); }
   .status-msg.success{ color:var(--accent); }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -416,9 +417,9 @@
           return;
         }
 
-        let html = `<table><thead><tr><th>고객번호</th><th>수신잔액</th><th>여신잔액</th></tr></thead><tbody>`;
+        let html = `<table><thead><tr><th>고객번호</th><th class="num">수신잔액</th><th class="num">여신잔액</th></tr></thead><tbody>`;
         for (const r of parsedBalanceRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no||''}</td><td>${r.deposit_balance||''}</td><td>${r.loan_balance||''}</td></tr>`;
+          html += `<tr><td>${r.customer_no||''}</td><td class="num">${r.deposit_balance||''}</td><td class="num">${r.loan_balance||''}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedBalanceRows.length > 50) html += `<p class="empty">외 ${parsedBalanceRows.length - 50}건 (미리보기는 50건까지)</p>`;
