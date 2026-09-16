@@ -138,6 +138,8 @@
     <section class="card">
       <h1>👪 가족</h1>
       <p class="desc">가족 관계를 등록하면 상대방 화면에도 자동으로 반영됩니다 (양방향).</p>
+      <div class="summary-grid" id="familySumGrid" style="margin-bottom:16px"></div>
+      <p class="readonly-note" style="margin:0 0 4px;">관계인 목록</p>
       <div id="familyList" style="margin-bottom:12px"></div>
       <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
         <div style="min-width:140px;">
@@ -440,6 +442,32 @@
       .or(`customer_no.eq.${customerNo},related_customer_no.eq.${customerNo}`);
 
     if (error){ familyList.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+
+    // 사슬로 연결된 가족 전체를 묶어서 수신/여신 합산 (Union-Find)
+    const { data: allLinks } = await sb.from('customer_family_links').select('customer_no, related_customer_no');
+    const parent = {};
+    function find(x){ if (!(x in parent)) parent[x] = x; while (parent[x] !== x){ x = parent[x]; } return x; }
+    function union(a, b){ const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    for (const l of (allLinks || [])){ find(l.customer_no); find(l.related_customer_no); union(l.customer_no, l.related_customer_no); }
+    find(customerNo);
+    const root = find(customerNo);
+    const groupNos = Object.keys(parent).map(Number).filter(no => find(no) === root);
+
+    const familySumGrid = document.getElementById('familySumGrid');
+    if (groupNos.length < 2){
+      familySumGrid.innerHTML = `<div class="summary-item"><div class="label">가족 합산</div><div class="value">연결된 가족이 없습니다</div></div>`;
+    } else {
+      const { data: groupRows } = await sb.from('customer_balance_diff')
+        .select('current_deposit_balance, current_loan_balance')
+        .in('customer_no', groupNos);
+      const depositSum = (groupRows || []).reduce((s, r) => s + (Number(r.current_deposit_balance) || 0), 0);
+      const loanSum = (groupRows || []).reduce((s, r) => s + (Number(r.current_loan_balance) || 0), 0);
+      familySumGrid.innerHTML = `
+        <div class="summary-item"><div class="label">가족 합산 수신잔액 (${groupNos.length}명)</div><div class="value">${fmtNum(depositSum)}</div></div>
+        <div class="summary-item"><div class="label">가족 합산 여신잔액 (${groupNos.length}명)</div><div class="value">${fmtNum(loanSum)}</div></div>
+      `;
+    }
+
     if (!data.length){ familyList.innerHTML = `<p class="empty">등록된 가족이 없습니다.</p>`; return; }
 
     // 각 링크를 "상대방 고객번호 + 이 고객 기준 관계"로 정규화
