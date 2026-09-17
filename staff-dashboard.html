@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>내 전담고객</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
@@ -153,6 +154,7 @@
     <section class="card" id="familyReportSection">
       <h1>👪 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
+      <div style="max-width:900px; margin-bottom:20px;"><canvas id="familyChart" height="90"></canvas></div>
       <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
       <div id="familyReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
@@ -584,6 +586,7 @@
   const familyReportTable = document.getElementById('familyReportTable');
   const familyReportSearchBox = document.getElementById('familyReportSearchBox');
   let familyGroupsCache = [];
+  let familyChartInstance = null;
 
   async function loadFamilyReport(){
     familyReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
@@ -627,7 +630,39 @@
       return { members, repCandidate, depositSum, loanSum };
     }).sort((a, b) => b.depositSum - a.depositSum);
 
+    renderFamilyChart(familyGroupsCache);
     renderFamilyReport(familyGroupsCache);
+  }
+
+  function renderFamilyChart(groups){
+    const top = groups.slice(0, 10);
+    const labels = top.map(g => `${g.repCandidate.name || '(이름없음)'} 외 ${g.members.length - 1}명`);
+    const deposits = top.map(g => g.depositSum);
+    const loans = top.map(g => g.loanSum);
+
+    if (familyChartInstance) familyChartInstance.destroy();
+    const ctx = document.getElementById('familyChart').getContext('2d');
+    familyChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: '수신잔액 합계', data: deposits, backgroundColor: '#2f5d50' },
+          { label: '여신잔액 합계', data: loans, backgroundColor: '#a3690f' }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 12 } } },
+          title: { display: true, text: '가족단위 잔액 합계 상위 10그룹', font: { size: 13 } }
+        },
+        scales: {
+          x: { ticks: { callback: (v) => Number(v).toLocaleString('ko-KR') } }
+        }
+      }
+    });
   }
 
   function renderFamilyReport(groups){
