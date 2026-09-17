@@ -230,23 +230,13 @@
           <div id="unionActivityTable" style="margin-top:8px"></div>
         </div>
         <div>
-          <h1>🎁 사은품지급내역</h1>
-          <p class="desc">명절 사은품, 조합원 생일선물 등 지급 이력입니다. 담당자는 이 화면에서 직접 추가·수정할 수 있고, 관리자는 CSV로 일괄 등록할 수 있습니다.</p>
-          <div id="giftFormWrap">
-            <div class="form-row narrow"><div><input type="date" id="giftDate" /></div></div>
-            <div class="form-row"><div>
-              <input type="text" id="giftContent" list="giftPresets" placeholder="예: 설날 사은품, 조합원 생일선물" />
-              <datalist id="giftPresets">
-                <option value="설날 사은품"></option>
-                <option value="추석 사은품"></option>
-                <option value="조합원 생일선물"></option>
-              </datalist>
-            </div></div>
-            <button class="primary-btn" id="addGiftBtn">등록</button>
-            <div class="status-msg" id="giftStatus"></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <h1 style="margin:0;">🎁 사은품지급내역</h1>
+            <button class="primary-btn" id="giftFormWrap" style="padding:6px 14px; font-size:12.5px;">➕ 등록</button>
           </div>
+          <p class="desc">명절 사은품, 조합원 생일선물 등 지급 이력입니다. 담당자는 직접 추가·수정할 수 있고, 관리자는 CSV로 일괄 등록할 수 있습니다.</p>
           <p class="readonly-note" id="giftReadonlyNote" style="display:none">담당자만 지급 내역을 입력할 수 있습니다. (조회만 가능)</p>
-          <p class="readonly-note" id="giftCountLabel" style="margin-top:12px;"></p>
+          <p class="readonly-note" id="giftCountLabel" style="margin-top:4px;"></p>
           <div id="giftTable" style="margin-top:8px"></div>
         </div>
       </div>
@@ -437,6 +427,31 @@
   </div>
 </div>
 
+<!-- 사은품 지급 등록/수정 모달 -->
+<div class="modal-overlay" id="giftModalOverlay">
+  <div class="modal" style="max-width:380px;">
+    <h2 id="giftModalTitle" style="font-size:16px; margin:0 0 14px;">🎁 사은품 지급 등록</h2>
+    <div class="form-row narrow"><div>
+      <label class="readonly-note">지급일</label>
+      <input type="date" id="giftModalDate" />
+    </div></div>
+    <div class="form-row" style="margin-top:10px;"><div>
+      <label class="readonly-note">사은품명</label>
+      <input type="text" id="giftModalContent" list="giftPresets" placeholder="예: 설날 사은품, 조합원 생일선물" />
+      <datalist id="giftPresets">
+        <option value="설날 사은품"></option>
+        <option value="추석 사은품"></option>
+        <option value="조합원 생일선물"></option>
+      </datalist>
+    </div></div>
+    <div class="status-msg" id="giftModalStatus"></div>
+    <div class="modal-actions">
+      <button class="nav-btn" id="cancelGiftModalBtn">취소</button>
+      <button class="primary-btn" id="saveGiftModalBtn">저장</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
@@ -529,7 +544,6 @@
     isAdmin = !!admin;
 
     document.getElementById('activityDate').valueAsDate = new Date();
-    document.getElementById('giftDate').valueAsDate = new Date();
 
     await loadCustomerSummary();
     await loadFamily();
@@ -1377,30 +1391,61 @@
 
   const giftTable = document.getElementById('giftTable');
   const giftCountLabel = document.getElementById('giftCountLabel');
-  const giftStatus = document.getElementById('giftStatus');
+  const giftModalOverlay = document.getElementById('giftModalOverlay');
+  const giftModalTitle = document.getElementById('giftModalTitle');
+  const giftModalDate = document.getElementById('giftModalDate');
+  const giftModalContent = document.getElementById('giftModalContent');
+  const giftModalStatus = document.getElementById('giftModalStatus');
   let giftRows = [];
+  let giftEditingId = null;
 
-  document.getElementById('addGiftBtn').addEventListener('click', async () => {
-    const date = document.getElementById('giftDate').value;
-    const content = document.getElementById('giftContent').value.trim();
+  function openGiftModal(row){
+    giftEditingId = row ? row.id : null;
+    giftModalTitle.textContent = row ? '🎁 사은품 지급 수정' : '🎁 사은품 지급 등록';
+    giftModalDate.valueAsDate = row ? new Date(row.activity_date) : new Date();
+    giftModalContent.value = row ? row.content : '';
+    giftModalStatus.className = 'status-msg';
+    giftModalStatus.textContent = '';
+    giftModalOverlay.classList.add('open');
+    giftModalContent.focus();
+  }
+  function closeGiftModal(){ giftModalOverlay.classList.remove('open'); }
+
+  document.getElementById('giftFormWrap').addEventListener('click', () => openGiftModal(null));
+  document.getElementById('cancelGiftModalBtn').addEventListener('click', closeGiftModal);
+  giftModalOverlay.addEventListener('click', (e) => { if (e.target === giftModalOverlay) closeGiftModal(); });
+
+  document.getElementById('saveGiftModalBtn').addEventListener('click', async () => {
+    const date = giftModalDate.value;
+    const content = giftModalContent.value.trim();
     if (!date || !content){
-      giftStatus.className = 'status-msg error';
-      giftStatus.textContent = '날짜와 사은품명을 모두 입력하세요.';
+      giftModalStatus.className = 'status-msg error';
+      giftModalStatus.textContent = '날짜와 사은품명을 모두 입력하세요.';
       return;
     }
-    const { data: name } = await sb.rpc('current_user_name');
-    const { error } = await sb.from('customer_activities').insert({
-      customer_no: customerNo, activity_type: '사은품', activity_date: date, content,
-      created_by: name || currentUserEmail, created_by_email: currentUserEmail
-    });
-    if (error){
-      giftStatus.className = 'status-msg error';
-      giftStatus.textContent = `등록 실패: ${error.message}`;
-      return;
+
+    if (giftEditingId){
+      const { error } = await sb.from('customer_activities')
+        .update({ activity_date: date, content })
+        .eq('id', giftEditingId);
+      if (error){
+        giftModalStatus.className = 'status-msg error';
+        giftModalStatus.textContent = `저장 실패: ${error.message}`;
+        return;
+      }
+    } else {
+      const { data: name } = await sb.rpc('current_user_name');
+      const { error } = await sb.from('customer_activities').insert({
+        customer_no: customerNo, activity_type: '사은품', activity_date: date, content,
+        created_by: name || currentUserEmail, created_by_email: currentUserEmail
+      });
+      if (error){
+        giftModalStatus.className = 'status-msg error';
+        giftModalStatus.textContent = `등록 실패: ${error.message}`;
+        return;
+      }
     }
-    giftStatus.className = 'status-msg success';
-    giftStatus.textContent = '등록되었습니다.';
-    document.getElementById('giftContent').value = '';
+    closeGiftModal();
     await loadGifts();
   });
 
@@ -1423,8 +1468,8 @@
     for (const g of giftRows){
       const canEdit = isAdmin || g.created_by_email === currentUserEmail;
       html += `<tr data-id="${g.id}">
-        <td data-label="날짜" class="gift-date">${g.activity_date}</td>
-        <td data-label="내용" class="gift-content">${g.content}</td>
+        <td data-label="날짜">${g.activity_date}</td>
+        <td data-label="내용">${g.content}</td>
         <td class="gift-actions">${canEdit ? `<button class="nav-btn gift-edit-btn" data-id="${g.id}">✏️</button> <button class="nav-btn gift-delete-btn" data-id="${g.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
@@ -1442,25 +1487,8 @@
 
     giftTable.querySelectorAll('.gift-edit-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = Number(btn.dataset.id);
-        const row = giftRows.find(g => g.id === id);
-        if (!row) return;
-        const tr = giftTable.querySelector(`tr[data-id="${id}"]`);
-        tr.querySelector('.gift-date').innerHTML = `<input type="date" class="gift-edit-date" value="${row.activity_date}" style="width:100%;" />`;
-        tr.querySelector('.gift-content').innerHTML = `<input type="text" class="gift-edit-content" value="${row.content.replace(/"/g,'&quot;')}" style="width:100%;" />`;
-        tr.querySelector('.gift-actions').innerHTML = `<button class="primary-btn gift-save-btn" data-id="${id}">저장</button> <button class="nav-btn gift-cancel-btn">취소</button>`;
-
-        tr.querySelector('.gift-cancel-btn').addEventListener('click', () => renderGiftTable());
-        tr.querySelector('.gift-save-btn').addEventListener('click', async () => {
-          const newDate = tr.querySelector('.gift-edit-date').value;
-          const newContent = tr.querySelector('.gift-edit-content').value.trim();
-          if (!newDate || !newContent){ alert('날짜와 내용을 모두 입력하세요.'); return; }
-          const { error } = await sb.from('customer_activities')
-            .update({ activity_date: newDate, content: newContent })
-            .eq('id', id);
-          if (error){ alert(`저장 실패: ${error.message}`); return; }
-          await loadGifts();
-        });
+        const row = giftRows.find(g => g.id === Number(btn.dataset.id));
+        if (row) openGiftModal(row);
       });
     });
   }
