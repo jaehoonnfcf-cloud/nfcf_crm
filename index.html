@@ -682,6 +682,14 @@
   <!-- 조합원 가입 사유 및 상담일지 - 인쇄용 -->
   <div id="membershipPrintView" style="display:none;"></div>
 
+  <!-- 주소 검색 레이어 (팝업 대신 임베드 방식 - 모달 안에서도 안정적으로 동작) -->
+  <div id="postcodeLayer" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div style="background:#fff; width:92%; max-width:480px; height:520px; border-radius:12px; overflow:hidden; position:relative;">
+      <button type="button" id="postcodeCloseBtn" style="position:absolute; top:8px; right:8px; z-index:1; border:none; background:#f2f1ee; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px;">✕</button>
+      <div id="postcodeEmbed" style="width:100%; height:100%;"></div>
+    </div>
+  </div>
+
   <!-- 변경 이력 모달 -->
   <div class="modal-overlay" id="historyModalOverlay">
     <div class="modal" style="max-width:560px;">
@@ -2005,12 +2013,24 @@
     mForestOwnerWrap.style.display = 'none';
     mForestryWorkerWrap.style.display = 'flex';
   });
+  const postcodeLayer = document.getElementById('postcodeLayer');
+  const postcodeEmbed = document.getElementById('postcodeEmbed');
+  document.getElementById('postcodeCloseBtn').addEventListener('click', () => {
+    postcodeLayer.style.display = 'none';
+    postcodeEmbed.innerHTML = '';
+  });
   document.getElementById('mForestSearchBtn').addEventListener('click', () => {
+    postcodeEmbed.innerHTML = '';
+    postcodeLayer.style.display = 'flex';
     new daum.Postcode({
       oncomplete: (data) => {
         document.getElementById('mForestLocation').value = data.jibunAddress || data.autoJibunAddress || data.address;
-      }
-    }).open();
+        postcodeLayer.style.display = 'none';
+        postcodeEmbed.innerHTML = '';
+      },
+      width: '100%',
+      height: '100%'
+    }).embed(postcodeEmbed);
   });
 
   mJoinOtherCheck.addEventListener('change', () => {
