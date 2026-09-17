@@ -639,8 +639,8 @@
     // 수신잔액 증감(전월 대비)이 큰 순으로 상위 5(증가) + 하위 5(감소)를 보여준다
     const withDiff = groups.filter(g => g.depositDiffSum !== 0);
     const sortedByDiff = withDiff.slice().sort((a, b) => b.depositDiffSum - a.depositDiffSum);
-    const top = sortedByDiff.slice(0, 5);
-    const bottom = sortedByDiff.slice(-5).filter(g => !top.includes(g));
+    const top = sortedByDiff.slice(0, 10);
+    const bottom = sortedByDiff.slice(-10).filter(g => !top.includes(g));
     const picked = [...top, ...bottom].sort((a, b) => b.depositDiffSum - a.depositDiffSum);
 
     if (familyChartInstance) familyChartInstance.destroy();
@@ -669,7 +669,7 @@
         responsive: true,
         plugins: {
           legend: { display: false },
-          title: { display: true, text: '가족단위 수신잔액 전월 대비 증감 (증가 상위 5 · 감소 하위 5)', font: { size: 13 } }
+          title: { display: true, text: '가족단위 수신잔액 전월 대비 증감 (증가 상위 10 · 감소 하위 10)', font: { size: 13 } }
         },
         scales: {
           x: { ticks: { callback: (v) => (v < 0 ? '-' : '+') + Number(Math.abs(v)).toLocaleString('ko-KR') } }
