@@ -2029,6 +2029,29 @@
     document.body.appendChild(script);
   }
 
+  function extractVworldItems(data){
+    // 브이월드 응답 구조가 API 버전/설정에 따라 달라질 수 있어 여러 형태를 모두 시도
+    const candidates = [
+      data?.response?.result?.items,
+      data?.response?.result?.item,
+      data?.response?.items,
+      data?.response?.LIST?.item,
+      data?.LIST?.item,
+      data?.result?.items,
+      data?.result?.item,
+      data?.items
+    ];
+    for (const c of candidates){
+      if (!c) continue;
+      const arr = Array.isArray(c) ? c : [c];
+      if (arr.length) return arr;
+    }
+    return [];
+  }
+  function extractVworldAddr(item){
+    return item.JUSO || item.juso || item.address || item.nameFull || item.roadAddr || item.jibunAddr || '';
+  }
+
   function wireForestSearch(inputId, btnId, resultsId){
     const input = document.getElementById(inputId);
     const btn = document.getElementById(btnId);
@@ -2039,15 +2062,22 @@
       results.style.display = 'block';
       results.innerHTML = `<div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 중...</div>`;
       vworldJibunSearch(q, (data) => {
-        const items = data?.response?.result?.items || data?.response?.items || [];
-        // 브이월드 응답 구조가 output=json일 때 result.featureCollection 또는 result.items로 오는 경우가 있어 폭넓게 시도
-        const list = items.length ? items : (data?.response?.result?.item ? [].concat(data.response.result.item) : []);
+        const list = extractVworldItems(data);
         if (!list.length){
-          results.innerHTML = `<div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 결과가 없습니다.</div>`;
+          results.innerHTML = `
+            <div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 결과가 없습니다.</div>
+            <div style="padding:8px 10px; border-top:1px dashed var(--line);">
+              <button type="button" class="debug-toggle" style="font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; padding:0;">🔧 디버그: 응답 원본 보기</button>
+              <pre style="display:none; white-space:pre-wrap; font-size:11px; margin-top:6px; max-height:200px; overflow:auto;">${JSON.stringify(data, null, 2).replace(/</g,'&lt;')}</pre>
+            </div>
+          `;
+          const toggle = results.querySelector('.debug-toggle');
+          const pre = results.querySelector('pre');
+          toggle.addEventListener('click', () => { pre.style.display = pre.style.display === 'none' ? 'block' : 'none'; });
           return;
         }
         results.innerHTML = list.map(item => {
-          const addr = item.JUSO || item.address || item.juso || '';
+          const addr = extractVworldAddr(item);
           return `<div class="forest-search-item" data-addr="${addr}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--line); font-size:13px;">${addr}</div>`;
         }).join('');
         results.querySelectorAll('.forest-search-item').forEach(el => {
