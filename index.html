@@ -568,13 +568,35 @@
             <option value="소개">소개를 통한 가입</option>
             <option value="기타">기타</option>
           </select>
-          <div id="mReferralWrap" style="display:none; margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+          <input type="text" id="mJoinChannelOther" style="display:none; margin-top:8px; width:100%;" placeholder="기타 내용" />
+        </div>
+
+        <div class="field">
+          <label>🔗 추천인 (있는 경우 — 가입경로와 무관하게 항상 연결됩니다)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <input type="number" id="mReferrerNo" placeholder="추천인 고객번호" style="flex:1; min-width:120px;" />
             <input type="text" id="mReferralRelation" placeholder="관계 (예: 형제, 지인, 직장동료 등)" style="flex:1; min-width:160px;" />
           </div>
           <div class="hint" id="mReferrerHint"></div>
-          <p id="mFamilyNote" style="display:none; font-size:12px; color:#a3690f; margin:6px 0 0;">⚠️ 추천인이 실제 가족(배우자·부모·자녀 등)이면, 저장 후 각 고객 상세 화면에서 별도로 "가족 추가"를 꼭 해주세요. 이 "관계"는 서식 기록용 텍스트일 뿐, 가족관계로 자동 연결되지 않습니다.</p>
-          <input type="text" id="mJoinChannelOther" style="display:none; margin-top:8px; width:100%;" placeholder="기타 내용" />
+          <p style="font-size:12px; color:#a3690f; margin:6px 0 0;">⚠️ 추천인이 실제 가족(배우자·부모·자녀 등)이면, 아래 "가족 연결"에도 함께 등록해주세요. 이 "관계"는 서식 기록용 텍스트일 뿐, 가족관계로 자동 연결되지 않습니다.</p>
+        </div>
+
+        <div class="field">
+          <label>👪 가족 연결 (있는 경우)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="number" id="mFamilyNo" placeholder="가족 고객번호" style="flex:1; min-width:120px;" />
+            <select id="mFamilyRelType" style="flex:1; min-width:120px;">
+              <option value="배우자">배우자</option>
+              <option value="부모">부모</option>
+              <option value="자녀">자녀</option>
+              <option value="조부모">조부모</option>
+              <option value="손자녀">손자녀</option>
+              <option value="형제자매">형제자매</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="hint" id="mFamilyHint"></div>
+          <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">여기서 등록하면 상대방 화면에도 자동으로 반영됩니다 (양방향).</p>
         </div>
 
         <div class="field">
@@ -1902,18 +1924,18 @@
   const mNo = document.getElementById('mNo');
   const mHintNo = document.getElementById('mHintNo');
   const mJoinChannel = document.getElementById('mJoinChannel');
-  const mReferralWrap = document.getElementById('mReferralWrap');
   const mJoinChannelOther = document.getElementById('mJoinChannelOther');
-  const mFamilyNote = document.getElementById('mFamilyNote');
   const mReferrerHint = document.getElementById('mReferrerHint');
+  const mFamilyHint = document.getElementById('mFamilyHint');
 
   function openMembershipModal(){
     membershipForm.reset();
+    mHintNo.innerHTML = '';
     mHintNo.style.display = 'none';
     mReferrerHint.style.display = 'none';
-    mReferralWrap.style.display = 'none';
+    mFamilyHint.style.display = 'none';
     mJoinChannelOther.style.display = 'none';
-    mFamilyNote.style.display = 'none';
+    submitMembershipBtn.disabled = false;
     membershipModalOverlay.classList.add('open');
   }
   function closeMembershipModal(){ membershipModalOverlay.classList.remove('open'); }
@@ -1923,23 +1945,27 @@
   membershipModalOverlay.addEventListener('click', (e) => { if (e.target === membershipModalOverlay) closeMembershipModal(); });
 
   mJoinChannel.addEventListener('change', () => {
-    const v = mJoinChannel.value;
-    mReferralWrap.style.display = v === '소개' ? 'flex' : 'none';
-    mFamilyNote.style.display = v === '소개' ? 'block' : 'none';
-    mJoinChannelOther.style.display = v === '기타' ? 'block' : 'none';
+    mJoinChannelOther.style.display = mJoinChannel.value === '기타' ? 'block' : 'none';
   });
 
   mNo.addEventListener('blur', async () => {
+    mHintNo.innerHTML = '';
     mHintNo.style.display = 'none';
+    submitMembershipBtn.disabled = false;
     const no = Number(mNo.value);
     if (!no) return;
-    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, is_deleted').eq('customer_no', no).maybeSingle();
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, name, is_deleted').eq('customer_no', no).maybeSingle();
     if (dup){
+      if (dup.is_deleted){
+        mHintNo.textContent = '휴지통에 있는 고객번호입니다. 먼저 복구해주세요.';
+        mHintNo.style.display = 'block';
+        submitMembershipBtn.disabled = true;
+        return;
+      }
       const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', no).maybeSingle();
-      mHintNo.textContent = dup.is_deleted
-        ? '휴지통에 있는 고객번호입니다. 먼저 복구해주세요.'
-        : (memberRow ? '이미 조합원으로 등록된 고객번호입니다. (계속 진행하면 상담일지만 추가로 기록됩니다)' : '이미 등록된 고객번호입니다. (기존 고객에 조합원 정보를 추가합니다)');
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${dup.name || ''} · 고객번호 ${no})${memberRow ? ' — 이미 조합원입니다.' : ''}<br>조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:#a3690f; text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요 (기존 특징·가족 정보를 그대로 활용할 수 있습니다).`;
       mHintNo.style.display = 'block';
+      submitMembershipBtn.disabled = true;
     }
   });
 
@@ -1955,9 +1981,10 @@
     const joinRows = {
       '금융상담': `${checkMark(v.joinChannel==='금융상담')} 금융상담을 통한 가입`,
       '임업상담': `${checkMark(v.joinChannel==='임업상담')} 임업상담을 통한 가입`,
-      '소개': `${checkMark(v.joinChannel==='소개')} 소개를 통한 가입 ${v.joinChannel==='소개' ? `(추천인: ${v.referrerNo||''} / 관계: ${v.referralRelation||''})` : ''}`,
+      '소개': `${checkMark(v.joinChannel==='소개')} 소개를 통한 가입`,
       '기타': `${checkMark(v.joinChannel==='기타')} 기타 ${v.joinChannel==='기타' ? `(${v.joinChannelOther||''})` : ''}`
     };
+    const referrerLine = v.referrerNo ? `<br>🔗 추천인: ${v.referrerNo}번 (관계: ${v.referralRelation||'-'})` : '';
     view.innerHTML = `
       <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
       <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
@@ -1967,7 +1994,7 @@
           수신: ${v.deposit ? Number(v.deposit).toLocaleString('ko-KR') : '-'} &nbsp;&nbsp; 여신: ${v.loan ? Number(v.loan).toLocaleString('ko-KR') : '-'}<br>
           (우리조합 기준 / 타금융: ${v.otherFinancial ? Number(v.otherFinancial).toLocaleString('ko-KR') : '-'} / 잔여한도: ${v.taxFreeLimit ? Number(v.taxFreeLimit).toLocaleString('ko-KR') : '-'})
         </td></tr>
-        <tr><td class="mp-label">가입경로</td><td>${joinRows['금융상담']}<br>${joinRows['임업상담']}<br>${joinRows['소개']}<br>${joinRows['기타']}</td></tr>
+        <tr><td class="mp-label">가입경로</td><td>${joinRows['금융상담']}<br>${joinRows['임업상담']}<br>${joinRows['소개']}<br>${joinRows['기타']}${referrerLine}</td></tr>
         <tr><td class="mp-label">관심분야</td><td>
           ${checkMark(v.interestPlan)} 산림경영계획 작성 &nbsp;&nbsp; ${checkMark(v.interestFinancial)} 금융 사업 이용<br>
           ${checkMark(v.interestForestry)} 임업 상담 및 정보수집 &nbsp;&nbsp; ${checkMark(v.interestOtherCheck)} 기타 ${v.interestOtherCheck ? `(${v.interestOther||''})` : ''}
@@ -2012,6 +2039,8 @@
     const occOrg = document.getElementById('mOccOrg').checked;
     const orgName = document.getElementById('mOrgName').value.trim();
     const consultNote = document.getElementById('mConsultNote').value.trim();
+    const familyNo = document.getElementById('mFamilyNo').value ? Number(document.getElementById('mFamilyNo').value) : null;
+    const familyRelType = document.getElementById('mFamilyRelType').value;
 
     if (!no || !name){
       setStatus('고객번호와 성명은 필수입니다', 'err-flash');
@@ -2022,11 +2051,16 @@
       mReferrerHint.style.display = 'block';
       return;
     }
+    if (familyNo === no){
+      mFamilyHint.textContent = '본인을 가족으로 등록할 수 없습니다.';
+      mFamilyHint.style.display = 'block';
+      return;
+    }
 
     submitMembershipBtn.disabled = true;
     submitMembershipBtn.textContent = '⏳ 확인 중...';
 
-    if (joinChannel === '소개' && referrerNo){
+    if (referrerNo){
       const { data: refRow } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', referrerNo).maybeSingle();
       if (!refRow){
         submitMembershipBtn.disabled = false;
@@ -2036,29 +2070,46 @@
         return;
       }
     }
+    if (familyNo){
+      const { data: famRow } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', familyNo).maybeSingle();
+      if (!famRow){
+        submitMembershipBtn.disabled = false;
+        submitMembershipBtn.textContent = '🏅 저장';
+        mFamilyHint.textContent = `가족 고객번호 ${familyNo}를 찾을 수 없습니다.`;
+        mFamilyHint.style.display = 'block';
+        return;
+      }
+    }
 
     const { data: existingCustomer } = await sb.from(TABLE_NAME).select('customer_no, name, customer_info').eq('customer_no', no).maybeSingle();
 
+    if (existingCustomer){
+      submitMembershipBtn.disabled = false;
+      submitMembershipBtn.textContent = '🏅 저장';
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${existingCustomer.name || ''} · 고객번호 ${no}). 조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:#a3690f; text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요.`;
+      mHintNo.style.display = 'block';
+      return;
+    }
+
     submitMembershipBtn.textContent = '⏳ 저장 중...';
 
-    let custError;
-    if (existingCustomer){
-      const patch = { name };
-      if (info) patch.customer_info = info;
-      if (joinChannel === '소개' && referrerNo) patch.referred_by = referrerNo;
-      const { error } = await sb.from(TABLE_NAME).update(patch).eq('customer_no', no);
-      custError = error;
-    } else {
-      const payload = { customer_no: no, name, customer_info: info || null };
-      if (joinChannel === '소개' && referrerNo) payload.referred_by = referrerNo;
-      const { error } = await sb.from(TABLE_NAME).insert(payload);
-      custError = error;
-    }
+    const payload = { customer_no: no, name, customer_info: info || null };
+    if (referrerNo) payload.referred_by = referrerNo;
+    const { error: custError } = await sb.from(TABLE_NAME).insert(payload);
     if (custError){
       submitMembershipBtn.disabled = false;
       submitMembershipBtn.textContent = '🏅 저장';
       setStatus('고객 등록 실패: ' + custError.message, 'err-flash');
       return;
+    }
+
+    if (familyNo){
+      await sb.from('customer_family_links').insert({
+        customer_no: no,
+        related_customer_no: familyNo,
+        relationship_type: familyRelType,
+        created_by: currentUserName
+      });
     }
 
     await sb.from('members').upsert({ customer_no: no, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
@@ -2090,7 +2141,7 @@
       remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
       join_channel: joinChannel,
       join_channel_other: joinChannel === '기타' ? joinChannelOther : null,
-      referral_relation: joinChannel === '소개' ? referralRelation : null,
+      referral_relation: referralRelation || null,
       interest_forest_plan: interestPlan,
       interest_financial: interestFinancial,
       interest_forestry_info: interestForestry,

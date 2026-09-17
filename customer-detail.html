@@ -224,6 +224,119 @@
 </div>
 <div id="membershipDocPrintView"></div>
 
+<!-- 조합원 상담일지 추가 모달 (기존 고객) -->
+<div class="modal-overlay" id="addMembershipDocModalOverlay">
+  <div class="modal" style="max-width:640px; max-height:88vh; overflow-y:auto;">
+    <h2>📋 조합원 상담일지 추가</h2>
+    <p class="readonly-note" style="margin:0 0 14px;">이 고객의 기존 특징·가족 정보를 그대로 활용해서, 조합원 가입 상담 내용만 추가로 기록합니다.</p>
+    <form id="addMembershipDocForm">
+      <div class="form-row">
+        <div>
+          <label class="readonly-note">💰 금융현황 (비과세한도)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+            <input type="number" id="amdDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
+            <input type="number" id="amdLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+            <input type="number" id="amdOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
+            <input type="number" id="amdTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">🚪 가입경로</label>
+          <select id="amdJoinChannel" style="width:100%; margin-top:6px;">
+            <option value="금융상담">금융상담을 통한 가입</option>
+            <option value="임업상담">임업상담을 통한 가입</option>
+            <option value="소개">소개를 통한 가입</option>
+            <option value="기타">기타</option>
+          </select>
+          <input type="text" id="amdJoinChannelOther" style="display:none; margin-top:8px; width:100%;" placeholder="기타 내용" />
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">🔗 추천인 (있는 경우 — 가입경로와 무관하게 항상 연결됩니다)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+            <input type="number" id="amdReferrerNo" placeholder="추천인 고객번호" style="flex:1; min-width:120px;" />
+            <input type="text" id="amdReferralRelation" placeholder="관계 (예: 형제, 지인, 직장동료 등)" style="flex:1; min-width:160px;" />
+          </div>
+          <div class="status-msg error" id="amdReferrerHint" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">👪 가족 연결 (있는 경우 — 이미 등록된 가족은 위 카드에서 확인하세요)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+            <input type="number" id="amdFamilyNo" placeholder="가족 고객번호" style="flex:1; min-width:120px;" />
+            <select id="amdFamilyRelType" style="flex:1; min-width:120px;">
+              <option value="배우자">배우자</option>
+              <option value="부모">부모</option>
+              <option value="자녀">자녀</option>
+              <option value="조부모">조부모</option>
+              <option value="손자녀">손자녀</option>
+              <option value="형제자매">형제자매</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="status-msg error" id="amdFamilyHint" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">⭐ 관심분야 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdInterestPlan" /> 산림경영계획 작성</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdInterestFinancial" /> 금융 사업 이용</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdInterestForestry" /> 임업 상담 및 정보수집</label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="amdInterestOtherCheck" /> 기타
+              <input type="text" id="amdInterestOther" style="flex:1;" placeholder="내용" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">💼 직업 및 소속처 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="amdOccEmployed" /> 직업
+              <input type="text" id="amdWorkplace" style="flex:1;" placeholder="직장명" />
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="amdOccSelfEmployed" /> 자영업
+              <input type="text" id="amdBusinessName" style="flex:1;" placeholder="상호명" />
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="amdOccOrg" /> 단체(소속)
+              <input type="text" id="amdOrgName" style="flex:1;" placeholder="소속명" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">🗒️ 상담내용</label>
+          <textarea id="amdConsultNote" rows="4" style="width:100%; margin-top:6px;" placeholder="조합원 가입신청자 상담을 통해 자유롭게 작성"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="nav-btn" id="cancelAddMembershipDocBtn">취소</button>
+        <button type="submit" class="primary-btn" id="amdSubmitBtn">📋 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
@@ -469,8 +582,9 @@
         <tr><td class="mp-label">가입경로</td><td>
           ${checkMark(v.join_channel==='금융상담')} 금융상담을 통한 가입<br>
           ${checkMark(v.join_channel==='임업상담')} 임업상담을 통한 가입<br>
-          ${checkMark(v.join_channel==='소개')} 소개를 통한 가입 ${v.join_channel==='소개' ? `(추천인: ${v.referrerLabel||''} / 관계: ${v.referral_relation||''})` : ''}<br>
+          ${checkMark(v.join_channel==='소개')} 소개를 통한 가입<br>
           ${checkMark(v.join_channel==='기타')} 기타 ${v.join_channel==='기타' ? `(${v.join_channel_other||''})` : ''}
+          ${v.customerSummaryReferredBy ? `<br>🔗 추천인: ${v.referrerLabel||''} (관계: ${v.referral_relation||'-'})` : ''}
         </td></tr>
         <tr><td class="mp-label">관심분야</td><td>
           ${checkMark(v.interest_forest_plan)} 산림경영계획 작성 &nbsp;&nbsp; ${checkMark(v.interest_financial)} 금융 사업 이용<br>
@@ -498,9 +612,12 @@
       .maybeSingle();
 
     if (!appRow){
-      openMembershipDocBtn.style.display = 'none';
+      openMembershipDocBtn.textContent = '📋 상담일지 추가';
+      openMembershipDocBtn.style.display = 'inline-flex';
+      membershipRecord = null;
       return;
     }
+    openMembershipDocBtn.textContent = '📋 조합원 상담일지';
     openMembershipDocBtn.style.display = 'inline-flex';
 
     const dateStr = appRow.created_at.slice(0, 10);
@@ -523,16 +640,20 @@
       customer_no: customerNo,
       deposit: snapshotRow?.deposit_balance ?? null,
       loan: snapshotRow?.loan_balance ?? null,
-      referrerLabel
+      referrerLabel,
+      customerSummaryReferredBy: !!customerSummary?.referred_by
     };
   }
 
   openMembershipDocBtn.addEventListener('click', () => {
-    if (!membershipRecord) return;
-    const html = buildMembershipDocHtml(membershipRecord);
-    document.getElementById('membershipDocContent').innerHTML = html;
-    document.getElementById('membershipDocPrintView').innerHTML = html;
-    membershipDocModalOverlay.classList.add('open');
+    if (membershipRecord){
+      const html = buildMembershipDocHtml(membershipRecord);
+      document.getElementById('membershipDocContent').innerHTML = html;
+      document.getElementById('membershipDocPrintView').innerHTML = html;
+      membershipDocModalOverlay.classList.add('open');
+    } else {
+      openAddMembershipDocModal();
+    }
   });
 
   document.getElementById('closeMembershipDocBtn').addEventListener('click', () => {
@@ -545,6 +666,185 @@
     document.body.classList.add('printing-membership-doc');
     window.print();
     setTimeout(() => document.body.classList.remove('printing-membership-doc'), 500);
+  });
+
+  // ---- 상담일지 신규 추가 (기존 고객) ----
+  const addMembershipDocModalOverlay = document.getElementById('addMembershipDocModalOverlay');
+  const addMembershipDocForm = document.getElementById('addMembershipDocForm');
+  const amdJoinChannel = document.getElementById('amdJoinChannel');
+  const amdJoinChannelOther = document.getElementById('amdJoinChannelOther');
+  const amdReferrerHint = document.getElementById('amdReferrerHint');
+  const amdFamilyHint = document.getElementById('amdFamilyHint');
+  const amdSubmitBtn = document.getElementById('amdSubmitBtn');
+
+  function openAddMembershipDocModal(){
+    addMembershipDocForm.reset();
+    amdJoinChannelOther.style.display = 'none';
+    amdReferrerHint.style.display = 'none';
+    amdFamilyHint.style.display = 'none';
+    amdSubmitBtn.disabled = false;
+    amdSubmitBtn.textContent = '📋 저장';
+    addMembershipDocModalOverlay.classList.add('open');
+  }
+  document.getElementById('cancelAddMembershipDocBtn').addEventListener('click', () => {
+    addMembershipDocModalOverlay.classList.remove('open');
+  });
+  addMembershipDocModalOverlay.addEventListener('click', (e) => {
+    if (e.target === addMembershipDocModalOverlay) addMembershipDocModalOverlay.classList.remove('open');
+  });
+  amdJoinChannel.addEventListener('change', () => {
+    amdJoinChannelOther.style.display = amdJoinChannel.value === '기타' ? 'block' : 'none';
+  });
+
+  function todayDateStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  addMembershipDocForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    amdReferrerHint.style.display = 'none';
+    amdFamilyHint.style.display = 'none';
+
+    const deposit = document.getElementById('amdDeposit').value;
+    const loan = document.getElementById('amdLoan').value;
+    const otherFinancial = document.getElementById('amdOtherFinancial').value;
+    const taxFreeLimit = document.getElementById('amdTaxFreeLimit').value;
+    const joinChannel = amdJoinChannel.value;
+    const joinChannelOther = amdJoinChannelOther.value.trim();
+    const referrerNo = document.getElementById('amdReferrerNo').value ? Number(document.getElementById('amdReferrerNo').value) : null;
+    const referralRelation = document.getElementById('amdReferralRelation').value.trim();
+    const interestPlan = document.getElementById('amdInterestPlan').checked;
+    const interestFinancial = document.getElementById('amdInterestFinancial').checked;
+    const interestForestry = document.getElementById('amdInterestForestry').checked;
+    const interestOtherCheck = document.getElementById('amdInterestOtherCheck').checked;
+    const interestOther = document.getElementById('amdInterestOther').value.trim();
+    const occEmployed = document.getElementById('amdOccEmployed').checked;
+    const workplace = document.getElementById('amdWorkplace').value.trim();
+    const occSelfEmployed = document.getElementById('amdOccSelfEmployed').checked;
+    const businessName = document.getElementById('amdBusinessName').value.trim();
+    const occOrg = document.getElementById('amdOccOrg').checked;
+    const orgName = document.getElementById('amdOrgName').value.trim();
+    const consultNote = document.getElementById('amdConsultNote').value.trim();
+    const familyNo = document.getElementById('amdFamilyNo').value ? Number(document.getElementById('amdFamilyNo').value) : null;
+    const familyRelType = document.getElementById('amdFamilyRelType').value;
+
+    if (referrerNo === customerNo){
+      amdReferrerHint.textContent = '본인을 추천인으로 지정할 수 없습니다.';
+      amdReferrerHint.style.display = 'block';
+      return;
+    }
+    if (familyNo === customerNo){
+      amdFamilyHint.textContent = '본인을 가족으로 등록할 수 없습니다.';
+      amdFamilyHint.style.display = 'block';
+      return;
+    }
+
+    amdSubmitBtn.disabled = true;
+    amdSubmitBtn.textContent = '⏳ 확인 중...';
+
+    if (referrerNo){
+      const { data: refRow } = await sb.from('customers').select('customer_no').eq('customer_no', referrerNo).maybeSingle();
+      if (!refRow){
+        amdSubmitBtn.disabled = false;
+        amdSubmitBtn.textContent = '📋 저장';
+        amdReferrerHint.textContent = `추천인 고객번호 ${referrerNo}를 찾을 수 없습니다.`;
+        amdReferrerHint.style.display = 'block';
+        return;
+      }
+    }
+    if (familyNo){
+      const { data: famRow } = await sb.from('customers').select('customer_no').eq('customer_no', familyNo).maybeSingle();
+      if (!famRow){
+        amdSubmitBtn.disabled = false;
+        amdSubmitBtn.textContent = '📋 저장';
+        amdFamilyHint.textContent = `가족 고객번호 ${familyNo}를 찾을 수 없습니다.`;
+        amdFamilyHint.style.display = 'block';
+        return;
+      }
+    }
+
+    amdSubmitBtn.textContent = '⏳ 저장 중...';
+
+    if (referrerNo){
+      await sb.from('customers').update({ referred_by: referrerNo }).eq('customer_no', customerNo);
+    }
+    if (familyNo){
+      await sb.from('customer_family_links').insert({
+        customer_no: customerNo,
+        related_customer_no: familyNo,
+        relationship_type: familyRelType,
+        created_by: currentUserName
+      });
+    }
+
+    await sb.from('members').upsert({ customer_no: customerNo, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
+
+    if (deposit || loan){
+      await sb.from('balance_snapshots').insert({
+        customer_no: customerNo,
+        snapshot_date: todayDateStr(),
+        deposit_balance: deposit ? Number(deposit) : null,
+        loan_balance: loan ? Number(loan) : null,
+        uploaded_by: currentUserEmail
+      });
+    }
+
+    if (consultNote){
+      await sb.from('customer_activities').insert({
+        customer_no: customerNo,
+        activity_type: '가입상담',
+        activity_date: todayDateStr(),
+        content: consultNote,
+        created_by: currentUserName,
+        created_by_email: currentUserEmail
+      });
+    }
+
+    const { error: appError } = await sb.from('membership_applications').insert({
+      customer_no: customerNo,
+      other_financial_amount: otherFinancial ? Number(otherFinancial) : null,
+      remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
+      join_channel: joinChannel,
+      join_channel_other: joinChannel === '기타' ? joinChannelOther : null,
+      referral_relation: referralRelation || null,
+      interest_forest_plan: interestPlan,
+      interest_financial: interestFinancial,
+      interest_forestry_info: interestForestry,
+      interest_other: interestOtherCheck ? interestOther : null,
+      occ_employed: occEmployed,
+      occ_workplace: occEmployed ? workplace : null,
+      occ_self_employed: occSelfEmployed,
+      occ_business_name: occSelfEmployed ? businessName : null,
+      occ_org: occOrg,
+      occ_org_name: occOrg ? orgName : null,
+      consultation_note: consultNote || null,
+      consultant_email: currentUserEmail,
+      consultant_name: currentUserName
+    });
+
+    amdSubmitBtn.disabled = false;
+    amdSubmitBtn.textContent = '📋 저장';
+
+    if (appError){
+      alert('상담일지 저장 실패: ' + appError.message);
+      return;
+    }
+
+    addMembershipDocModalOverlay.classList.remove('open');
+    await loadCustomerSummary();
+    await loadFamily();
+    await loadMembershipDoc();
+
+    if (membershipRecord){
+      const html = buildMembershipDocHtml(membershipRecord);
+      document.getElementById('membershipDocContent').innerHTML = html;
+      document.getElementById('membershipDocPrintView').innerHTML = html;
+      membershipDocModalOverlay.classList.add('open');
+      document.body.classList.add('printing-membership-doc');
+      window.print();
+      setTimeout(() => document.body.classList.remove('printing-membership-doc'), 500);
+    }
   });
 
   // ---- 가족 ----
