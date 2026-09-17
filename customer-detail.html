@@ -73,6 +73,24 @@
     body{ background:#fff; }
     section.card{ border:none; box-shadow:none; padding:0; margin-bottom:20px; }
   }
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:50; }
+  .modal-overlay.open{ display:flex; }
+  .modal{ background:#fff; border-radius:14px; padding:28px; max-width:640px; width:92%; max-height:86vh; overflow-y:auto; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+  @media print{
+    body.printing-membership-doc > *:not(#membershipDocPrintView){ display:none !important; }
+    body.printing-membership-doc #membershipDocPrintView{ display:block !important; }
+  }
+  #membershipDocPrintView{ display:none; }
+  .mp-title{ text-align:center; font-size:20px; font-weight:700; margin-bottom:6px; }
+  .mp-sub{ text-align:center; font-size:12px; color:#444; margin-bottom:16px; }
+  .mp-doc-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .mp-doc-table td{ border:1px solid #333; padding:8px 10px; vertical-align:top; }
+  .mp-label{ width:110px; font-weight:600; background:#f7f7f5; }
+  .mp-note-title{ text-align:center; font-weight:700; margin:18px 0 8px; }
+  .mp-note-body{ min-height:160px; white-space:pre-wrap; padding:12px; border:1px solid #333; font-size:13px; }
+  .mp-signature{ text-align:right; margin-top:20px; font-size:13px; }
 </style>
 </head>
 <body>
@@ -108,6 +126,7 @@
         <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
         <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
         <button class="nav-btn" id="editInfoBtn" title="이름·특징·추천인 수정">✏️ 수정</button>
+        <button class="nav-btn" id="openMembershipDocBtn" style="margin-left:auto; display:none;">📋 조합원 상담일지</button>
       </div>
       <p class="readonly-note" id="referrerDisplay" style="margin:6px 0 0;"></p>
 
@@ -192,6 +211,18 @@
     </section>
   </main>
 </div>
+
+<!-- 조합원 상담일지 모달 -->
+<div class="modal-overlay" id="membershipDocModalOverlay">
+  <div class="modal">
+    <div id="membershipDocContent"></div>
+    <div class="modal-actions">
+      <button class="nav-btn" id="closeMembershipDocBtn">닫기</button>
+      <button class="primary-btn" id="printMembershipDocBtn">🖨️ 인쇄</button>
+    </div>
+  </div>
+</div>
+<div id="membershipDocPrintView"></div>
 
 <script>
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
@@ -286,6 +317,7 @@
 
     await loadCustomerSummary();
     await loadFamily();
+    await loadMembershipDoc();
     await loadUnionActivities();
     await loadActivities();
     await loadSnapshots();
@@ -416,6 +448,104 @@
       document.getElementById('activityReadonlyNote').style.display = 'block';
     }
   }
+
+  // ---- 조합원 상담일지 ----
+  const openMembershipDocBtn = document.getElementById('openMembershipDocBtn');
+  const membershipDocModalOverlay = document.getElementById('membershipDocModalOverlay');
+  let membershipRecord = null;
+
+  function checkMark(checked){ return checked ? '☑' : '☐'; }
+
+  function buildMembershipDocHtml(v){
+    return `
+      <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
+      <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
+      <table class="mp-doc-table">
+        <tr><td class="mp-label">성명</td><td>${v.name} (고객번호 ${v.customer_no})</td></tr>
+        <tr><td class="mp-label">금융현황<br>(비과세한도)</td><td>
+          수신: ${v.deposit != null ? Number(v.deposit).toLocaleString('ko-KR') : '-'} &nbsp;&nbsp; 여신: ${v.loan != null ? Number(v.loan).toLocaleString('ko-KR') : '-'}<br>
+          (우리조합 기준 / 타금융: ${v.other_financial_amount != null ? Number(v.other_financial_amount).toLocaleString('ko-KR') : '-'} / 잔여한도: ${v.remaining_tax_free_limit != null ? Number(v.remaining_tax_free_limit).toLocaleString('ko-KR') : '-'})
+        </td></tr>
+        <tr><td class="mp-label">가입경로</td><td>
+          ${checkMark(v.join_channel==='금융상담')} 금융상담을 통한 가입<br>
+          ${checkMark(v.join_channel==='임업상담')} 임업상담을 통한 가입<br>
+          ${checkMark(v.join_channel==='소개')} 소개를 통한 가입 ${v.join_channel==='소개' ? `(추천인: ${v.referrerLabel||''} / 관계: ${v.referral_relation||''})` : ''}<br>
+          ${checkMark(v.join_channel==='기타')} 기타 ${v.join_channel==='기타' ? `(${v.join_channel_other||''})` : ''}
+        </td></tr>
+        <tr><td class="mp-label">관심분야</td><td>
+          ${checkMark(v.interest_forest_plan)} 산림경영계획 작성 &nbsp;&nbsp; ${checkMark(v.interest_financial)} 금융 사업 이용<br>
+          ${checkMark(v.interest_forestry_info)} 임업 상담 및 정보수집 &nbsp;&nbsp; ${checkMark(!!v.interest_other)} 기타 ${v.interest_other ? `(${v.interest_other})` : ''}
+        </td></tr>
+        <tr><td class="mp-label">직업 및 소속처<br>(중복가능)</td><td>
+          ${checkMark(v.occ_employed)} 직업 ${v.occ_employed ? `(직장: ${v.occ_workplace||''})` : ''}<br>
+          ${checkMark(v.occ_self_employed)} 자영업 ${v.occ_self_employed ? `(상호명: ${v.occ_business_name||''})` : ''}<br>
+          ${checkMark(v.occ_org)} 단체(소속) ${v.occ_org ? `(${v.occ_org_name||''})` : ''}
+        </td></tr>
+      </table>
+      <div class="mp-note-title">상담내용<br><span style="font-size:11px; font-weight:400;">(조합원 가입신청자 상담을 통해 자유롭게 작성)</span></div>
+      <div class="mp-note-body">${(v.consultation_note || '').replace(/</g,'&lt;')}</div>
+      <div class="mp-signature">상담자: ${v.consultant_name || ''} (인)</div>
+    `;
+  }
+
+  async function loadMembershipDoc(){
+    const { data: appRow } = await sb
+      .from('membership_applications')
+      .select('*')
+      .eq('customer_no', customerNo)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!appRow){
+      openMembershipDocBtn.style.display = 'none';
+      return;
+    }
+    openMembershipDocBtn.style.display = 'inline-flex';
+
+    const dateStr = appRow.created_at.slice(0, 10);
+    const { data: snapshotRow } = await sb
+      .from('balance_snapshots')
+      .select('deposit_balance, loan_balance')
+      .eq('customer_no', customerNo)
+      .eq('snapshot_date', dateStr)
+      .maybeSingle();
+
+    let referrerLabel = '';
+    if (customerSummary?.referred_by){
+      const { data: refRow } = await sb.from('customers').select('name').eq('customer_no', customerSummary.referred_by).maybeSingle();
+      referrerLabel = `${refRow?.name || ''}(${customerSummary.referred_by})`;
+    }
+
+    membershipRecord = {
+      ...appRow,
+      name: customerSummary?.name || '',
+      customer_no: customerNo,
+      deposit: snapshotRow?.deposit_balance ?? null,
+      loan: snapshotRow?.loan_balance ?? null,
+      referrerLabel
+    };
+  }
+
+  openMembershipDocBtn.addEventListener('click', () => {
+    if (!membershipRecord) return;
+    const html = buildMembershipDocHtml(membershipRecord);
+    document.getElementById('membershipDocContent').innerHTML = html;
+    document.getElementById('membershipDocPrintView').innerHTML = html;
+    membershipDocModalOverlay.classList.add('open');
+  });
+
+  document.getElementById('closeMembershipDocBtn').addEventListener('click', () => {
+    membershipDocModalOverlay.classList.remove('open');
+  });
+  membershipDocModalOverlay.addEventListener('click', (e) => {
+    if (e.target === membershipDocModalOverlay) membershipDocModalOverlay.classList.remove('open');
+  });
+  document.getElementById('printMembershipDocBtn').addEventListener('click', () => {
+    document.body.classList.add('printing-membership-doc');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-membership-doc'), 500);
+  });
 
   // ---- 가족 ----
   const REVERSE_RELATION = {
