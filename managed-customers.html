@@ -104,7 +104,7 @@
     <section class="card" id="familyReportSection">
       <h1>👪 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
-      <div style="max-width:900px; margin-bottom:20px;"><canvas id="familyChart" height="90"></canvas></div>
+      <div style="max-width:900px; margin-bottom:20px; position:relative; height:520px;"><canvas id="familyChart"></canvas></div>
       <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
       <div id="familyReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
@@ -347,7 +347,7 @@
   }
 
   function renderFamilyChart(groups){
-    // 수신잔액 증감(전월 대비)이 큰 순으로 상위 5(증가) + 하위 5(감소)를 보여준다
+    // 수신잔액 증감(전월 대비)이 큰 순으로 상위 10(증가) + 하위 10(감소)를 보여준다
     const withDiff = groups.filter(g => g.depositDiffSum !== 0);
     const sortedByDiff = withDiff.slice().sort((a, b) => b.depositDiffSum - a.depositDiffSum);
     const top = sortedByDiff.slice(0, 10);
@@ -362,6 +362,7 @@
 
     const labels = picked.map(g => `${g.repCandidate.name || '(이름없음)'} 외 ${g.members.length - 1}명`);
     const values = picked.map(g => g.depositDiffSum);
+    const fmtSigned = (v) => (v < 0 ? '-' : '+') + Number(Math.abs(v)).toLocaleString('ko-KR');
 
     const ctx = document.getElementById('familyChart').getContext('2d');
     familyChartInstance = new Chart(ctx, {
@@ -371,21 +372,52 @@
         datasets: [{
           data: values,
           backgroundColor: values.map(v => v >= 0 ? '#1a7a4c' : '#a4443a'),
-          borderRadius: 4,
-          barThickness: 16
+          borderRadius: 6,
+          borderSkipped: false,
+          categoryPercentage: 0.7,
+          barPercentage: 0.85
         }]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { left: 4, right: 46, top: 4, bottom: 4 } },
         plugins: {
           legend: { display: false },
-          title: { display: true, text: '가족단위 수신잔액 전월 대비 증감 (증가 상위 10 · 감소 하위 10)', font: { size: 13 } }
+          title: { display: true, text: '가족단위 수신잔액 전월 대비 증감 (증가 상위 10 · 감소 하위 10)', font: { size: 13 }, padding: { bottom: 12 } },
+          tooltip: { callbacks: { label: (c) => fmtSigned(c.raw) } }
         },
         scales: {
-          x: { ticks: { callback: (v) => (v < 0 ? '-' : '+') + Number(Math.abs(v)).toLocaleString('ko-KR') } }
+          x: {
+            grid: { color: '#ece9e2' },
+            border: { display: false },
+            ticks: { color: '#8a887f', font: { size: 11 }, callback: (v) => fmtSigned(v) }
+          },
+          y: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: '#3a382f', font: { size: 12 } }
+          }
         }
-      }
+      },
+      plugins: [{
+        id: 'valueLabels',
+        afterDatasetsDraw(chart){
+          const { ctx } = chart;
+          chart.data.datasets[0].data.forEach((val, i) => {
+            const meta = chart.getDatasetMeta(0).data[i];
+            ctx.save();
+            ctx.font = '11px sans-serif';
+            ctx.fillStyle = '#3a382f';
+            ctx.textBaseline = 'middle';
+            const text = fmtSigned(val);
+            if (val >= 0){ ctx.textAlign = 'left'; ctx.fillText(text, meta.x + 6, meta.y); }
+            else { ctx.textAlign = 'right'; ctx.fillText(text, meta.x - 6, meta.y); }
+            ctx.restore();
+          });
+        }
+      }]
     });
   }
 
