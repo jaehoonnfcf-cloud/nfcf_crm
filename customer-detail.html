@@ -246,14 +246,16 @@
 
       <div class="form-row" style="margin-top:14px;">
         <div>
-          <label class="readonly-note">🚪 가입경로</label>
-          <select id="amdJoinChannel" style="width:100%; margin-top:6px;">
-            <option value="금융상담">금융상담을 통한 가입</option>
-            <option value="임업상담">임업상담을 통한 가입</option>
-            <option value="소개">소개를 통한 가입</option>
-            <option value="기타">기타</option>
-          </select>
-          <input type="text" id="amdJoinChannelOther" style="display:none; margin-top:8px; width:100%;" placeholder="기타 내용" />
+          <label class="readonly-note">🚪 가입경로 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdJoinFinancial" /> 금융상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdJoinForestry" /> 임업상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdJoinReferral" /> 소개를 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="amdJoinOtherCheck" /> 기타
+              <input type="text" id="amdJoinChannelOther" style="flex:1; display:none;" placeholder="내용" />
+            </label>
+          </div>
         </div>
       </div>
 
@@ -580,10 +582,10 @@
           (우리조합 기준 / 타금융: ${v.other_financial_amount != null ? Number(v.other_financial_amount).toLocaleString('ko-KR') : '-'} / 잔여한도: ${v.remaining_tax_free_limit != null ? Number(v.remaining_tax_free_limit).toLocaleString('ko-KR') : '-'})
         </td></tr>
         <tr><td class="mp-label">가입경로</td><td>
-          ${checkMark(v.join_channel==='금융상담')} 금융상담을 통한 가입<br>
-          ${checkMark(v.join_channel==='임업상담')} 임업상담을 통한 가입<br>
-          ${checkMark(v.join_channel==='소개')} 소개를 통한 가입<br>
-          ${checkMark(v.join_channel==='기타')} 기타 ${v.join_channel==='기타' ? `(${v.join_channel_other||''})` : ''}
+          ${checkMark(v.join_financial)} 금융상담을 통한 가입<br>
+          ${checkMark(v.join_forestry)} 임업상담을 통한 가입<br>
+          ${checkMark(v.join_referral)} 소개를 통한 가입<br>
+          ${checkMark(v.join_other)} 기타 ${v.join_other ? `(${v.join_other_text||''})` : ''}
           ${v.customerSummaryReferredBy ? `<br>🔗 추천인: ${v.referrerLabel||''} (관계: ${v.referral_relation||'-'})` : ''}
         </td></tr>
         <tr><td class="mp-label">관심분야</td><td>
@@ -671,7 +673,7 @@
   // ---- 상담일지 신규 추가 (기존 고객) ----
   const addMembershipDocModalOverlay = document.getElementById('addMembershipDocModalOverlay');
   const addMembershipDocForm = document.getElementById('addMembershipDocForm');
-  const amdJoinChannel = document.getElementById('amdJoinChannel');
+  const amdJoinOtherCheck = document.getElementById('amdJoinOtherCheck');
   const amdJoinChannelOther = document.getElementById('amdJoinChannelOther');
   const amdReferrerHint = document.getElementById('amdReferrerHint');
   const amdFamilyHint = document.getElementById('amdFamilyHint');
@@ -692,8 +694,8 @@
   addMembershipDocModalOverlay.addEventListener('click', (e) => {
     if (e.target === addMembershipDocModalOverlay) addMembershipDocModalOverlay.classList.remove('open');
   });
-  amdJoinChannel.addEventListener('change', () => {
-    amdJoinChannelOther.style.display = amdJoinChannel.value === '기타' ? 'block' : 'none';
+  amdJoinOtherCheck.addEventListener('change', () => {
+    amdJoinChannelOther.style.display = amdJoinOtherCheck.checked ? 'block' : 'none';
   });
 
   function todayDateStr(){
@@ -710,7 +712,10 @@
     const loan = document.getElementById('amdLoan').value;
     const otherFinancial = document.getElementById('amdOtherFinancial').value;
     const taxFreeLimit = document.getElementById('amdTaxFreeLimit').value;
-    const joinChannel = amdJoinChannel.value;
+    const joinFinancial = document.getElementById('amdJoinFinancial').checked;
+    const joinForestry = document.getElementById('amdJoinForestry').checked;
+    const joinReferral = document.getElementById('amdJoinReferral').checked;
+    const joinOtherCheck = amdJoinOtherCheck.checked;
     const joinChannelOther = amdJoinChannelOther.value.trim();
     const referrerNo = document.getElementById('amdReferrerNo').value ? Number(document.getElementById('amdReferrerNo').value) : null;
     const referralRelation = document.getElementById('amdReferralRelation').value.trim();
@@ -805,8 +810,11 @@
       customer_no: customerNo,
       other_financial_amount: otherFinancial ? Number(otherFinancial) : null,
       remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
-      join_channel: joinChannel,
-      join_channel_other: joinChannel === '기타' ? joinChannelOther : null,
+      join_financial: joinFinancial,
+      join_forestry: joinForestry,
+      join_referral: joinReferral,
+      join_other: joinOtherCheck,
+      join_other_text: joinOtherCheck ? joinChannelOther : null,
       referral_relation: referralRelation || null,
       interest_forest_plan: interestPlan,
       interest_financial: interestFinancial,

@@ -561,14 +561,16 @@
         </div>
 
         <div class="field">
-          <label>🚪 가입경로</label>
-          <select id="mJoinChannel" style="width:100%;">
-            <option value="금융상담">금융상담을 통한 가입</option>
-            <option value="임업상담">임업상담을 통한 가입</option>
-            <option value="소개">소개를 통한 가입</option>
-            <option value="기타">기타</option>
-          </select>
-          <input type="text" id="mJoinChannelOther" style="display:none; margin-top:8px; width:100%;" placeholder="기타 내용" />
+          <label>🚪 가입경로 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinFinancial" /> 금융상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinForestry" /> 임업상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinReferral" /> 소개를 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mJoinOtherCheck" /> 기타
+              <input type="text" id="mJoinChannelOther" style="flex:1; display:none;" placeholder="내용" />
+            </label>
+          </div>
         </div>
 
         <div class="field">
@@ -1923,7 +1925,7 @@
   const submitMembershipBtn = document.getElementById('submitMembershipBtn');
   const mNo = document.getElementById('mNo');
   const mHintNo = document.getElementById('mHintNo');
-  const mJoinChannel = document.getElementById('mJoinChannel');
+  const mJoinOtherCheck = document.getElementById('mJoinOtherCheck');
   const mJoinChannelOther = document.getElementById('mJoinChannelOther');
   const mReferrerHint = document.getElementById('mReferrerHint');
   const mFamilyHint = document.getElementById('mFamilyHint');
@@ -1944,8 +1946,8 @@
   cancelMembershipBtn.addEventListener('click', closeMembershipModal);
   membershipModalOverlay.addEventListener('click', (e) => { if (e.target === membershipModalOverlay) closeMembershipModal(); });
 
-  mJoinChannel.addEventListener('change', () => {
-    mJoinChannelOther.style.display = mJoinChannel.value === '기타' ? 'block' : 'none';
+  mJoinOtherCheck.addEventListener('change', () => {
+    mJoinChannelOther.style.display = mJoinOtherCheck.checked ? 'block' : 'none';
   });
 
   mNo.addEventListener('blur', async () => {
@@ -1979,10 +1981,10 @@
   function renderMembershipPrintView(v){
     const view = document.getElementById('membershipPrintView');
     const joinRows = {
-      '금융상담': `${checkMark(v.joinChannel==='금융상담')} 금융상담을 통한 가입`,
-      '임업상담': `${checkMark(v.joinChannel==='임업상담')} 임업상담을 통한 가입`,
-      '소개': `${checkMark(v.joinChannel==='소개')} 소개를 통한 가입`,
-      '기타': `${checkMark(v.joinChannel==='기타')} 기타 ${v.joinChannel==='기타' ? `(${v.joinChannelOther||''})` : ''}`
+      '금융상담': `${checkMark(v.joinFinancial)} 금융상담을 통한 가입`,
+      '임업상담': `${checkMark(v.joinForestry)} 임업상담을 통한 가입`,
+      '소개': `${checkMark(v.joinReferral)} 소개를 통한 가입`,
+      '기타': `${checkMark(v.joinOtherCheck)} 기타 ${v.joinOtherCheck ? `(${v.joinChannelOther||''})` : ''}`
     };
     const referrerLine = v.referrerNo ? `<br>🔗 추천인: ${v.referrerNo}번 (관계: ${v.referralRelation||'-'})` : '';
     view.innerHTML = `
@@ -2023,7 +2025,10 @@
     const loan = document.getElementById('mLoan').value;
     const otherFinancial = document.getElementById('mOtherFinancial').value;
     const taxFreeLimit = document.getElementById('mTaxFreeLimit').value;
-    const joinChannel = mJoinChannel.value;
+    const joinFinancial = document.getElementById('mJoinFinancial').checked;
+    const joinForestry = document.getElementById('mJoinForestry').checked;
+    const joinReferral = document.getElementById('mJoinReferral').checked;
+    const joinOtherCheck = mJoinOtherCheck.checked;
     const joinChannelOther = mJoinChannelOther.value.trim();
     const referrerNo = document.getElementById('mReferrerNo').value ? Number(document.getElementById('mReferrerNo').value) : null;
     const referralRelation = document.getElementById('mReferralRelation').value.trim();
@@ -2139,8 +2144,11 @@
       customer_no: no,
       other_financial_amount: otherFinancial ? Number(otherFinancial) : null,
       remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
-      join_channel: joinChannel,
-      join_channel_other: joinChannel === '기타' ? joinChannelOther : null,
+      join_financial: joinFinancial,
+      join_forestry: joinForestry,
+      join_referral: joinReferral,
+      join_other: joinOtherCheck,
+      join_other_text: joinOtherCheck ? joinChannelOther : null,
       referral_relation: referralRelation || null,
       interest_forest_plan: interestPlan,
       interest_financial: interestFinancial,
@@ -2167,7 +2175,7 @@
 
     renderMembershipPrintView({
       no, name, deposit, loan, otherFinancial, taxFreeLimit,
-      joinChannel, joinChannelOther, referrerNo, referralRelation,
+      joinFinancial, joinForestry, joinReferral, joinOtherCheck, joinChannelOther, referrerNo, referralRelation,
       interestPlan, interestFinancial, interestForestry, interestOtherCheck, interestOther,
       occEmployed, workplace, occSelfEmployed, businessName, occOrg, orgName,
       consultNote, consultantName: currentUserName
