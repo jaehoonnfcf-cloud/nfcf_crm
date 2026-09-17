@@ -234,7 +234,7 @@
             <h1 style="margin:0;">🎁 사은품지급내역</h1>
             <button class="primary-btn" id="giftFormWrap" style="padding:6px 14px; font-size:12.5px;">➕ 등록</button>
           </div>
-          <p class="desc">명절 사은품, 조합원 생일선물 등 지급 이력입니다. 담당자는 직접 추가·수정할 수 있고, 관리자는 CSV로 일괄 등록할 수 있습니다.</p>
+          <p class="desc">명절 사은품, 조합원 생일선물 등 지급 이력입니다. 등록된 가족의 지급 내역도 함께 표시됩니다. 담당자는 직접 추가·수정할 수 있고, 관리자는 CSV로 일괄 등록할 수 있습니다.</p>
           <p class="readonly-note" id="giftReadonlyNote" style="display:none">담당자만 지급 내역을 입력할 수 있습니다. (조회만 가능)</p>
           <p class="readonly-note" id="giftCountLabel" style="margin-top:4px;"></p>
           <div id="giftTable" style="margin-top:8px"></div>
@@ -471,6 +471,7 @@
   let currentUserEmail = '';
   let currentUserName = '';
   let isAdmin = false;
+  let familyGroupNos = [];
 
   googleLoginBtn.addEventListener('click', async () => {
     loginError.style.display = 'none';
@@ -1231,6 +1232,7 @@
     find(customerNo);
     const root = find(customerNo);
     const groupNos = Object.keys(parent).map(Number).filter(no => find(no) === root);
+    familyGroupNos = groupNos.length ? groupNos : [customerNo];
 
     const familySumGrid = document.getElementById('familySumGrid');
     if (groupNos.length < 2){
@@ -1449,27 +1451,46 @@
     await loadGifts();
   });
 
+  let giftNameMap = {};
+
   async function loadGifts(){
+    const groupNos = familyGroupNos.length ? familyGroupNos : [customerNo];
     const { data, error } = await sb.from('customer_activities')
-      .select('id, activity_date, content, created_by_email')
-      .eq('customer_no', customerNo)
+      .select('id, customer_no, activity_date, content, created_by_email')
+      .in('customer_no', groupNos)
       .eq('activity_type', '사은품')
       .order('activity_date', { ascending: false });
 
     if (error){ giftTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; giftCountLabel.textContent = ''; return; }
     giftRows = data || [];
-    giftCountLabel.textContent = giftRows.length ? `총 ${giftRows.length}건 지급` : '';
+
+    giftNameMap = {};
+    if (giftRows.length && groupNos.length > 1){
+      const nos = Array.from(new Set(giftRows.map(g => g.customer_no)));
+      const { data: nameRows } = await sb.from('customers').select('customer_no, name').in('customer_no', nos);
+      for (const r of (nameRows || [])) giftNameMap[r.customer_no] = r.name;
+    }
+
+    const familyCount = giftRows.filter(g => g.customer_no !== customerNo).length;
+    giftCountLabel.textContent = giftRows.length
+      ? `총 ${giftRows.length}건 지급${familyCount ? ` (본인 외 가족 ${familyCount}건 포함)` : ''}`
+      : '';
     renderGiftTable();
   }
 
   function renderGiftTable(){
     if (!giftRows.length){ giftTable.innerHTML = `<p class="empty">등록된 사은품 지급 내역이 없습니다.</p>`; return; }
-    let html = `<table class="mobile-card-table"><thead><tr><th style="width:100px">날짜</th><th>내용</th><th style="width:90px"></th></tr></thead><tbody>`;
+    const showRecipient = familyGroupNos.length > 1;
+    let html = `<table class="mobile-card-table"><thead><tr><th style="width:100px">날짜</th><th>내용</th>${showRecipient ? '<th style="width:110px">수령자</th>' : ''}<th style="width:90px"></th></tr></thead><tbody>`;
     for (const g of giftRows){
       const canEdit = isAdmin || g.created_by_email === currentUserEmail;
+      const recipientCell = showRecipient
+        ? `<td data-label="수령자">${g.customer_no === customerNo ? '본인' : `<a href="customer-detail.html?customer_no=${g.customer_no}">${giftNameMap[g.customer_no] || '(이름없음)'} (${g.customer_no})</a>`}</td>`
+        : '';
       html += `<tr data-id="${g.id}">
         <td data-label="날짜">${g.activity_date}</td>
         <td data-label="내용">${g.content}</td>
+        ${recipientCell}
         <td class="gift-actions">${canEdit ? `<button class="nav-btn gift-edit-btn" data-id="${g.id}">✏️</button> <button class="nav-btn gift-delete-btn" data-id="${g.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
