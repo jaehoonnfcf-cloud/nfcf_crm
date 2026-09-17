@@ -218,16 +218,17 @@
     <div id="membershipDocContent"></div>
     <div class="modal-actions">
       <button class="nav-btn" id="closeMembershipDocBtn">닫기</button>
+      <button class="nav-btn" id="editMembershipDocBtn">✏️ 수정</button>
       <button class="primary-btn" id="printMembershipDocBtn">🖨️ 인쇄</button>
     </div>
   </div>
 </div>
 <div id="membershipDocPrintView"></div>
 
-<!-- 조합원 상담일지 추가 모달 (기존 고객) -->
+<!-- 조합원 상담일지 추가/수정 모달 (기존 고객) -->
 <div class="modal-overlay" id="addMembershipDocModalOverlay">
   <div class="modal" style="max-width:640px; max-height:88vh; overflow-y:auto;">
-    <h2>📋 조합원 상담일지 추가</h2>
+    <h2 id="addMembershipDocTitle">📋 조합원 상담일지 추가</h2>
     <p class="readonly-note" style="margin:0 0 14px;">이 고객의 기존 특징·가족 정보를 그대로 활용해서, 조합원 가입 상담 내용만 추가로 기록합니다.</p>
     <form id="addMembershipDocForm">
       <div class="form-row">
@@ -356,6 +357,7 @@
   const userEmail = document.getElementById('userEmail');
 
   let currentUserEmail = '';
+  let currentUserName = '';
   let isAdmin = false;
 
   googleLoginBtn.addEventListener('click', async () => {
@@ -423,7 +425,8 @@
     app.style.display = 'block';
     currentUserEmail = session.user.email;
     const { data: name } = await sb.rpc('current_user_name');
-    userEmail.textContent = name || currentUserEmail;
+    currentUserName = name || currentUserEmail;
+    userEmail.textContent = currentUserName;
 
     const { data: admin } = await sb.rpc('is_admin');
     isAdmin = !!admin;
@@ -619,7 +622,7 @@
       membershipRecord = null;
       return;
     }
-    openMembershipDocBtn.textContent = '📋 조합원 상담일지';
+    openMembershipDocBtn.textContent = '📋 상담일지 보기';
     openMembershipDocBtn.style.display = 'inline-flex';
 
     const dateStr = appRow.created_at.slice(0, 10);
@@ -658,6 +661,12 @@
     }
   });
 
+  document.getElementById('editMembershipDocBtn').addEventListener('click', () => {
+    if (!membershipRecord) return;
+    membershipDocModalOverlay.classList.remove('open');
+    openAddMembershipDocModal(membershipRecord);
+  });
+
   document.getElementById('closeMembershipDocBtn').addEventListener('click', () => {
     membershipDocModalOverlay.classList.remove('open');
   });
@@ -670,22 +679,59 @@
     setTimeout(() => document.body.classList.remove('printing-membership-doc'), 500);
   });
 
-  // ---- 상담일지 신규 추가 (기존 고객) ----
+  // ---- 상담일지 신규 추가 / 수정 (기존 고객) ----
   const addMembershipDocModalOverlay = document.getElementById('addMembershipDocModalOverlay');
   const addMembershipDocForm = document.getElementById('addMembershipDocForm');
+  const addMembershipDocTitle = document.getElementById('addMembershipDocTitle');
   const amdJoinOtherCheck = document.getElementById('amdJoinOtherCheck');
   const amdJoinChannelOther = document.getElementById('amdJoinChannelOther');
   const amdReferrerHint = document.getElementById('amdReferrerHint');
   const amdFamilyHint = document.getElementById('amdFamilyHint');
   const amdSubmitBtn = document.getElementById('amdSubmitBtn');
+  let editingMembershipRecord = null;
 
-  function openAddMembershipDocModal(){
+  function openAddMembershipDocModal(existing){
     addMembershipDocForm.reset();
     amdJoinChannelOther.style.display = 'none';
     amdReferrerHint.style.display = 'none';
     amdFamilyHint.style.display = 'none';
     amdSubmitBtn.disabled = false;
-    amdSubmitBtn.textContent = '📋 저장';
+
+    editingMembershipRecord = existing || null;
+
+    if (existing){
+      addMembershipDocTitle.textContent = '✏️ 조합원 상담일지 수정';
+      amdSubmitBtn.textContent = '✏️ 수정 저장';
+      document.getElementById('amdDeposit').value = existing.deposit ?? '';
+      document.getElementById('amdLoan').value = existing.loan ?? '';
+      document.getElementById('amdOtherFinancial').value = existing.other_financial_amount ?? '';
+      document.getElementById('amdTaxFreeLimit').value = existing.remaining_tax_free_limit ?? '';
+      document.getElementById('amdJoinFinancial').checked = !!existing.join_financial;
+      document.getElementById('amdJoinForestry').checked = !!existing.join_forestry;
+      document.getElementById('amdJoinReferral').checked = !!existing.join_referral;
+      amdJoinOtherCheck.checked = !!existing.join_other;
+      amdJoinChannelOther.style.display = existing.join_other ? 'block' : 'none';
+      amdJoinChannelOther.value = existing.join_other_text || '';
+      document.getElementById('amdReferrerNo').value = customerSummary?.referred_by || '';
+      document.getElementById('amdReferralRelation').value = existing.referral_relation || '';
+      document.getElementById('amdInterestPlan').checked = !!existing.interest_forest_plan;
+      document.getElementById('amdInterestFinancial').checked = !!existing.interest_financial;
+      document.getElementById('amdInterestForestry').checked = !!existing.interest_forestry_info;
+      const hasInterestOther = !!existing.interest_other;
+      document.getElementById('amdInterestOtherCheck').checked = hasInterestOther;
+      document.getElementById('amdInterestOther').value = existing.interest_other || '';
+      document.getElementById('amdOccEmployed').checked = !!existing.occ_employed;
+      document.getElementById('amdWorkplace').value = existing.occ_workplace || '';
+      document.getElementById('amdOccSelfEmployed').checked = !!existing.occ_self_employed;
+      document.getElementById('amdBusinessName').value = existing.occ_business_name || '';
+      document.getElementById('amdOccOrg').checked = !!existing.occ_org;
+      document.getElementById('amdOrgName').value = existing.occ_org_name || '';
+      document.getElementById('amdConsultNote').value = existing.consultation_note || '';
+    } else {
+      addMembershipDocTitle.textContent = '📋 조합원 상담일지 추가';
+      amdSubmitBtn.textContent = '📋 저장';
+    }
+
     addMembershipDocModalOverlay.classList.add('open');
   }
   document.getElementById('cancelAddMembershipDocBtn').addEventListener('click', () => {
@@ -770,6 +816,7 @@
     }
 
     amdSubmitBtn.textContent = '⏳ 저장 중...';
+    const targetDate = editingMembershipRecord ? editingMembershipRecord.created_at.slice(0, 10) : todayDateStr();
 
     if (referrerNo){
       await sb.from('customers').update({ referred_by: referrerNo }).eq('customer_no', customerNo);
@@ -786,28 +833,35 @@
     await sb.from('members').upsert({ customer_no: customerNo, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
 
     if (deposit || loan){
-      await sb.from('balance_snapshots').insert({
+      await sb.from('balance_snapshots').upsert({
         customer_no: customerNo,
-        snapshot_date: todayDateStr(),
+        snapshot_date: targetDate,
         deposit_balance: deposit ? Number(deposit) : null,
         loan_balance: loan ? Number(loan) : null,
         uploaded_by: currentUserEmail
-      });
+      }, { onConflict: 'customer_no,snapshot_date' });
     }
 
     if (consultNote){
-      await sb.from('customer_activities').insert({
-        customer_no: customerNo,
-        activity_type: '가입상담',
-        activity_date: todayDateStr(),
-        content: consultNote,
-        created_by: currentUserName,
-        created_by_email: currentUserEmail
-      });
+      const { data: existingActivity } = await sb.from('customer_activities')
+        .select('id')
+        .eq('customer_no', customerNo).eq('activity_type', '가입상담').eq('activity_date', targetDate)
+        .maybeSingle();
+      if (existingActivity){
+        await sb.from('customer_activities').update({ content: consultNote }).eq('id', existingActivity.id);
+      } else {
+        await sb.from('customer_activities').insert({
+          customer_no: customerNo,
+          activity_type: '가입상담',
+          activity_date: targetDate,
+          content: consultNote,
+          created_by: currentUserName,
+          created_by_email: currentUserEmail
+        });
+      }
     }
 
-    const { error: appError } = await sb.from('membership_applications').insert({
-      customer_no: customerNo,
+    const appPayload = {
       other_financial_amount: otherFinancial ? Number(otherFinancial) : null,
       remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
       join_financial: joinFinancial,
@@ -826,13 +880,23 @@
       occ_business_name: occSelfEmployed ? businessName : null,
       occ_org: occOrg,
       occ_org_name: occOrg ? orgName : null,
-      consultation_note: consultNote || null,
-      consultant_email: currentUserEmail,
-      consultant_name: currentUserName
-    });
+      consultation_note: consultNote || null
+    };
+
+    let appError;
+    if (editingMembershipRecord){
+      const { error } = await sb.from('membership_applications').update(appPayload).eq('id', editingMembershipRecord.id);
+      appError = error;
+    } else {
+      appPayload.customer_no = customerNo;
+      appPayload.consultant_email = currentUserEmail;
+      appPayload.consultant_name = currentUserName;
+      const { error } = await sb.from('membership_applications').insert(appPayload);
+      appError = error;
+    }
 
     amdSubmitBtn.disabled = false;
-    amdSubmitBtn.textContent = '📋 저장';
+    amdSubmitBtn.textContent = editingMembershipRecord ? '✏️ 수정 저장' : '📋 저장';
 
     if (appError){
       alert('상담일지 저장 실패: ' + appError.message);
@@ -840,6 +904,7 @@
     }
 
     addMembershipDocModalOverlay.classList.remove('open');
+    editingMembershipRecord = null;
     await loadCustomerSummary();
     await loadFamily();
     await loadMembershipDoc();
