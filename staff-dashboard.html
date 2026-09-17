@@ -74,6 +74,8 @@
   .compact-table th:nth-child(5), .compact-table th:nth-child(6){ text-align:right; }
 
   @media print{
+    @page{ size:A4 portrait; margin:14mm 12mm; }
+
     body.print-customers-only header,
     body.print-customers-only #myCustomerSearchBox,
     body.print-customers-only .unassign-btn,
@@ -83,8 +85,11 @@
     body.print-customers-only #familyReportSection{
       display:none !important;
     }
+    body.print-customers-only .compact-table th:last-child,
+    body.print-customers-only .compact-table td:last-child{
+      display:none !important;
+    }
     body.print-customers-only{ background:#fff; }
-    body.print-customers-only section.card{ border:none; box-shadow:none; padding:0; margin-bottom:20px; }
 
     body.print-report-only header,
     body.print-report-only section.card:not(#unionReportSection),
@@ -94,7 +99,38 @@
     body.print-report-only #unionReportSection p.desc{
       display:none !important;
     }
-    body.print-report-only section.card{ border:none; box-shadow:none; padding:0; }
+    body.print-report-only{ background:#fff; }
+
+    body.print-customers-only main,
+    body.print-report-only main{
+      max-width:none; margin:0; padding:0; gap:0; display:block;
+    }
+    body.print-customers-only section.card,
+    body.print-report-only section.card{
+      border:none; box-shadow:none; padding:0; margin:0;
+    }
+    body.print-customers-only table,
+    body.print-report-only table{
+      width:100%; table-layout:fixed; font-size:11px;
+    }
+    body.print-customers-only th,
+    body.print-customers-only td,
+    body.print-report-only th,
+    body.print-report-only td{
+      padding:4px 5px; white-space:normal !important; word-break:break-word;
+    }
+    body.print-customers-only thead,
+    body.print-report-only thead{
+      display:table-header-group;
+    }
+    body.print-customers-only tr,
+    body.print-report-only tr{
+      page-break-inside:avoid; break-inside:avoid;
+    }
+    body.print-customers-only *,
+    body.print-report-only *{
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
   }
 </style>
 </head>
