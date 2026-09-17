@@ -552,12 +552,12 @@
         <div class="field">
           <label>💰 금융현황 (비과세한도)</label>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input type="number" id="mDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
-            <input type="number" id="mLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
-            <input type="number" id="mOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
-            <input type="number" id="mTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
           </div>
         </div>
 
@@ -1931,6 +1931,17 @@
   const mReferrerHint = document.getElementById('mReferrerHint');
   const mFamilyHint = document.getElementById('mFamilyHint');
 
+  document.querySelectorAll('.money-input').forEach(el => {
+    el.addEventListener('input', () => {
+      const raw = el.value.replace(/[^\d]/g, '');
+      el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+    });
+  });
+  function parseMoneyInput(el){
+    const raw = el.value.replace(/[^\d]/g, '');
+    return raw ? Number(raw) : null;
+  }
+
   function openMembershipModal(){
     membershipForm.reset();
     mHintNo.innerHTML = '';
@@ -2022,10 +2033,10 @@
     const no = Number(mNo.value);
     const name = document.getElementById('mName').value.trim();
     const info = document.getElementById('mInfo').value.trim();
-    const deposit = document.getElementById('mDeposit').value;
-    const loan = document.getElementById('mLoan').value;
-    const otherFinancial = document.getElementById('mOtherFinancial').value;
-    const taxFreeLimit = document.getElementById('mTaxFreeLimit').value;
+    const deposit = parseMoneyInput(document.getElementById('mDeposit'));
+    const loan = parseMoneyInput(document.getElementById('mLoan'));
+    const otherFinancial = parseMoneyInput(document.getElementById('mOtherFinancial'));
+    const taxFreeLimit = parseMoneyInput(document.getElementById('mTaxFreeLimit'));
     const joinFinancial = document.getElementById('mJoinFinancial').checked;
     const joinForestry = document.getElementById('mJoinForestry').checked;
     const joinReferral = document.getElementById('mJoinReferral').checked;

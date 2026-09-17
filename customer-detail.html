@@ -236,12 +236,12 @@
         <div>
           <label class="readonly-note">💰 금융현황 (비과세한도)</label>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
-            <input type="number" id="amdDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
-            <input type="number" id="amdLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="amdDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="amdLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
-            <input type="number" id="amdOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
-            <input type="number" id="amdTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="amdOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="amdTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
           </div>
         </div>
       </div>
@@ -691,6 +691,20 @@
   const amdSubmitBtn = document.getElementById('amdSubmitBtn');
   let editingMembershipRecord = null;
 
+  function fmtMoneyValue(n){
+    return (n === null || n === undefined || n === '') ? '' : Number(n).toLocaleString('ko-KR');
+  }
+  function parseMoneyInput(el){
+    const raw = el.value.replace(/[^\d]/g, '');
+    return raw ? Number(raw) : null;
+  }
+  document.querySelectorAll('.money-input').forEach(el => {
+    el.addEventListener('input', () => {
+      const raw = el.value.replace(/[^\d]/g, '');
+      el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+    });
+  });
+
   function openAddMembershipDocModal(existing){
     addMembershipDocForm.reset();
     amdJoinChannelOther.style.display = 'none';
@@ -703,10 +717,10 @@
     if (existing){
       addMembershipDocTitle.textContent = '✏️ 조합원 상담일지 수정';
       amdSubmitBtn.textContent = '✏️ 수정 저장';
-      document.getElementById('amdDeposit').value = existing.deposit ?? '';
-      document.getElementById('amdLoan').value = existing.loan ?? '';
-      document.getElementById('amdOtherFinancial').value = existing.other_financial_amount ?? '';
-      document.getElementById('amdTaxFreeLimit').value = existing.remaining_tax_free_limit ?? '';
+      document.getElementById('amdDeposit').value = fmtMoneyValue(existing.deposit);
+      document.getElementById('amdLoan').value = fmtMoneyValue(existing.loan);
+      document.getElementById('amdOtherFinancial').value = fmtMoneyValue(existing.other_financial_amount);
+      document.getElementById('amdTaxFreeLimit').value = fmtMoneyValue(existing.remaining_tax_free_limit);
       document.getElementById('amdJoinFinancial').checked = !!existing.join_financial;
       document.getElementById('amdJoinForestry').checked = !!existing.join_forestry;
       document.getElementById('amdJoinReferral').checked = !!existing.join_referral;
@@ -731,6 +745,8 @@
     } else {
       addMembershipDocTitle.textContent = '📋 조합원 상담일지 추가';
       amdSubmitBtn.textContent = '📋 저장';
+      document.getElementById('amdDeposit').value = fmtMoneyValue(customerSummary?.current_deposit_balance);
+      document.getElementById('amdLoan').value = fmtMoneyValue(customerSummary?.current_loan_balance);
     }
 
     addMembershipDocModalOverlay.classList.add('open');
@@ -755,10 +771,10 @@
     amdReferrerHint.style.display = 'none';
     amdFamilyHint.style.display = 'none';
 
-    const deposit = document.getElementById('amdDeposit').value;
-    const loan = document.getElementById('amdLoan').value;
-    const otherFinancial = document.getElementById('amdOtherFinancial').value;
-    const taxFreeLimit = document.getElementById('amdTaxFreeLimit').value;
+    const deposit = parseMoneyInput(document.getElementById('amdDeposit'));
+    const loan = parseMoneyInput(document.getElementById('amdLoan'));
+    const otherFinancial = parseMoneyInput(document.getElementById('amdOtherFinancial'));
+    const taxFreeLimit = parseMoneyInput(document.getElementById('amdTaxFreeLimit'));
     const joinFinancial = document.getElementById('amdJoinFinancial').checked;
     const joinForestry = document.getElementById('amdJoinForestry').checked;
     const joinReferral = document.getElementById('amdJoinReferral').checked;
