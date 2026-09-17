@@ -73,6 +73,48 @@
   .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
   .compact-table th:nth-child(5), .compact-table th:nth-child(6){ text-align:right; }
 
+  @media (max-width:680px){
+    header{ padding:12px 16px; gap:8px; }
+    .brand h2{ font-size:15px; }
+    .user-box{ width:100%; }
+    .nav-btn{ padding:6px 10px; font-size:12px; }
+    main{ padding:16px 12px 40px; gap:20px; }
+    section.card{ padding:16px; }
+    section.card h1{ font-size:16px; }
+    #myCustomerSearchBox, #unassignedSearchBox, #familyReportSearchBox{ width:100% !important; }
+
+    /* 내 고객: 표 대신 카드 형태로 표시 */
+    .compact-table thead{ display:none; }
+    .compact-table, .compact-table tbody{ display:block; width:100%; }
+    .compact-table tr{
+      display:block; border:1px solid var(--line); border-radius:12px;
+      padding:10px 12px; margin-bottom:10px; background:var(--panel);
+    }
+    .compact-table td{
+      display:flex; align-items:baseline; gap:10px; width:auto !important;
+      border-bottom:none; padding:4px 0; font-size:13.5px;
+    }
+    .compact-table td[data-label]::before{
+      content:attr(data-label); flex:0 0 58px; color:var(--muted);
+      font-size:11px; font-weight:600;
+    }
+    .compact-table td .v{ flex:1; text-align:right; }
+    .compact-table td[data-label="고객번호"] .v,
+    .compact-table td[data-label="성명"] .v{ text-align:left; font-weight:600; }
+    .compact-table td.ellipsis{ white-space:normal; }
+    .compact-table td.ellipsis .v{ text-align:left; white-space:normal; }
+    .compact-table td.unassign-cell{ justify-content:flex-end; padding-top:8px; }
+
+    /* 그 외 표는 가로 스크롤로 대응 */
+    #unassignedTable, #myRequestsTable, #unionReportTable, #familyReportTable{
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
+    }
+    #unassignedTable table, #myRequestsTable table,
+    #unionReportTable table, #familyReportTable table{
+      min-width:560px;
+    }
+  }
+
   @media print{
     @page{ size:A4 portrait; margin:14mm 12mm; }
 
@@ -344,13 +386,13 @@
     </tr></thead><tbody>`;
     for (const c of rows){
       html += `<tr>
-        <td class="clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
-        <td class="clickable" data-customer="${c.customer_no}">${c.name||''}</td>
-        <td class="clickable ellipsis" data-customer="${c.customer_no}" title="${(c.customer_info||'').replace(/"/g,'&quot;')}">${c.customer_info||''}</td>
-        <td class="clickable ellipsis" data-customer="${c.customer_no}" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}">${c.unionActivity}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
-        <td class="clickable num" data-customer="${c.customer_no}">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
-        <td><button class="small-btn unassign-btn" data-customer="${c.customer_no}">🗑️ 해제</button></td>
+        <td class="clickable" data-customer="${c.customer_no}" data-label="고객번호"><span class="v">${c.customer_no}</span></td>
+        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}</span></td>
+        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="특징" title="${(c.customer_info||'').replace(/"/g,'&quot;')}"><span class="v">${c.customer_info||''}</span></td>
+        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="조합활동" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}"><span class="v">${c.unionActivity}</span></td>
+        <td class="clickable num" data-customer="${c.customer_no}" data-label="수신잔액"><span class="v">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</span></td>
+        <td class="clickable num" data-customer="${c.customer_no}" data-label="여신잔액"><span class="v">${balanceCell(c.current_loan_balance, c.loan_diff)}</span></td>
+        <td class="unassign-cell"><button class="small-btn unassign-btn" data-customer="${c.customer_no}">🗑️ 해제</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;
