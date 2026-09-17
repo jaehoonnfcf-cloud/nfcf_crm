@@ -125,18 +125,6 @@
       </section>
 
       <section class="card">
-        <h1>🙋 담당자 배정</h1>
-        <p class="desc">담당자가 지정되지 않은 고객입니다. 담당자를 선택하고 저장하세요.</p>
-        <input type="text" id="assignSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
-        <div id="assignTable"></div>
-        <div class="row-actions">
-          <button class="primary-btn" id="saveAssignBtn">배정 저장</button>
-          <button class="secondary-btn" id="refreshAssignBtn">🔄 새로고침</button>
-        </div>
-        <div class="status-msg" id="assignStatus"></div>
-      </section>
-
-      <section class="card">
         <h1>📊 월말 잔액 일괄 업로드</h1>
         <p class="desc">기준월을 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 수신잔액, 여신잔액. 같은 월을 다시 업로드하면 값이 갱신됩니다 (누적 기록은 고객 상세 화면에서 확인).</p>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
@@ -179,6 +167,18 @@
           <button class="primary-btn csv-btn" id="giftUploadBtn" disabled>업로드 실행</button>
         </div>
         <div class="status-msg" id="giftUploadStatus"></div>
+      </section>
+
+      <section class="card">
+        <h1>🙋 담당자 배정</h1>
+        <p class="desc">담당자가 지정되지 않은 고객입니다. 담당자를 선택하고 저장하세요.</p>
+        <input type="text" id="assignSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
+        <div id="assignTable"></div>
+        <div class="row-actions">
+          <button class="primary-btn" id="saveAssignBtn">배정 저장</button>
+          <button class="secondary-btn" id="refreshAssignBtn">🔄 새로고침</button>
+        </div>
+        <div class="status-msg" id="assignStatus"></div>
       </section>
 
       <section class="card">
