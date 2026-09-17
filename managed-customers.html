@@ -328,7 +328,7 @@
     const allNos = groups.flat();
     const { data: custRows } = await sb
       .from('customer_balance_diff')
-      .select('customer_no, name, current_deposit_balance, current_loan_balance, is_family_representative')
+      .select('customer_no, name, current_deposit_balance, current_loan_balance, deposit_diff, is_family_representative')
       .in('customer_no', allNos);
     const custMap = {};
     for (const c of (custRows || [])) custMap[c.customer_no] = c;
@@ -338,7 +338,8 @@
       const repCandidate = members.find(m => m.is_family_representative) || members.slice().sort((a, b) => a.customer_no - b.customer_no)[0];
       const depositSum = members.reduce((sum, m) => sum + (Number(m.current_deposit_balance) || 0), 0);
       const loanSum = members.reduce((sum, m) => sum + (Number(m.current_loan_balance) || 0), 0);
-      return { members, repCandidate, depositSum, loanSum };
+      const depositDiffSum = members.reduce((sum, m) => sum + (Number(m.deposit_diff) || 0), 0);
+      return { members, repCandidate, depositSum, loanSum, depositDiffSum };
     }).sort((a, b) => b.depositSum - a.depositSum);
 
     renderFamilyChart(familyGroupsCache);
@@ -346,31 +347,43 @@
   }
 
   function renderFamilyChart(groups){
-    const top = groups.slice(0, 10);
-    const labels = top.map(g => `${g.repCandidate.name || '(이름없음)'} 외 ${g.members.length - 1}명`);
-    const deposits = top.map(g => g.depositSum);
-    const loans = top.map(g => g.loanSum);
+    // 수신잔액 증감(전월 대비)이 큰 순으로 상위 5(증가) + 하위 5(감소)를 보여준다
+    const withDiff = groups.filter(g => g.depositDiffSum !== 0);
+    const sortedByDiff = withDiff.slice().sort((a, b) => b.depositDiffSum - a.depositDiffSum);
+    const top = sortedByDiff.slice(0, 5);
+    const bottom = sortedByDiff.slice(-5).filter(g => !top.includes(g));
+    const picked = [...top, ...bottom].sort((a, b) => b.depositDiffSum - a.depositDiffSum);
 
     if (familyChartInstance) familyChartInstance.destroy();
+    if (!picked.length){
+      document.getElementById('familyChart').getContext('2d').clearRect(0, 0, 900, 300);
+      return;
+    }
+
+    const labels = picked.map(g => `${g.repCandidate.name || '(이름없음)'} 외 ${g.members.length - 1}명`);
+    const values = picked.map(g => g.depositDiffSum);
+
     const ctx = document.getElementById('familyChart').getContext('2d');
     familyChartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          { label: '수신잔액 합계', data: deposits, backgroundColor: '#2f5d50' },
-          { label: '여신잔액 합계', data: loans, backgroundColor: '#a3690f' }
-        ]
+        datasets: [{
+          data: values,
+          backgroundColor: values.map(v => v >= 0 ? '#1a7a4c' : '#a4443a'),
+          borderRadius: 4,
+          barThickness: 16
+        }]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         plugins: {
-          legend: { position: 'top', labels: { font: { size: 12 } } },
-          title: { display: true, text: '가족단위 잔액 합계 상위 10그룹', font: { size: 13 } }
+          legend: { display: false },
+          title: { display: true, text: '가족단위 수신잔액 전월 대비 증감 (증가 상위 5 · 감소 하위 5)', font: { size: 13 } }
         },
         scales: {
-          x: { ticks: { callback: (v) => Number(v).toLocaleString('ko-KR') } }
+          x: { ticks: { callback: (v) => (v < 0 ? '-' : '+') + Number(Math.abs(v)).toLocaleString('ko-KR') } }
         }
       }
     });
@@ -379,7 +392,7 @@
   function renderFamilyReport(groups){
     if (!groups.length){ familyReportTable.innerHTML = `<p class="empty">조건에 맞는 가족그룹이 없습니다.</p>`; return; }
     let html = `<table><thead><tr>
-      <th>대표자</th><th>구성원</th><th>인원</th><th class="num">수신잔액 합계</th><th class="num">여신잔액 합계</th>
+      <th>대표자</th><th>구성원</th><th>인원</th><th class="num">수신잔액 합계</th><th class="num">수신증감 합계</th><th class="num">여신잔액 합계</th>
     </tr></thead><tbody>`;
     for (const g of groups){
       const memberLinks = g.members.map(m =>
@@ -390,6 +403,7 @@
         <td>${memberLinks}</td>
         <td>${g.members.length}명</td>
         <td class="num">${fmtNum(g.depositSum)}</td>
+        <td class="num">${diffCell(g.depositDiffSum)}</td>
         <td class="num">${fmtNum(g.loanSum)}</td>
       </tr>`;
     }
