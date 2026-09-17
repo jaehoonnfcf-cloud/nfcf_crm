@@ -106,11 +106,11 @@
     .compact-table td.unassign-cell{ justify-content:flex-end; padding-top:8px; }
 
     /* 그 외 표는 가로 스크롤로 대응 */
-    #unassignedTable, #myRequestsTable, #unionReportTable, #familyReportTable{
+    #unassignedTable, #myRequestsTable, #unionReportTable, #giftReportTable, #familyReportTable{
       overflow-x:auto; -webkit-overflow-scrolling:touch;
     }
     #unassignedTable table, #myRequestsTable table,
-    #unionReportTable table, #familyReportTable table{
+    #unionReportTable table, #giftReportTable table, #familyReportTable table{
       min-width:560px;
     }
   }
@@ -124,6 +124,7 @@
     body.print-customers-only #unassignedSection,
     body.print-customers-only #myRequestsSection,
     body.print-customers-only #unionReportSection,
+    body.print-customers-only #giftReportSection,
     body.print-customers-only #familyReportSection{
       display:none !important;
     }
@@ -229,6 +230,17 @@
       <div id="unionReportTable"><p class="empty">조합활동을 선택하면 참여 고객이 표시됩니다.</p></div>
     </section>
 
+    <section class="card" id="giftReportSection">
+      <h1>🎁 사은품 지급 이력 조회</h1>
+      <p class="desc">사은품명을 선택하면 지급받은 고객 목록과 담당자·지급일을 확인할 수 있습니다.</p>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+        <select id="giftReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+          <option value="">사은품명 선택...</option>
+        </select>
+      </div>
+      <div id="giftReportTable"><p class="empty">사은품명을 선택하면 지급받은 고객이 표시됩니다.</p></div>
+    </section>
+
     <section class="card" id="familyReportSection">
       <h1>👪 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
@@ -329,6 +341,7 @@
     await loadUnassigned();
     await loadMyRequests();
     await loadUnionReportOptions();
+    await loadGiftReportOptions();
     await loadFamilyReport();
   }
 
@@ -659,6 +672,70 @@
     window.print();
     setTimeout(() => document.body.classList.remove('print-report-only'), 500);
   });
+
+  // ---- 사은품 지급 이력 조회 ----
+  const giftReportSelect = document.getElementById('giftReportSelect');
+  const giftReportTable = document.getElementById('giftReportTable');
+
+  async function loadGiftReportOptions(){
+    const { data, error } = await sb
+      .from('customer_activities')
+      .select('content')
+      .eq('activity_type', '사은품');
+    if (error) return;
+
+    const names = Array.from(new Set((data || []).map(r => r.content))).sort();
+    const currentValue = giftReportSelect.value;
+    giftReportSelect.innerHTML = `<option value="">사은품명 선택...</option>` +
+      names.map(n => `<option value="${n}">${n}</option>`).join('');
+    if (names.includes(currentValue)) giftReportSelect.value = currentValue;
+  }
+
+  async function renderGiftReport(){
+    const giftName = giftReportSelect.value;
+    if (!giftName){
+      giftReportTable.innerHTML = `<p class="empty">사은품명을 선택하면 지급받은 고객이 표시됩니다.</p>`;
+      return;
+    }
+    giftReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data: recipients, error } = await sb
+      .from('customer_activities')
+      .select('customer_no, activity_date')
+      .eq('activity_type', '사은품')
+      .eq('content', giftName)
+      .order('activity_date', { ascending: false });
+
+    if (error){ giftReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!recipients.length){ giftReportTable.innerHTML = `<p class="empty">지급받은 고객이 없습니다.</p>`; return; }
+
+    const customerNos = Array.from(new Set(recipients.map(r => r.customer_no)));
+    const staffNameMap = await getStaffNameMap();
+    const { data: custRows } = await sb.from('customers').select('customer_no, name, assigned_to').in('customer_no', customerNos);
+    const custMap = {};
+    for (const c of (custRows || [])) custMap[c.customer_no] = c;
+
+    let html = `<p class="readonly-note" style="margin:0 0 8px;">총 ${recipients.length}건 지급</p>
+      <table><thead><tr><th>고객번호</th><th>성명</th><th>담당자</th><th>지급일</th></tr></thead><tbody>`;
+    for (const r of recipients){
+      const c = custMap[r.customer_no] || {};
+      html += `<tr class="clickable" data-customer="${r.customer_no}">
+        <td>${r.customer_no}</td><td>${c.name||''}</td>
+        <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
+        <td>${r.activity_date}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    giftReportTable.innerHTML = html;
+
+    giftReportTable.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+      });
+    });
+  }
+
+  giftReportSelect.addEventListener('change', renderGiftReport);
 
   // ---- 가족단위 합계 보고서 ----
   const familyReportTable = document.getElementById('familyReportTable');

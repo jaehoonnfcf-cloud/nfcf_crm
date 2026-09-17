@@ -167,6 +167,21 @@
       </section>
 
       <section class="card">
+        <h1>🎁 사은품 지급 일괄 등록</h1>
+        <p class="desc">지급일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 사은품명, 성명(선택) — 예: "설날 사은품", "조합원 생일선물". 성명은 아직 등록 안 된 고객번호를 새로 만들 때만 사용되고, 이미 등록된 고객의 이름은 바뀌지 않습니다. 담당자와 무관하게 등록됩니다.</p>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="font-size:12.5px; color:var(--muted);">지급일자</label>
+          <input type="date" id="giftDateInput" />
+          <input type="file" id="giftCsvInput" accept=".csv" />
+        </div>
+        <div id="giftCsvPreview"></div>
+        <div class="row-actions">
+          <button class="primary-btn csv-btn" id="giftUploadBtn" disabled>업로드 실행</button>
+        </div>
+        <div class="status-msg" id="giftUploadStatus"></div>
+      </section>
+
+      <section class="card">
         <h1>📝 배정 셀프 신청 승인 대기</h1>
         <p class="desc">담당자가 스스로 신청한 배정 건입니다. 승인하면 즉시 배정되고 이력에 기록됩니다.</p>
         <div id="requestTable"></div>
@@ -666,6 +681,136 @@
     unionActivityCsvPreview.innerHTML = '';
     checkUnionActivityReady();
     await loadUnionReportOptions();
+  });
+
+  // ---- 사은품 지급 일괄 등록 ----
+  const giftDateInput = document.getElementById('giftDateInput');
+  const giftCsvInput = document.getElementById('giftCsvInput');
+  const giftCsvPreview = document.getElementById('giftCsvPreview');
+  const giftUploadBtn = document.getElementById('giftUploadBtn');
+  const giftUploadStatus = document.getElementById('giftUploadStatus');
+  let parsedGiftRows = [];
+
+  const GIFT_HEADER_MAP = {
+    '고객번호':'customer_no', 'customer_no':'customer_no', '번호':'customer_no',
+    '사은품명':'content', '사은품':'content', '내용':'content', 'content':'content',
+    '성명':'name', '이름':'name', 'name':'name'
+  };
+
+  function checkGiftReady(){
+    giftUploadBtn.disabled = !(giftDateInput.value && parsedGiftRows.length);
+  }
+  giftDateInput.addEventListener('change', checkGiftReady);
+  giftDateInput.valueAsDate = new Date();
+
+  giftCsvInput.addEventListener('change', () => {
+    const file = giftCsvInput.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        parsedGiftRows = results.data.map(row => {
+          const mapped = {};
+          for (const key of Object.keys(row)){
+            const mappedKey = GIFT_HEADER_MAP[key.trim()];
+            if (mappedKey) mapped[mappedKey] = (row[key] || '').trim();
+          }
+          return mapped;
+        }).filter(r => r.customer_no && r.content);
+
+        if (!parsedGiftRows.length){
+          giftCsvPreview.innerHTML = `<p class="empty">인식된 행이 없습니다. 헤더(고객번호, 사은품명)를 확인해주세요.</p>`;
+          checkGiftReady();
+          return;
+        }
+
+        let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>사은품명</th></tr></thead><tbody>`;
+        for (const r of parsedGiftRows.slice(0, 50)){
+          html += `<tr><td>${r.customer_no}</td><td>${r.name||''}</td><td>${r.content}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        if (parsedGiftRows.length > 50) html += `<p class="empty">외 ${parsedGiftRows.length - 50}건 (미리보기는 50건까지)</p>`;
+        giftCsvPreview.innerHTML = html;
+        checkGiftReady();
+      }
+    });
+  });
+
+  giftUploadBtn.addEventListener('click', async () => {
+    giftUploadBtn.disabled = true;
+    giftUploadStatus.className = 'status-msg';
+    giftUploadStatus.textContent = '고객번호 확인 중...';
+
+    const allNos = parsedGiftRows.map(r => Number(r.customer_no));
+    let existingSet;
+    try {
+      existingSet = await getAllCustomerNoSet();
+    } catch (checkError){
+      giftUploadStatus.className = 'status-msg error';
+      giftUploadStatus.textContent = `고객번호 확인 실패: ${checkError.message}`;
+      checkGiftReady();
+      return;
+    }
+
+    const missing = allNos.filter(no => !existingSet.has(no));
+    const nameByCustomerNo = {};
+    for (const r of parsedGiftRows){
+      const no = Number(r.customer_no);
+      if (r.name && !nameByCustomerNo[no]) nameByCustomerNo[no] = r.name;
+    }
+
+    if (missing.length){
+      giftUploadStatus.textContent = `신규 고객번호 ${missing.length}건 자동 등록 중...`;
+      const newCustomerRows = Array.from(new Set(missing)).map(no => ({ customer_no: no, name: nameByCustomerNo[no] || '' }));
+      const { error: createError } = await sb.from('customers').upsert(newCustomerRows, { onConflict: 'customer_no', ignoreDuplicates: true });
+      if (createError){
+        giftUploadStatus.className = 'status-msg error';
+        giftUploadStatus.textContent = `신규 고객 자동 등록 실패: ${createError.message}`;
+        checkGiftReady();
+        return;
+      }
+      for (const no of missing) existingSet.add(no);
+    }
+
+    const { data: myName } = await sb.rpc('current_user_name');
+    const rows = parsedGiftRows.map(r => ({
+      customer_no: Number(r.customer_no),
+      activity_type: '사은품',
+      activity_date: giftDateInput.value,
+      content: r.content,
+      created_by: myName || currentUserEmail,
+      created_by_email: currentUserEmail
+    }));
+
+    giftUploadStatus.textContent = '업로드 중...';
+    const { error } = await sb.from('customer_activities').insert(rows);
+    if (error){
+      giftUploadStatus.className = 'status-msg error';
+      giftUploadStatus.textContent = `업로드 실패: ${error.message}`;
+      checkGiftReady();
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: rows.length, p_updated: 0,
+      p_summary: `사은품 지급 일괄등록 ${rows.length}건 (${giftDateInput.value})`
+    });
+
+    if (missing.length){
+      const uniqueMissing = Array.from(new Set(missing));
+      const stillNoName = uniqueMissing.filter(no => !nameByCustomerNo[no]);
+      giftUploadStatus.className = 'status-msg success';
+      let msg = `${rows.length}건 등록 완료. 신규 등록된 고객번호 ${uniqueMissing.length}건: ${uniqueMissing.slice(0, 20).join(', ')}${uniqueMissing.length > 20 ? ' 외' : ''}`;
+      if (stillNoName.length) msg += ` (이 중 이름 없이 등록된 ${stillNoName.length}건은 🗂️ 고객정보 관리 또는 고객 상세 화면에서 보완해주세요)`;
+      giftUploadStatus.textContent = msg;
+    } else {
+      giftUploadStatus.className = 'status-msg success';
+      giftUploadStatus.textContent = `${rows.length}건 등록 완료`;
+    }
+    giftCsvInput.value = '';
+    parsedGiftRows = [];
+    giftCsvPreview.innerHTML = '';
+    checkGiftReady();
   });
 
   // ---- 담당자 배정 ----
