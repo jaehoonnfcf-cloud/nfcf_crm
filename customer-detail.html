@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>고객 상세</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="//t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <style>
   :root{
     --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
@@ -227,14 +226,6 @@
 </div>
 <div id="membershipDocPrintView"></div>
 
-<!-- 주소 검색 레이어 (팝업 대신 임베드 방식) -->
-<div id="postcodeLayer" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-  <div style="background:#fff; width:92%; max-width:480px; height:520px; border-radius:12px; overflow:hidden; position:relative;">
-    <button type="button" id="postcodeCloseBtn" style="position:absolute; top:8px; right:8px; z-index:1; border:none; background:#f2f1ee; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px;">✕</button>
-    <div id="postcodeEmbed" style="width:100%; height:100%;"></div>
-  </div>
-</div>
-
 <!-- 조합원 상담일지 추가/수정 모달 (기존 고객) -->
 <div class="modal-overlay" id="addMembershipDocModalOverlay">
   <div class="modal" style="max-width:640px; max-height:88vh; overflow-y:auto;">
@@ -252,9 +243,10 @@
           <div id="amdForestOwnerWrap" style="display:none; margin-top:10px; padding:12px; background:var(--paper); border-radius:8px;">
             <label class="readonly-note" style="display:block; margin-bottom:4px;">산림소재지 (지번주소)</label>
             <div style="display:flex; gap:8px;">
-              <input type="text" id="amdForestLocation" placeholder="주소 검색을 눌러주세요" style="flex:1;" readonly />
-              <button type="button" class="nav-btn" id="amdForestSearchBtn" style="flex-shrink:0;">🔍 주소 검색</button>
+              <input type="text" id="amdForestLocation" placeholder="예: 성남시 분당구 삼평동 624-1" style="flex:1;" />
+              <button type="button" class="nav-btn" id="amdForestSearchBtn" style="flex-shrink:0;">🔍 검색</button>
             </div>
+            <div id="amdForestSearchResults" style="display:none; margin-top:6px; border:1px solid var(--line); border-radius:8px; max-height:160px; overflow-y:auto;"></div>
             <div style="display:flex; gap:10px; margin-top:8px; align-items:center; flex-wrap:wrap;">
               <input type="text" inputmode="numeric" class="money-input" id="amdForestArea" placeholder="면적 (㎡)" style="flex:1; min-width:120px;" />
               <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdForestShareOnly" /> 지분소유 (비고)</label>
@@ -842,29 +834,65 @@
     amdForestOwnerWrap.style.display = 'none';
     amdForestryWorkerWrap.style.display = 'flex';
   });
-  const postcodeLayer = document.getElementById('postcodeLayer');
-  const postcodeEmbed = document.getElementById('postcodeEmbed');
-  document.getElementById('postcodeCloseBtn').addEventListener('click', () => {
-    postcodeLayer.style.display = 'none';
-    postcodeEmbed.innerHTML = '';
-  });
-  document.getElementById('amdForestSearchBtn').addEventListener('click', () => {
-    postcodeEmbed.innerHTML = '';
-    postcodeLayer.style.display = 'flex';
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        new kakao.Postcode({
-          oncomplete: (data) => {
-            document.getElementById('amdForestLocation').value = data.jibunAddress || data.autoJibunAddress || data.address;
-            postcodeLayer.style.display = 'none';
-            postcodeEmbed.innerHTML = '';
-          },
-          width: '100%',
-          height: '100%'
-        }).embed(postcodeEmbed);
+
+  // ---- 브이월드 지번주소 검색 (오타 방지용) ----
+  const VWORLD_API_KEY = '77A8D989-2D72-4900-A553-C5CF92742E9C';
+
+  function vworldJibunSearch(query, onResult, onError){
+    if (!query) return;
+    if (VWORLD_API_KEY === 'YOUR_VWORLD_API_KEY'){
+      onError('브이월드 API 키가 아직 설정되지 않았습니다. (관리자에게 문의)');
+      return;
+    }
+    const cbName = 'vworldCb_' + Date.now();
+    window[cbName] = (data) => {
+      delete window[cbName];
+      script.remove();
+      onResult(data);
+    };
+    const script = document.createElement('script');
+    script.src = `https://map.vworld.kr/search.do?category=jibun&q=${encodeURIComponent(query)}&pageunit=5&output=json&pageindex=1&callback=${cbName}&apiKey=${VWORLD_API_KEY}`;
+    script.onerror = () => { onError('검색 요청에 실패했습니다.'); delete window[cbName]; };
+    document.body.appendChild(script);
+  }
+
+  function wireForestSearch(inputId, btnId, resultsId){
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    const results = document.getElementById(resultsId);
+    function runSearch(){
+      const q = input.value.trim();
+      if (!q) return;
+      results.style.display = 'block';
+      results.innerHTML = `<div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 중...</div>`;
+      vworldJibunSearch(q, (data) => {
+        const items = data?.response?.result?.items || data?.response?.items || [];
+        const list = items.length ? items : (data?.response?.result?.item ? [].concat(data.response.result.item) : []);
+        if (!list.length){
+          results.innerHTML = `<div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 결과가 없습니다.</div>`;
+          return;
+        }
+        results.innerHTML = list.map(item => {
+          const addr = item.JUSO || item.address || item.juso || '';
+          return `<div class="forest-search-item" data-addr="${addr}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--line); font-size:13px;">${addr}</div>`;
+        }).join('');
+        results.querySelectorAll('.forest-search-item').forEach(el => {
+          el.addEventListener('mouseenter', () => { el.style.background = 'var(--accent-soft)'; });
+          el.addEventListener('mouseleave', () => { el.style.background = ''; });
+          el.addEventListener('click', () => {
+            input.value = el.dataset.addr;
+            results.style.display = 'none';
+            results.innerHTML = '';
+          });
+        });
+      }, (errMsg) => {
+        results.innerHTML = `<div style="padding:8px 10px; color:var(--danger); font-size:12.5px;">${errMsg}</div>`;
       });
-    });
-  });
+    }
+    btn.addEventListener('click', runSearch);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  }
+  wireForestSearch('amdForestLocation', 'amdForestSearchBtn', 'amdForestSearchResults');
 
   function todayDateStr(){
     const d = new Date();
