@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>고객 상세</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://ssl.daumcdn.net/dmaps/map_js_init/postcode.v2.js"></script>
 <style>
   :root{
     --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
@@ -234,6 +235,34 @@
     <form id="addMembershipDocForm">
       <div class="form-row">
         <div>
+          <label class="readonly-note">🌲 조합원의 자격</label>
+          <div style="display:flex; gap:16px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px;"><input type="radio" name="amdQualification" id="amdQualForestOwner" value="산림소유자" /> 산림소유자</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="radio" name="amdQualification" id="amdQualForestryWorker" value="임업인" /> 임업인</label>
+          </div>
+
+          <div id="amdForestOwnerWrap" style="display:none; margin-top:10px; padding:12px; background:var(--paper); border-radius:8px;">
+            <label class="readonly-note" style="display:block; margin-bottom:4px;">산림소재지 (지번주소)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="amdForestLocation" placeholder="주소 검색을 눌러주세요" style="flex:1;" readonly />
+              <button type="button" class="nav-btn" id="amdForestSearchBtn" style="flex-shrink:0;">🔍 주소 검색</button>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+              <input type="text" inputmode="numeric" class="money-input" id="amdForestArea" placeholder="면적 (㎡)" style="flex:1; min-width:120px;" />
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="amdForestShareOnly" /> 지분소유 (비고)</label>
+            </div>
+          </div>
+
+          <div id="amdForestryWorkerWrap" style="display:none; flex-direction:column; gap:8px; margin-top:10px; padding:12px; background:var(--paper); border-radius:8px;">
+            <input type="text" id="amdForestryQualification" placeholder="자격구분" />
+            <input type="text" id="amdForestryBusiness" placeholder="경영내용" />
+            <input type="text" id="amdForestryNote" placeholder="비고" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
           <label class="readonly-note">💰 금융현황 (비과세한도)</label>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
             <input type="text" inputmode="numeric" class="money-input" id="amdDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
@@ -330,6 +359,13 @@
         <div>
           <label class="readonly-note">🗒️ 상담내용</label>
           <textarea id="amdConsultNote" rows="4" style="width:100%; margin-top:6px;" placeholder="조합원 가입신청자 상담을 통해 자유롭게 작성"></textarea>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <div>
+          <label class="readonly-note">🖊️ 상담자</label>
+          <input type="text" id="amdConsultantName" style="width:100%; margin-top:6px;" placeholder="상담자 이름" />
         </div>
       </div>
 
@@ -576,11 +612,20 @@
   function checkMark(checked){ return checked ? '☑' : '☐'; }
 
   function buildMembershipDocHtml(v){
+    const qualLine = v.qualification_type === '산림소유자'
+      ? `산림소재지: ${v.forest_location||'-'} / 면적: ${v.forest_area ? Number(v.forest_area).toLocaleString('ko-KR')+' ㎡' : '-'} ${v.forest_share_only ? '(비고: 지분소유)' : ''}`
+      : v.qualification_type === '임업인'
+      ? `자격구분: ${v.forestry_qualification||'-'} / 경영내용: ${v.forestry_business_content||'-'} / 비고: ${v.forestry_note||'-'}`
+      : '-';
     return `
       <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
       <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
       <table class="mp-doc-table">
         <tr><td class="mp-label">성명</td><td>${v.name} (고객번호 ${v.customer_no})</td></tr>
+        <tr><td class="mp-label">조합원의 자격</td><td>
+          ${checkMark(v.qualification_type==='산림소유자')} 산림소유자 &nbsp;&nbsp; ${checkMark(v.qualification_type==='임업인')} 임업인<br>
+          ${qualLine}
+        </td></tr>
         <tr><td class="mp-label">금융현황<br>(비과세한도)</td><td>
           수신: ${v.deposit != null ? Number(v.deposit).toLocaleString('ko-KR') : '-'} &nbsp;&nbsp; 여신: ${v.loan != null ? Number(v.loan).toLocaleString('ko-KR') : '-'}<br>
           (우리조합 기준 / 타금융: ${v.other_financial_amount != null ? Number(v.other_financial_amount).toLocaleString('ko-KR') : '-'} / 잔여한도: ${v.remaining_tax_free_limit != null ? Number(v.remaining_tax_free_limit).toLocaleString('ko-KR') : '-'})
@@ -711,6 +756,8 @@
     amdReferrerHint.style.display = 'none';
     amdFamilyHint.style.display = 'none';
     amdSubmitBtn.disabled = false;
+    amdForestOwnerWrap.style.display = 'none';
+    amdForestryWorkerWrap.style.display = 'none';
 
     editingMembershipRecord = existing || null;
 
@@ -729,6 +776,19 @@
       amdJoinChannelOther.value = existing.join_other_text || '';
       document.getElementById('amdReferrerNo').value = customerSummary?.referred_by || '';
       document.getElementById('amdReferralRelation').value = existing.referral_relation || '';
+      if (existing.qualification_type === '산림소유자'){
+        document.getElementById('amdQualForestOwner').checked = true;
+        amdForestOwnerWrap.style.display = 'block';
+      } else if (existing.qualification_type === '임업인'){
+        document.getElementById('amdQualForestryWorker').checked = true;
+        amdForestryWorkerWrap.style.display = 'flex';
+      }
+      document.getElementById('amdForestLocation').value = existing.forest_location || '';
+      document.getElementById('amdForestArea').value = fmtMoneyValue(existing.forest_area);
+      document.getElementById('amdForestShareOnly').checked = !!existing.forest_share_only;
+      document.getElementById('amdForestryQualification').value = existing.forestry_qualification || '';
+      document.getElementById('amdForestryBusiness').value = existing.forestry_business_content || '';
+      document.getElementById('amdForestryNote').value = existing.forestry_note || '';
       document.getElementById('amdInterestPlan').checked = !!existing.interest_forest_plan;
       document.getElementById('amdInterestFinancial').checked = !!existing.interest_financial;
       document.getElementById('amdInterestForestry').checked = !!existing.interest_forestry_info;
@@ -742,11 +802,13 @@
       document.getElementById('amdOccOrg').checked = !!existing.occ_org;
       document.getElementById('amdOrgName').value = existing.occ_org_name || '';
       document.getElementById('amdConsultNote').value = existing.consultation_note || '';
+      document.getElementById('amdConsultantName').value = existing.consultant_name || currentUserName;
     } else {
       addMembershipDocTitle.textContent = '📋 조합원 상담일지 추가';
       amdSubmitBtn.textContent = '📋 저장';
       document.getElementById('amdDeposit').value = fmtMoneyValue(customerSummary?.current_deposit_balance);
       document.getElementById('amdLoan').value = fmtMoneyValue(customerSummary?.current_loan_balance);
+      document.getElementById('amdConsultantName').value = currentUserName;
     }
 
     addMembershipDocModalOverlay.classList.add('open');
@@ -759,6 +821,25 @@
   });
   amdJoinOtherCheck.addEventListener('change', () => {
     amdJoinChannelOther.style.display = amdJoinOtherCheck.checked ? 'block' : 'none';
+  });
+
+  // ---- 조합원 자격: 산림소유자 / 임업인 ----
+  const amdForestOwnerWrap = document.getElementById('amdForestOwnerWrap');
+  const amdForestryWorkerWrap = document.getElementById('amdForestryWorkerWrap');
+  document.getElementById('amdQualForestOwner').addEventListener('change', () => {
+    amdForestOwnerWrap.style.display = 'block';
+    amdForestryWorkerWrap.style.display = 'none';
+  });
+  document.getElementById('amdQualForestryWorker').addEventListener('change', () => {
+    amdForestOwnerWrap.style.display = 'none';
+    amdForestryWorkerWrap.style.display = 'flex';
+  });
+  document.getElementById('amdForestSearchBtn').addEventListener('click', () => {
+    new daum.Postcode({
+      oncomplete: (data) => {
+        document.getElementById('amdForestLocation').value = data.jibunAddress || data.autoJibunAddress || data.address;
+      }
+    }).open();
   });
 
   function todayDateStr(){
@@ -794,6 +875,14 @@
     const occOrg = document.getElementById('amdOccOrg').checked;
     const orgName = document.getElementById('amdOrgName').value.trim();
     const consultNote = document.getElementById('amdConsultNote').value.trim();
+    const consultantName = document.getElementById('amdConsultantName').value.trim();
+    const qualificationType = document.querySelector('input[name="amdQualification"]:checked')?.value || null;
+    const forestLocation = document.getElementById('amdForestLocation').value.trim();
+    const forestArea = parseMoneyInput(document.getElementById('amdForestArea'));
+    const forestShareOnly = document.getElementById('amdForestShareOnly').checked;
+    const forestryQualification = document.getElementById('amdForestryQualification').value.trim();
+    const forestryBusiness = document.getElementById('amdForestryBusiness').value.trim();
+    const forestryNote = document.getElementById('amdForestryNote').value.trim();
     const familyNo = document.getElementById('amdFamilyNo').value ? Number(document.getElementById('amdFamilyNo').value) : null;
     const familyRelType = document.getElementById('amdFamilyRelType').value;
 
@@ -887,6 +976,13 @@
       join_other: joinOtherCheck,
       join_other_text: joinOtherCheck ? joinChannelOther : null,
       referral_relation: referralRelation || null,
+      qualification_type: qualificationType,
+      forest_location: qualificationType === '산림소유자' ? (forestLocation || null) : null,
+      forest_area: qualificationType === '산림소유자' ? forestArea : null,
+      forest_share_only: qualificationType === '산림소유자' ? forestShareOnly : false,
+      forestry_qualification: qualificationType === '임업인' ? (forestryQualification || null) : null,
+      forestry_business_content: qualificationType === '임업인' ? (forestryBusiness || null) : null,
+      forestry_note: qualificationType === '임업인' ? (forestryNote || null) : null,
       interest_forest_plan: interestPlan,
       interest_financial: interestFinancial,
       interest_forestry_info: interestForestry,
@@ -897,7 +993,8 @@
       occ_business_name: occSelfEmployed ? businessName : null,
       occ_org: occOrg,
       occ_org_name: occOrg ? orgName : null,
-      consultation_note: consultNote || null
+      consultation_note: consultNote || null,
+      consultant_name: consultantName || currentUserName
     };
 
     let appError;
@@ -907,7 +1004,6 @@
     } else {
       appPayload.customer_no = customerNo;
       appPayload.consultant_email = currentUserEmail;
-      appPayload.consultant_name = currentUserName;
       const { error } = await sb.from('membership_applications').insert(appPayload);
       appError = error;
     }
