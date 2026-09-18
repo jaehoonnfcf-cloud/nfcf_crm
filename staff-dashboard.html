@@ -9,9 +9,10 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <style>
   :root{
-    --ink:#181b25; --paper:#eef0f3; --panel:#ffffff; --line:#e5e7eb;
+    --ink:#181b25; --paper:#f7f8fa; --card-bg:#eef0f3; --panel:#ffffff; --line:#e5e7eb;
     --accent:#2f5d50; --accent-hover:#20423a; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
     --green:#2f5d50; --green-soft:#e7efec;
+    --info:#2f6fed; --info-hover:#255bc4; --info-soft:#e8f0fe;
     --shadow-sm:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
     --shadow-md:0 8px 24px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.06);
   }
@@ -38,17 +39,17 @@
   .nav-btn:hover{ background:var(--accent-soft); border-color:#c7d9d2; color:var(--accent-hover); }
 
   main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:32px; box-shadow:var(--shadow-md); }
+  section.card{ background:var(--card-bg); border:none; border-radius:22px; padding:32px; }
   section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
 
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:13px 14px; border-bottom:1px solid var(--line); background:var(--accent-soft); white-space:nowrap; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:13px 14px; border-bottom:1px solid var(--line); background:var(--card-bg); white-space:nowrap; }
   tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:nth-child(even){ background:#fbfbfc; }
   tr.clickable{ cursor:pointer; transition:background .12s ease; }
-  tr.clickable:hover{ background:var(--accent-soft); }
+  tr.clickable:hover{ background:var(--info-soft); }
 
   .diff-up{ color:#1a7a4c; font-weight:600; }
   .diff-down{ color:var(--danger); font-weight:600; }
@@ -154,7 +155,7 @@
     }
     body.print-customers-only section.card,
     body.print-report-only section.card{
-      border:none; box-shadow:none; padding:0; margin:0;
+      background:#fff; border:none; box-shadow:none; padding:0; margin:0;
     }
     body.print-customers-only table,
     body.print-report-only table{
