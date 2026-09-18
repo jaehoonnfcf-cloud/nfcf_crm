@@ -9,7 +9,7 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <style>
   :root{
-    --ink:#181b25; --paper:#f7f8fa; --card-bg:#eef0f3; --panel:#ffffff; --line:#e5e7eb;
+    --ink:#181b25; --paper:#f7f8fa; --panel:#ffffff; --line:#e5e7eb;
     --accent:#2f5d50; --accent-hover:#20423a; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
     --green:#2f5d50; --green-soft:#e7efec;
     --info:#2f6fed; --info-hover:#255bc4; --info-soft:#e8f0fe;
@@ -17,7 +17,7 @@
     --shadow-md:0 8px 24px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.06);
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--paper); color:var(--ink);
+  body{ margin:0; background:linear-gradient(135deg, #eef8f2 0%, #eef2fb 100%); background-attachment:fixed; color:var(--ink);
     font-family:'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
   button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -39,12 +39,12 @@
   .nav-btn:hover{ background:var(--accent-soft); border-color:#c7d9d2; color:var(--accent-hover); }
 
   main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--card-bg); border:none; border-radius:22px; padding:32px; }
+  section.card{ background:var(--panel); border:none; border-radius:24px; padding:32px; box-shadow:var(--shadow-md); }
   section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
 
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:13px 14px; border-bottom:1px solid var(--line); background:var(--card-bg); white-space:nowrap; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:13px 14px; border-bottom:1px solid var(--line); background:var(--accent-soft); white-space:nowrap; }
   tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:nth-child(even){ background:#fbfbfc; }
