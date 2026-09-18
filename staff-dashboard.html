@@ -9,12 +9,15 @@
 <style>
   :root{
     --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
-    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+    --accent:#2f5d50; --accent-hover:#26493f; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
     --green:#2f5d50; --green-soft:#e7efec;
+    --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --shadow-md:0 2px 8px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
   }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--paper); color:var(--ink);
     font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+  button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
   .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
@@ -25,36 +28,36 @@
   .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
 
   #app{ display:none; }
-  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:var(--shadow-sm); position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
-  .brand h2{ font-size:16px; margin:0; }
+  .brand h2{ font-size:16px; margin:0; font-weight:700; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
-  .nav-btn:hover{ background:#f2f1ee; }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:7px 13px; border-radius:8px; font-size:12.5px; font-weight:500; cursor:pointer; text-decoration:none; transition:background .15s ease, border-color .15s ease; }
+  .nav-btn:hover{ background:#f5f5f3; border-color:#d3d2cc; }
 
-  main{ max-width:1440px; margin:0 auto; padding:32px 24px 60px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
-  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
-  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+  main{ max-width:1440px; margin:0 auto; padding:32px 24px 60px; display:flex; flex-direction:column; gap:24px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); }
+  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; font-weight:700; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 18px; line-height:1.55; }
 
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
-  tbody td{ padding:9px 12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:11px 12px; border-bottom:1px solid var(--line); background:#fafafa; white-space:nowrap; }
+  tbody td{ padding:10px 12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:nth-child(even){ background:#fcfcfb; }
-  tr.clickable{ cursor:pointer; }
+  tbody tr:nth-child(even){ background:#fcfcfc; }
+  tr.clickable{ cursor:pointer; transition:background .12s ease; }
   tr.clickable:hover{ background:var(--accent-soft); }
 
   .diff-up{ color:#1a7a4c; font-weight:600; }
   .diff-down{ color:var(--danger); font-weight:600; }
   .diff-flat{ color:var(--muted); }
-  .badge{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; }
+  .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:600; }
   .badge.pending{ background:#fdf1e0; color:#a3690f; }
   .badge.approved{ background:var(--green-soft); color:var(--green); }
   .badge.rejected{ background:#fbeceb; color:var(--danger); }
-  .small-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; color:var(--ink); white-space:nowrap; }
-  .small-btn:hover{ background:#f2f1ee; }
+  .small-btn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:5px 12px; font-size:12px; font-weight:500; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .15s ease, border-color .15s ease; }
+  .small-btn:hover{ background:#f5f5f3; border-color:#d3d2cc; }
 
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
 
@@ -88,7 +91,7 @@
     .compact-table, .compact-table tbody{ display:block; width:100%; }
     .compact-table tr{
       display:block; border:1px solid var(--line); border-radius:12px;
-      padding:10px 12px; margin-bottom:10px; background:var(--panel);
+      padding:10px 12px; margin-bottom:10px; background:var(--panel); box-shadow:var(--shadow-sm);
     }
     .compact-table td{
       display:flex; align-items:baseline; gap:10px; width:auto !important;
