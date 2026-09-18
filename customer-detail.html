@@ -13,6 +13,7 @@
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--paper); color:var(--ink);
     font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+  button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
   .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
@@ -27,7 +28,7 @@
   header .left{ display:flex; align-items:center; gap:14px; }
   header h2{ font-size:16px; margin:0; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); }
-  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
+  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; font-weight:500; line-height:1.4; cursor:pointer; text-decoration:none; }
   .nav-btn:hover{ background:#f2f1ee; }
 
   main{ max-width:900px; margin:0 auto; padding:32px; display:flex; flex-direction:column; gap:24px; }
@@ -49,17 +50,17 @@
   th, td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
   th{ color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
 
-  textarea, input[type=text], input[type=date], input[type=number]{
+  textarea, input[type=text], input[type=date], input[type=number], select{
     font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--line);
-    border-radius:8px; background:#fff; width:100%;
+    border-radius:8px; background:#fff; color:var(--ink); width:100%;
   }
-  textarea:focus, input:focus{ outline:none; border-color:var(--accent); }
+  textarea:focus, input:focus, select:focus{ outline:none; border-color:var(--accent); }
   textarea{ resize:vertical; min-height:60px; }
   .form-row{ display:flex; gap:10px; margin-bottom:10px; }
   .form-row > div{ flex:1; }
   .form-row.narrow > div{ flex:none; width:160px; }
 
-  .primary-btn{ padding:9px 18px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .primary-btn{ padding:8px 16px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; line-height:1.4; cursor:pointer; }
   .primary-btn:hover{ opacity:.9; }
   .primary-btn:disabled{ opacity:.5; cursor:default; }
 
