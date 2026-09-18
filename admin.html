@@ -302,6 +302,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="dashboard">📊 대시보드</button>
         <button class="tab-btn" data-tab="users">👤 사용자 관리</button>
+        <button class="tab-btn" data-tab="customer-no-fix">🔢 고객번호 정정</button>
         <button class="tab-btn" data-tab="login-history">🔑 접속이력</button>
         <button class="tab-btn" data-tab="edit-history">📝 수정이력</button>
         <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
@@ -362,6 +363,29 @@
         </table>
         <div class="empty-note" id="usersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
         <div class="status-line" id="usersStatus"></div>
+      </div>
+
+      <!-- ===== 고객번호 정정 ===== -->
+      <div class="tab-panel" id="panel-customer-no-fix">
+        <h1 class="page-title">🔢 고객번호 정정</h1>
+        <p class="page-sub">일괄 등록 시 잘못 입력된 고객번호를 관리자가 직접 정정합니다. 조합활동·마케팅활동·잔액이력·가족관계·조합원 여부·VIP 이력·배정이력 등 이 고객번호와 연결된 모든 기록이 새 번호로 함께 이전됩니다. (되돌리려면 다시 반대로 변경하면 됩니다)</p>
+
+        <div class="field" style="max-width:420px;">
+          <label for="fixOldNo">기존(잘못된) 고객번호</label>
+          <input type="text" id="fixOldNo" placeholder="예: 12345" inputmode="numeric" />
+        </div>
+        <div class="status-line" id="fixOldPreview"></div>
+
+        <div class="field" style="max-width:420px; margin-top:16px;">
+          <label for="fixNewNo">새 고객번호</label>
+          <input type="text" id="fixNewNo" placeholder="예: 12354" inputmode="numeric" />
+        </div>
+        <div class="status-line" id="fixNewPreview"></div>
+
+        <div class="toolbar" style="margin-top:18px;">
+          <button class="btn" id="fixSubmitBtn" disabled>고객번호 변경 실행</button>
+        </div>
+        <div class="status-line" id="fixStatus"></div>
       </div>
 
       <!-- ===== 접속이력 ===== -->
@@ -640,6 +664,7 @@
 
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'users') loadUsers();
+      if (btn.dataset.tab === 'customer-no-fix') resetFixForm();
       if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
       if (btn.dataset.tab === 'csv-history') loadCsvHistory();
       if (btn.dataset.tab === 'members') loadMemberCount();
@@ -874,6 +899,118 @@
     closeAddUserModal();
     setUsersStatus('사용자 추가 완료', 'saved-flash');
     loadUsers();
+  });
+
+  // ==================== 고객번호 정정 ====================
+  const fixOldNo = document.getElementById('fixOldNo');
+  const fixNewNo = document.getElementById('fixNewNo');
+  const fixOldPreview = document.getElementById('fixOldPreview');
+  const fixNewPreview = document.getElementById('fixNewPreview');
+  const fixSubmitBtn = document.getElementById('fixSubmitBtn');
+  const fixStatus = document.getElementById('fixStatus');
+
+  let fixOldValid = false;
+  let fixNewValid = false;
+
+  function resetFixForm(){
+    fixOldNo.value = '';
+    fixNewNo.value = '';
+    fixOldPreview.textContent = '';
+    fixOldPreview.className = 'status-line';
+    fixNewPreview.textContent = '';
+    fixNewPreview.className = 'status-line';
+    fixStatus.textContent = '';
+    fixStatus.className = 'status-line';
+    fixOldValid = false;
+    fixNewValid = false;
+    updateFixSubmitState();
+  }
+
+  function updateFixSubmitState(){
+    fixSubmitBtn.disabled = !(fixOldValid && fixNewValid);
+  }
+
+  async function checkFixOldNo(){
+    const no = Number(fixOldNo.value.trim());
+    fixOldValid = false;
+    updateFixSubmitState();
+    if (!fixOldNo.value.trim() || !Number.isFinite(no)){
+      fixOldPreview.textContent = '';
+      fixOldPreview.className = 'status-line';
+      return;
+    }
+    const { data, error } = await sb.from('customers')
+      .select('customer_no, name, customer_info, is_deleted, assigned_to')
+      .eq('customer_no', no)
+      .maybeSingle();
+    if (error){
+      fixOldPreview.textContent = `조회 실패: ${error.message}`;
+      fixOldPreview.className = 'status-line err-flash';
+      return;
+    }
+    if (!data){
+      fixOldPreview.textContent = `⚠️ 고객번호 ${no}를 찾을 수 없습니다.`;
+      fixOldPreview.className = 'status-line err-flash';
+      return;
+    }
+    fixOldValid = true;
+    updateFixSubmitState();
+    const assigneeLabel = data.assigned_to ? (userNameMap[data.assigned_to] || data.assigned_to) : '미배정';
+    fixOldPreview.textContent = `✅ ${data.name || '(이름없음)'} · ${data.customer_info || ''} · 담당자: ${assigneeLabel}${data.is_deleted ? ' · 🗑️ 휴지통' : ''}`;
+    fixOldPreview.className = 'status-line saved-flash';
+  }
+
+  async function checkFixNewNo(){
+    const no = Number(fixNewNo.value.trim());
+    fixNewValid = false;
+    updateFixSubmitState();
+    if (!fixNewNo.value.trim() || !Number.isFinite(no)){
+      fixNewPreview.textContent = '';
+      fixNewPreview.className = 'status-line';
+      return;
+    }
+    const { data, error } = await sb.from('customers').select('customer_no').eq('customer_no', no).maybeSingle();
+    if (error){
+      fixNewPreview.textContent = `조회 실패: ${error.message}`;
+      fixNewPreview.className = 'status-line err-flash';
+      return;
+    }
+    if (data){
+      fixNewPreview.textContent = `⚠️ 고객번호 ${no}는 이미 사용 중입니다. 다른 번호를 입력해주세요.`;
+      fixNewPreview.className = 'status-line err-flash';
+      return;
+    }
+    fixNewValid = true;
+    updateFixSubmitState();
+    fixNewPreview.textContent = `✅ 사용 가능한 번호입니다.`;
+    fixNewPreview.className = 'status-line saved-flash';
+  }
+
+  fixOldNo.addEventListener('input', () => { fixOldValid = false; updateFixSubmitState(); });
+  fixOldNo.addEventListener('blur', checkFixOldNo);
+  fixNewNo.addEventListener('input', () => { fixNewValid = false; updateFixSubmitState(); });
+  fixNewNo.addEventListener('blur', checkFixNewNo);
+
+  fixSubmitBtn.addEventListener('click', async () => {
+    const oldNo = Number(fixOldNo.value.trim());
+    const newNo = Number(fixNewNo.value.trim());
+    if (!fixOldValid || !fixNewValid) return;
+    if (!confirm(`고객번호 ${oldNo}를 ${newNo}로 변경할까요?\n관련된 모든 활동·잔액·가족관계·조합원·VIP 이력이 함께 이전됩니다.`)) return;
+
+    fixSubmitBtn.disabled = true;
+    fixStatus.textContent = '변경 중...';
+    fixStatus.className = 'status-line';
+
+    const { error } = await sb.rpc('admin_change_customer_no', { p_old_no: oldNo, p_new_no: newNo });
+    if (error){
+      fixStatus.textContent = `변경 실패: ${error.message}`;
+      fixStatus.className = 'status-line err-flash';
+      fixSubmitBtn.disabled = false;
+      return;
+    }
+    fixStatus.textContent = `✅ 고객번호 ${oldNo} → ${newNo} 변경 완료`;
+    fixStatus.className = 'status-line saved-flash';
+    resetFixForm();
   });
 
   // ==================== 접속이력 ====================
