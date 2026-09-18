@@ -253,10 +253,15 @@
     </section>
 
     <section class="card" id="unassignedSection">
-      <h1>📋 미배정 고객 - 바로 배정받기</h1>
-      <p class="desc">담당자가 없는 고객입니다. 최근 등록된 고객이 위로 정렬되며, 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
-      <input type="text" id="unassignedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
-      <div id="unassignedTable"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h1 style="margin:0;">📋 미배정 고객 - 바로 배정받기</h1>
+        <button class="nav-btn" id="unassignedToggleBtn">▶ 펼치기 (0건)</button>
+      </div>
+      <div id="unassignedBody" style="display:none; margin-top:14px;">
+        <p class="desc">담당자가 없는 고객입니다. 최근 등록된 고객이 위로 정렬되며, 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
+        <input type="text" id="unassignedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
+        <div id="unassignedTable"></div>
+      </div>
     </section>
 
     <section class="card" id="myRequestsSection" style="display:none">
@@ -449,7 +454,19 @@
 
   const unassignedTable = document.getElementById('unassignedTable');
   const unassignedSearchBox = document.getElementById('unassignedSearchBox');
+  const unassignedBody = document.getElementById('unassignedBody');
+  const unassignedToggleBtn = document.getElementById('unassignedToggleBtn');
   let unassignedRows = [];
+  let unassignedExpanded = false;
+
+  function updateUnassignedToggleLabel(){
+    unassignedToggleBtn.textContent = `${unassignedExpanded ? '▼ 접기' : '▶ 펼치기'} (${unassignedRows.length}건)`;
+  }
+  unassignedToggleBtn.addEventListener('click', () => {
+    unassignedExpanded = !unassignedExpanded;
+    unassignedBody.style.display = unassignedExpanded ? 'block' : 'none';
+    updateUnassignedToggleLabel();
+  });
 
   async function loadUnassigned(){
     const { data, error } = await sb
@@ -461,6 +478,7 @@
 
     if (error){ unassignedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
     unassignedRows = data || [];
+    updateUnassignedToggleLabel();
     renderUnassignedTable(unassignedRows);
   }
 
