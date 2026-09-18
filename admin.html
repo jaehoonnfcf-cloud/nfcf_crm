@@ -386,6 +386,20 @@
           <button class="btn" id="fixSubmitBtn" disabled>고객번호 변경 실행</button>
         </div>
         <div class="status-line" id="fixStatus"></div>
+
+        <div class="section-title" style="margin-top:32px; border-top:1px solid var(--line); padding-top:24px;">🗑️ 고객번호 영구삭제</div>
+        <p class="page-sub" style="margin-top:-4px;">완전히 잘못 만들어진 고객번호를 연결된 모든 기록과 함께 영구 삭제합니다. <b style="color:var(--danger);">되돌릴 수 없습니다.</b> (등록된 다른 고객이 이 번호를 추천인으로 두고 있다면 그 연결만 해제됩니다)</p>
+
+        <div class="field" style="max-width:420px;">
+          <label for="delCustomerNo">삭제할 고객번호</label>
+          <input type="text" id="delCustomerNo" placeholder="예: 12345" inputmode="numeric" />
+        </div>
+        <div class="status-line" id="delPreview"></div>
+
+        <div class="toolbar" style="margin-top:18px;">
+          <button class="btn" id="delSubmitBtn" style="background:var(--danger); border-color:var(--danger);" disabled>영구 삭제 실행</button>
+        </div>
+        <div class="status-line" id="delStatus"></div>
       </div>
 
       <!-- ===== 접속이력 ===== -->
@@ -664,7 +678,7 @@
 
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'users') loadUsers();
-      if (btn.dataset.tab === 'customer-no-fix') resetFixForm();
+      if (btn.dataset.tab === 'customer-no-fix'){ resetFixForm(); resetDeleteForm(); }
       if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
       if (btn.dataset.tab === 'csv-history') loadCsvHistory();
       if (btn.dataset.tab === 'members') loadMemberCount();
@@ -1011,6 +1025,85 @@
     fixStatus.textContent = `✅ 고객번호 ${oldNo} → ${newNo} 변경 완료`;
     fixStatus.className = 'status-line saved-flash';
     resetFixForm();
+  });
+
+  // ---- 고객번호 영구삭제 ----
+  const delCustomerNo = document.getElementById('delCustomerNo');
+  const delPreview = document.getElementById('delPreview');
+  const delSubmitBtn = document.getElementById('delSubmitBtn');
+  const delStatus = document.getElementById('delStatus');
+  let delValid = false;
+
+  function resetDeleteForm(){
+    delCustomerNo.value = '';
+    delPreview.textContent = '';
+    delPreview.className = 'status-line';
+    delStatus.textContent = '';
+    delStatus.className = 'status-line';
+    delValid = false;
+    delSubmitBtn.disabled = true;
+  }
+
+  async function checkDelCustomerNo(){
+    const no = Number(delCustomerNo.value.trim());
+    delValid = false;
+    delSubmitBtn.disabled = true;
+    if (!delCustomerNo.value.trim() || !Number.isFinite(no)){
+      delPreview.textContent = '';
+      delPreview.className = 'status-line';
+      return;
+    }
+    delPreview.textContent = '조회 중...';
+    delPreview.className = 'status-line';
+
+    const [custRes, actRes, balRes, familyRes] = await Promise.all([
+      sb.from('customers').select('customer_no, name, customer_info, is_deleted').eq('customer_no', no).maybeSingle(),
+      sb.from('customer_activities').select('*', { count: 'exact', head: true }).eq('customer_no', no),
+      sb.from('balance_snapshots').select('*', { count: 'exact', head: true }).eq('customer_no', no),
+      sb.from('customer_family_links').select('*', { count: 'exact', head: true }).or(`customer_no.eq.${no},related_customer_no.eq.${no}`)
+    ]);
+
+    if (custRes.error){
+      delPreview.textContent = `조회 실패: ${custRes.error.message}`;
+      delPreview.className = 'status-line err-flash';
+      return;
+    }
+    if (!custRes.data){
+      delPreview.textContent = `⚠️ 고객번호 ${no}를 찾을 수 없습니다.`;
+      delPreview.className = 'status-line err-flash';
+      return;
+    }
+    delValid = true;
+    delSubmitBtn.disabled = false;
+    const d = custRes.data;
+    delPreview.innerHTML = `🗑️ <b>${escapeHtml(d.name || '(이름없음)')}</b> · ${escapeHtml(d.customer_info || '')}${d.is_deleted ? ' · 휴지통' : ''}<br/>` +
+      `함께 삭제될 기록: 활동 ${actRes.count ?? 0}건 · 잔액이력 ${balRes.count ?? 0}건 · 가족관계 ${familyRes.count ?? 0}건`;
+    delPreview.className = 'status-line err-flash';
+  }
+
+  delCustomerNo.addEventListener('input', () => { delValid = false; delSubmitBtn.disabled = true; });
+  delCustomerNo.addEventListener('blur', checkDelCustomerNo);
+
+  delSubmitBtn.addEventListener('click', async () => {
+    const no = Number(delCustomerNo.value.trim());
+    if (!delValid) return;
+    if (!confirm(`고객번호 ${no}를 영구 삭제할까요?\n연결된 모든 활동·잔액·가족관계·조합원·VIP 기록이 함께 삭제되며, 되돌릴 수 없습니다.`)) return;
+    if (!confirm(`정말 삭제하시겠습니까? 마지막 확인입니다.\n고객번호: ${no}`)) return;
+
+    delSubmitBtn.disabled = true;
+    delStatus.textContent = '삭제 중...';
+    delStatus.className = 'status-line';
+
+    const { error } = await sb.rpc('admin_delete_customer', { p_customer_no: no });
+    if (error){
+      delStatus.textContent = `삭제 실패: ${error.message}`;
+      delStatus.className = 'status-line err-flash';
+      delSubmitBtn.disabled = false;
+      return;
+    }
+    delStatus.textContent = `✅ 고객번호 ${no} 영구 삭제 완료`;
+    delStatus.className = 'status-line saved-flash';
+    resetDeleteForm();
   });
 
   // ==================== 접속이력 ====================
