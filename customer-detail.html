@@ -125,6 +125,15 @@
     body{ background:#fff; }
     section.card{ background:#fff; border:none; box-shadow:none; padding:0; margin-bottom:20px; }
   }
+  .gift-row{ padding:10px 0; border-bottom:1px solid var(--line); }
+  .gift-row:last-child{ border-bottom:none; }
+  .gift-row-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .gift-date{ flex:0 0 auto; min-width:82px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .gift-content{ flex:1; min-width:0; font-size:13.5px; color:var(--ink); font-weight:500; }
+  .gift-actions{ display:flex; gap:6px; flex-shrink:0; margin-left:auto; }
+  .gift-actions .nav-btn{ padding:5px 9px; font-size:12px; }
+  .gift-row-sub{ margin-top:4px; padding-left:92px; font-size:12px; color:var(--muted); }
+
   .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:50; }
   .modal-overlay.open{ display:flex; }
   .modal{ background:#fff; border-radius:16px; padding:28px; max-width:640px; width:92%; max-height:86vh; overflow-y:auto; box-shadow:0 8px 24px rgba(16,24,40,.16), 0 2px 8px rgba(16,24,40,.08); }
@@ -1512,20 +1521,21 @@
   function renderGiftTable(){
     if (!giftRows.length){ giftTable.innerHTML = `<p class="empty">등록된 사은품 지급 내역이 없습니다.</p>`; return; }
     const showRecipient = familyGroupNos.length > 1;
-    let html = `<table class="mobile-card-table"><thead><tr><th style="width:100px">날짜</th><th>내용</th>${showRecipient ? '<th style="width:110px">수령자</th>' : ''}<th style="width:90px"></th></tr></thead><tbody>`;
+    let html = '';
     for (const g of giftRows){
       const canEdit = isAdmin || g.created_by_email === currentUserEmail;
-      const recipientCell = showRecipient
-        ? `<td data-label="수령자">${g.customer_no === customerNo ? '본인' : `<a href="customer-detail.html?customer_no=${g.customer_no}">${giftNameMap[g.customer_no] || '(이름없음)'} (${g.customer_no})</a>`}</td>`
-        : '';
-      html += `<tr data-id="${g.id}">
-        <td data-label="날짜">${g.activity_date}</td>
-        <td data-label="내용">${g.content}</td>
-        ${recipientCell}
-        <td class="gift-actions">${canEdit ? `<button class="nav-btn gift-edit-btn" data-id="${g.id}">✏️</button> <button class="nav-btn gift-delete-btn" data-id="${g.id}">🗑️</button>` : ''}</td>
-      </tr>`;
+      const recipientHtml = g.customer_no === customerNo
+        ? '본인'
+        : `<a href="customer-detail.html?customer_no=${g.customer_no}">${giftNameMap[g.customer_no] || '(이름없음)'} (${g.customer_no})</a>`;
+      html += `<div class="gift-row" data-id="${g.id}">
+        <div class="gift-row-top">
+          <span class="gift-date">${g.activity_date}</span>
+          <span class="gift-content">${g.content}</span>
+          <div class="gift-actions">${canEdit ? `<button class="nav-btn gift-edit-btn" data-id="${g.id}">✏️</button><button class="nav-btn gift-delete-btn" data-id="${g.id}">🗑️</button>` : ''}</div>
+        </div>
+        ${showRecipient ? `<div class="gift-row-sub">🎁 수령자: ${recipientHtml}</div>` : ''}
+      </div>`;
     }
-    html += `</tbody></table>`;
     giftTable.innerHTML = html;
 
     giftTable.querySelectorAll('.gift-delete-btn').forEach(btn => {
