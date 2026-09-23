@@ -9,10 +9,11 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#16181a; --paper:#f7f8f7; --panel:#ffffff; --line:#e7e9e8; --line-strong:#d7dad8;
-    --accent:#2563eb; --accent-hover:#1d4fc4; --accent-soft:#eaf1fe; --danger:#a4443a; --muted:#6b7370;
-    --green:#1a7a4c; --green-soft:#e6f4ea;
-    --warn:#b5601f; --warn-soft:#fdf1e6;
+    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
+    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
+    --green:#1a7a4c; --green-soft:#e3f5ea;
+    --warn:#b5601f; --warn-soft:#fdecd4;
+    --mint:#d1ede2; --peach:#fed2aa;
     --shadow-sm:0 2px 10px rgba(16,24,20,.05);
     --shadow-md:0 8px 28px rgba(16,24,20,.09);
   }
@@ -22,7 +23,7 @@
   button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow-md); }
-  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(37,99,235,.15); }
+  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(46,115,252,.15); }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
   .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
@@ -32,17 +33,29 @@
   #app{ display:none; }
   header{ display:flex; align-items:center; justify-content:space-between; padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:12px; }
-  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,.25); }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
   .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
   .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
   .nav-btn:hover{ background:#f4f5f4; }
 
   main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
   section.card:hover{ box-shadow:var(--shadow-md); }
-  section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; }
+  section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+
+  /* weseed 스타일 컬러 프레임 카드 (내 고객 / 미배정 고객) */
+  .card-frame{ padding:14px; border-radius:24px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > section.card{ box-shadow:none; }
+  .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
 
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:13px 14px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
@@ -161,6 +174,10 @@
     body.print-report-only section.card{
       background:#fff; border:none; box-shadow:none; padding:0; margin:0;
     }
+    body.print-customers-only .card-frame,
+    body.print-report-only .card-frame{
+      background:none; padding:0; border-radius:0;
+    }
     body.print-customers-only table,
     body.print-report-only table{
       width:100%; table-layout:fixed; font-size:11px;
@@ -217,15 +234,17 @@
   </header>
 
   <main>
+    <div class="card-frame mint">
     <section class="card">
       <h1>🙋 내 고객</h1>
       <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 월별 잔액 이력을 볼 수 있습니다.</p>
       <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
       <div id="myCustomerTable"></div>
     </section>
+    </div>
 
     <section class="card" id="unionReportSection">
-      <h1>📊 조합활동별 고객 보고서</h1>
+      <h1><span class="section-icon blue">📊</span> 조합활동별 고객 보고서</h1>
       <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다. 증감은 "기준월" 대비 최근월 잔액 기준입니다.</p>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
         <select id="unionReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
@@ -240,7 +259,7 @@
     </section>
 
     <section class="card" id="giftReportSection">
-      <h1>🎁 사은품 지급 이력 조회</h1>
+      <h1><span class="section-icon peach">🎁</span> 사은품 지급 이력 조회</h1>
       <p class="desc">사은품명을 선택하면 지급받은 고객 목록과 담당자·지급일을 확인할 수 있습니다.</p>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
         <select id="giftReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
@@ -251,13 +270,14 @@
     </section>
 
     <section class="card" id="familyReportSection">
-      <h1>👪 가족단위 합계 보고서</h1>
+      <h1><span class="section-icon green">👪</span> 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
       <div style="max-width:900px; margin-bottom:20px; position:relative; height:520px;"><canvas id="familyChart"></canvas></div>
       <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
       <div id="familyReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
 
+    <div class="card-frame peach">
     <section class="card" id="unassignedSection">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <h1 style="margin:0;">📋 미배정 고객 - 바로 배정받기</h1>
@@ -269,6 +289,7 @@
         <div id="unassignedTable"></div>
       </div>
     </section>
+    </div>
 
     <section class="card" id="myRequestsSection" style="display:none">
       <h1>📝 내 신청 현황</h1>
