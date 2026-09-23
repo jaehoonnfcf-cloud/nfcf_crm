@@ -395,19 +395,20 @@
     .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, #myCustomersBtn, .reset-btn, .csv-btn, #downloadCsvBtn{ flex:1 1 100%; }
   }
 @media print{
-  @page{ margin: 32mm 18mm 16mm 18mm; }
+  @page{ margin: 20mm 16mm 14mm 16mm; }
+  body{ zoom:1; }
   body.printing-membership > *:not(#membershipPrintView){ display:none !important; }
   body.printing-membership #membershipPrintView{ display:block !important; }
 }
-#membershipPrintView{ font-family:'Pretendard', sans-serif; color:#111; padding:20px 6px 6px; max-width:720px; margin:0 auto; font-size:14.5px; line-height:1.6; }
-#membershipPrintView table{ width:100%; border-collapse:collapse; font-size:14px; margin-top:6px; }
-#membershipPrintView td, #membershipPrintView th{ border:1px solid #333; padding:11px 13px; vertical-align:top; line-height:1.7; }
-#membershipPrintView .mp-title{ text-align:center; font-size:23px; font-weight:700; margin-bottom:10px; letter-spacing:0.02em; }
-#membershipPrintView .mp-sub{ text-align:center; font-size:13px; color:#444; margin-bottom:24px; }
-#membershipPrintView .mp-label{ width:125px; font-weight:600; background:#f7f7f5; }
-#membershipPrintView .mp-note-title{ text-align:center; font-weight:700; margin:26px 0 10px; font-size:15px; }
-#membershipPrintView .mp-note-body{ min-height:180px; white-space:pre-wrap; padding:14px; border:1px solid #333; font-size:14px; line-height:1.7; }
-#membershipPrintView .mp-signature{ text-align:right; margin-top:28px; font-size:14px; }
+#membershipPrintView{ font-family:'Pretendard Variable', Pretendard, sans-serif; color:#111; padding:10px 6px 6px; max-width:720px; margin:0 auto; font-size:13.5px; line-height:1.5; }
+#membershipPrintView table{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:4px; }
+#membershipPrintView td, #membershipPrintView th{ border:1px solid #333; padding:8px 12px; vertical-align:top; line-height:1.55; }
+#membershipPrintView .mp-title{ text-align:center; font-size:21px; font-weight:700; margin-bottom:8px; letter-spacing:0.02em; }
+#membershipPrintView .mp-sub{ text-align:center; font-size:12.5px; color:#444; margin-bottom:16px; }
+#membershipPrintView .mp-label{ width:122px; font-weight:600; background:#f7f7f5; }
+#membershipPrintView .mp-note-title{ text-align:center; font-weight:700; margin:18px 0 8px; font-size:14px; line-height:1.35; }
+#membershipPrintView .mp-note-body{ min-height:130px; white-space:pre-wrap; padding:12px; border:1px solid #333; font-size:13px; line-height:1.6; }
+#membershipPrintView .mp-signature{ text-align:right; margin-top:18px; font-size:13.5px; }
 </style>
 </head>
 <body>

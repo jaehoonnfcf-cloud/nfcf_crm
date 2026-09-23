@@ -79,8 +79,9 @@
   .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
   @media print{
+    @page{ margin:14mm 12mm; }
     header .nav-btn, #managedSearchBox, #staffFilterSelect, #familyReportSection{ display:none !important; }
-    body{ background:#fff; }
+    body{ background:#fff; zoom:1; }
     section.card{ border:none; box-shadow:none; padding:0; }
   }
 </style>
