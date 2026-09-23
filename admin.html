@@ -6,34 +6,34 @@
 <title>관리자 페이지</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#1c2024;
-    --paper:#f7f7f5;
-    --panel:#ffffff;
-    --line:#e2e1dd;
-    --accent:#2f5d50;
-    --accent-soft:#e7efec;
-    --danger:#a4443a;
-    --muted:#6d7278;
+    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
+    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
+    --green:#1a7a4c; --green-soft:#e3f5ea;
+    --warn:#b5601f; --warn-soft:#fdecd4;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
+    --shadow-md:0 8px 28px rgba(16,24,20,.09);
   }
   *{ box-sizing:border-box; }
   body{
     margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
-    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
-    min-height:100vh;
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh; letter-spacing:-0.01em;
   }
 
   /* ---- 로그인 화면 ---- */
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    background:var(--panel); border:1px solid var(--line); border-radius:20px;
     padding:44px 40px; width:100%; max-width:360px; text-align:center;
-    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+    box-shadow:var(--shadow-md);
   }
   .login-mark{
-    width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px;
-    display:flex;align-items:center;justify-content:center; font-size:22px;
+    width:44px;height:44px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:22px; box-shadow:0 2px 6px rgba(46,115,252,.15);
   }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
@@ -56,17 +56,19 @@
   #app{ display:none; }
   header{
     display:flex; align-items:center; justify-content:space-between;
-    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel);
+    padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px;
+    box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20;
   }
   .brand{ display:flex; align-items:center; gap:10px; }
-  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
-  .brand h2{ font-size:16px; margin:0; }
-  .user-box{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
+  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
+  .brand h2{ font-size:16px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .user-box{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
   .link-btn{
-    border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none;
-    padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+    border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); text-decoration:none;
+    padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+    transition:background .12s ease;
   }
-  .link-btn:hover{ background:#f2f1ee; }
+  .link-btn:hover{ background:#f4f5f4; }
 
   main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
 
@@ -79,24 +81,42 @@
   .tab-panel{ display:none; }
   .tab-panel.active{ display:block; }
 
-  h1.page-title{ font-size:20px; margin:0 0 4px; }
-  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; }
+  h1.page-title{ font-size:20px; margin:0 0 4px; font-weight:800; letter-spacing:-0.02em; display:flex; align-items:center; }
+  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+
+  /* ---- weseed 스타일 카드 ---- */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  .card:hover{ box-shadow:var(--shadow-md); }
+
+  /* weseed 스타일 컬러 프레임 카드 (조합원 관리 / 사용자 관리) */
+  .card-frame{ padding:14px; border-radius:24px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > .card{ box-shadow:none; }
+  .card-frame > .card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
 
   /* ---- 통계 카드 ---- */
   .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px; margin-bottom:26px; }
   .stat-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+    box-shadow:var(--shadow-sm); transition:box-shadow .18s ease;
   }
+  .stat-card:hover{ box-shadow:var(--shadow-md); }
   .stat-card .num{ font-size:26px; font-weight:700; color:var(--ink); }
   .stat-card .label{ font-size:12.5px; color:var(--muted); margin-top:4px; }
 
   .section-title{ font-size:14px; font-weight:700; margin:24px 0 10px; }
 
   .chart-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
     padding:20px 20px 10px; margin-bottom:8px;
     display:flex; align-items:flex-end; justify-content:space-between; gap:8px;
-    height:140px;
+    height:140px; box-shadow:var(--shadow-sm);
   }
   .chart-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
   .chart-bar{
@@ -116,19 +136,19 @@
   .day-toggle-btn{ padding:5px 12px; font-size:12px; }
   .day-toggle-btn.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:#fafaf8;
+    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--line); background:transparent;
   }
   tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:hover{ background:#fafaf9; }
+  tbody tr:hover{ background:#fafafa; }
 
   .badge{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
-  .badge.ok{ background:var(--accent-soft); color:var(--accent); }
+  .badge.ok{ background:var(--green-soft); color:var(--green); }
   .badge.fail{ background:#fbeceb; color:var(--danger); }
-  .badge.admin{ background:#fdf1e0; color:#a3690f; }
+  .badge.admin{ background:var(--warn-soft); color:var(--warn); }
 
   .toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
   .toolbar input[type=text]{
@@ -139,14 +159,14 @@
   }
   .btn{
     border:none; background:var(--accent); color:#fff; padding:9px 16px; border-radius:8px;
-    font-size:13.5px; font-weight:600; cursor:pointer;
+    font-size:13.5px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(46,115,252,.28); transition:background .12s ease;
   }
-  .btn:hover{ opacity:.9; }
+  .btn:hover{ background:var(--accent-hover); }
   .btn-outline{
-    border:1px solid var(--line); background:#fff; color:var(--ink); padding:7px 12px; border-radius:7px;
-    font-size:12.5px; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:7px 12px; border-radius:8px;
+    font-size:12.5px; font-weight:600; cursor:pointer; transition:background .12s ease;
   }
-  .btn-outline:hover{ background:#f2f1ee; }
+  .btn-outline:hover{ background:#f4f5f4; }
   .btn-danger{ color:var(--danger); border-color:#e8d3d0; }
 
   input[type=text].inline-input{
@@ -176,8 +196,8 @@
   .history-item .h-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
   .history-item .h-meta{ font-size:11.5px; color:var(--muted); }
   .h-action{ font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; }
-  .h-action.insert{ background:var(--accent-soft); color:var(--accent); }
-  .h-action.update{ background:#eaf1fb; color:#2b5e9e; }
+  .h-action.insert{ background:var(--green-soft); color:var(--green); }
+  .h-action.update{ background:var(--accent-soft); color:var(--accent-hover); }
   .h-action.delete{ background:#fbeceb; color:var(--danger); }
 
   /* ---- 모달 ---- */
@@ -206,6 +226,8 @@
 
   @media (max-width:720px){
     main{ padding:18px 14px 40px; }
+    .card{ padding:18px 16px; }
+    .card-frame{ padding:10px; border-radius:18px; }
 
     header{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
     .brand h2{ font-size:14.5px; }
@@ -313,7 +335,7 @@
 
       <!-- ===== 대시보드 ===== -->
       <div class="tab-panel active" id="panel-dashboard">
-        <h1 class="page-title">📊 대시보드</h1>
+        <h1 class="page-title"><span class="section-icon blue">📊</span> 대시보드</h1>
         <p class="page-sub">전체 현황을 한눈에 확인합니다.</p>
         <div class="stat-grid" id="statGrid">
           <div class="stat-card"><div class="num">-</div><div class="label">불러오는 중...</div></div>
@@ -343,7 +365,8 @@
       </div>
 
       <!-- ===== 사용자 관리 ===== -->
-      <div class="tab-panel" id="panel-users">
+      <div class="tab-panel card-frame peach" id="panel-users">
+       <div class="card">
         <h1 class="page-title">👤 사용자 관리</h1>
         <p class="page-sub">고객정보 관리 페이지에 접근 가능한 계정을 관리합니다.</p>
         <div class="toolbar">
@@ -363,6 +386,7 @@
         </table>
         <div class="empty-note" id="usersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
         <div class="status-line" id="usersStatus"></div>
+       </div>
       </div>
 
       <!-- ===== 고객번호 정정 ===== -->
@@ -404,7 +428,7 @@
 
       <!-- ===== 접속이력 ===== -->
       <div class="tab-panel" id="panel-login-history">
-        <h1 class="page-title">🔑 접속이력</h1>
+        <h1 class="page-title"><span class="section-icon green">🔑</span> 접속이력</h1>
         <p class="page-sub">로그인 성공/실패(비인가 접근 시도) 기록입니다.</p>
         <div class="toolbar">
           <select id="loginFilter">
@@ -427,7 +451,7 @@
 
       <!-- ===== 수정이력 ===== -->
       <div class="tab-panel" id="panel-edit-history">
-        <h1 class="page-title">📝 수정이력</h1>
+        <h1 class="page-title"><span class="section-icon peach">📝</span> 수정이력</h1>
         <p class="page-sub">전체 고객의 등록/수정/삭제/복구 기록입니다.</p>
         <div class="toolbar">
           <input type="text" id="editHistorySearch" placeholder="고객번호로 검색" />
@@ -445,7 +469,7 @@
 
       <!-- ===== CSV 업로드 이력 ===== -->
       <div class="tab-panel" id="panel-csv-history">
-        <h1 class="page-title">📤 CSV 업로드 이력</h1>
+        <h1 class="page-title"><span class="section-icon blue">📤</span> CSV 업로드 이력</h1>
         <p class="page-sub">누가 언제 CSV로 몇 건을 업로드/갱신했는지 기록입니다.</p>
         <table>
           <thead><tr><th style="width:170px;">시각</th><th>업로드한 사람</th><th>내용</th></tr></thead>
@@ -455,7 +479,8 @@
       </div>
 
       <!-- ===== 조합원 관리 ===== -->
-      <div class="tab-panel" id="panel-members">
+      <div class="tab-panel card-frame mint" id="panel-members">
+       <div class="card">
         <h1 class="page-title">🏅 조합원 관리</h1>
         <p class="page-sub">조합원 고객번호 명단을 관리합니다. 업로드하면 <b>기존 명단은 전부 지워지고 새 명단으로 완전히 교체</b>됩니다.</p>
         <div class="stat-grid" style="margin-bottom:20px;">
@@ -467,11 +492,12 @@
           <input type="file" id="memberFileInput" accept=".csv" style="display:none;" />
         </div>
         <div class="status-line" id="memberStatus"></div>
+       </div>
       </div>
 
       <!-- ===== 담당자/접점활동 ===== -->
       <div class="tab-panel" id="panel-assignments">
-        <h1 class="page-title">🙋 담당자/접점활동</h1>
+        <h1 class="page-title"><span class="section-icon green">🙋</span> 담당자/접점활동</h1>
         <p class="page-sub">직원별 담당 고객 현황과 전체 접점 활동 기록입니다.</p>
 
         <div class="section-title">👤 담당자별 고객 수 <span style="font-weight:400; font-size:12px; color:var(--muted);">(이름을 클릭하면 담당 고객 목록이 보여요)</span></div>
@@ -508,7 +534,7 @@
 
       <!-- ===== VIP 수정이력 ===== -->
       <div class="tab-panel" id="panel-vip-history">
-        <h1 class="page-title">💎 VIP 수정이력</h1>
+        <h1 class="page-title"><span class="section-icon peach">💎</span> VIP 수정이력</h1>
         <p class="page-sub">VIP 만기일자내역의 등록/수정/삭제 기록입니다.</p>
         <div class="toolbar">
           <input type="text" id="vipHistorySearch" placeholder="고객번호로 검색" />
