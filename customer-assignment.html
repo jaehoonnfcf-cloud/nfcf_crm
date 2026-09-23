@@ -6,26 +6,32 @@
 <title>전담고객 배정 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
-    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
-    --blue:#2b5e9e; --amber:#a3690f; --amber-soft:#fdf1e0;
+    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
+    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
+    --green:#1a7a4c; --green-soft:#e3f5ea;
+    --warn:#b5601f; --warn-soft:#fdecd4;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
+    --shadow-md:0 8px 28px rgba(16,24,20,.09);
   }
   *{ box-sizing:border-box; }
   body{
     margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
-    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
-    min-height:100vh;
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh; letter-spacing:-0.01em;
   }
+  button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    background:var(--panel); border:1px solid var(--line); border-radius:20px;
     padding:44px 40px; width:100%; max-width:360px; text-align:center;
-    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+    box-shadow:var(--shadow-md);
   }
-  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px;
-    display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(46,115,252,.15); }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
   .google-btn{
@@ -39,42 +45,59 @@
   .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
 
   #app{ display:none; }
-  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
-  .brand{ display:flex; align-items:center; gap:10px; }
-  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
-  .brand h2{ font-size:16px; margin:0; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:18px 32px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; }
-  .nav-btn:hover{ background:#f2f1ee; }
+  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
+  .nav-btn:hover{ background:#f4f5f4; }
 
   main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
-  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
-  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
+  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; line-height:1.6; }
+
+  /* weseed 스타일 컬러 프레임 카드 (배정 셀프 신청 승인 대기) */
+  .card-frame{ padding:14px; border-radius:24px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > section.card{ box-shadow:none; }
+  .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
 
   input[type=file]{ font-size:13px; }
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:14px; }
-  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
-  tbody td{ padding:9px 12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-top:14px; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:12px 14px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:nth-child(even){ background:#fcfcfb; }
-  select{ font-family:inherit; font-size:12.5px; padding:5px 6px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  tbody tr:hover{ background:#fafafa; }
+  select{ font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
 
   .row-actions{ display:flex; gap:10px; margin-top:16px; }
-  .primary-btn{ padding:9px 18px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; }
-  .primary-btn:hover{ opacity:.9; }
-  .primary-btn:disabled{ opacity:.5; cursor:default; }
-  .csv-btn{ background:var(--blue); border-color:var(--blue); }
-  .secondary-btn{ padding:9px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:13.5px; cursor:pointer; }
-  .secondary-btn:hover{ background:#f2f1ee; }
-  .small-btn{ border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; color:var(--ink); white-space:nowrap; }
-  .small-btn.approve{ border-color:var(--accent); color:var(--accent); }
-  .small-btn.reject{ border-color:#e8d3d0; color:var(--danger); }
+  .primary-btn{ padding:9px 18px; border-radius:9px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(46,115,252,.28); transition:background .12s ease; }
+  .primary-btn:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+  .primary-btn:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+  .csv-btn{ background:var(--accent); border-color:var(--accent); }
+  .csv-btn:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+  .secondary-btn{ padding:9px 16px; border-radius:9px; border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); font-size:13.5px; font-weight:600; cursor:pointer; transition:background .12s ease; }
+  .secondary-btn:hover{ background:#f4f5f4; }
+  .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
+  .small-btn:hover{ background:#f4f5f4; }
+  .small-btn.approve{ border-color:var(--green); color:var(--green); }
+  .small-btn.approve:hover{ background:var(--green-soft); }
+  .small-btn.reject{ border-color:#f3d9d6; color:var(--danger); }
+  .small-btn.reject:hover{ background:#fbeceb; }
 
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
   .status-msg{ font-size:13px; margin-top:10px; }
   .status-msg.error{ color:var(--danger); }
-  .status-msg.success{ color:var(--accent); }
+  .status-msg.success{ color:var(--green); }
   .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 </style>
 </head>
@@ -114,7 +137,7 @@
     <div id="adminArea" style="display:none; display:flex; flex-direction:column; gap:28px;">
 
       <section class="card">
-        <h1>📤 신규 고객 일괄 등록</h1>
+        <h1><span class="section-icon blue">📤</span> 신규 고객 일괄 등록</h1>
         <p class="desc">CSV 파일을 업로드하세요. 헤더: 고객번호, 성명, 특징 (이미 있는 고객번호는 정보가 갱신됩니다). 잔액은 월말 잔액 업로드에서 매달 등록합니다.</p>
         <input type="file" id="csvInput" accept=".csv" />
         <div id="csvPreview"></div>
@@ -125,7 +148,7 @@
       </section>
 
       <section class="card">
-        <h1>📊 월말 잔액 일괄 업로드</h1>
+        <h1><span class="section-icon peach">📊</span> 월말 잔액 일괄 업로드</h1>
         <p class="desc">기준월을 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 수신잔액, 여신잔액. 같은 월을 다시 업로드하면 값이 갱신됩니다 (누적 기록은 고객 상세 화면에서 확인).</p>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
           <label style="font-size:12.5px; color:var(--muted);">기준월(월말 기준)</label>
@@ -140,7 +163,7 @@
       </section>
 
       <section class="card">
-        <h1>🏅 조합활동 일괄 등록</h1>
+        <h1><span class="section-icon green">🏅</span> 조합활동 일괄 등록</h1>
         <p class="desc">활동일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 이력, 성명(선택) — 예: "임도트래킹 1차". 성명은 아직 등록 안 된 고객번호를 새로 만들 때만 사용되고, 이미 등록된 고객의 이름은 바뀌지 않습니다. 담당자와 무관하게 등록됩니다.</p>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
           <label style="font-size:12.5px; color:var(--muted);">활동일자</label>
@@ -155,7 +178,7 @@
       </section>
 
       <section class="card">
-        <h1>🎁 사은품 지급 일괄 등록</h1>
+        <h1><span class="section-icon blue">🎁</span> 사은품 지급 일괄 등록</h1>
         <p class="desc">지급일자를 선택하고 CSV를 업로드하세요. 헤더: 고객번호, 사은품명, 성명(선택) — 예: "설날 사은품", "조합원 생일선물". 성명은 아직 등록 안 된 고객번호를 새로 만들 때만 사용되고, 이미 등록된 고객의 이름은 바뀌지 않습니다. 담당자와 무관하게 등록됩니다.</p>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
           <label style="font-size:12.5px; color:var(--muted);">지급일자</label>
@@ -170,7 +193,7 @@
       </section>
 
       <section class="card">
-        <h1>🙋 담당자 배정</h1>
+        <h1><span class="section-icon peach">🙋</span> 담당자 배정</h1>
         <p class="desc">담당자가 지정되지 않은 고객입니다. 담당자를 선택하고 저장하세요.</p>
         <input type="text" id="assignSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
         <div id="assignTable"></div>
@@ -181,11 +204,13 @@
         <div class="status-msg" id="assignStatus"></div>
       </section>
 
+      <div class="card-frame peach">
       <section class="card">
         <h1>📝 배정 셀프 신청 승인 대기</h1>
         <p class="desc">담당자가 스스로 신청한 배정 건입니다. 승인하면 즉시 배정되고 이력에 기록됩니다.</p>
         <div id="requestTable"></div>
       </section>
+      </div>
 
     </div>
   </main>
