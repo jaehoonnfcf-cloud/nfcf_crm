@@ -59,6 +59,8 @@
   .diff-down{ color:var(--danger); }
   .diff-flat{ color:var(--muted); }
   .member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
+  .family-name-link{ color:var(--ink); font-weight:600; text-decoration:none; }
+  .family-name-link:hover{ text-decoration:underline; }
 
   table{ width:100%; border-collapse:collapse; font-size:13.5px; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   th, td{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
@@ -1290,11 +1292,15 @@
     });
 
     const otherNos = entries.map(e => e.otherNo);
-    const { data: otherRows } = await sb.from('customer_balance_diff')
-      .select('customer_no, name, current_deposit_balance, current_loan_balance')
-      .in('customer_no', otherNos);
+    const [{ data: otherRows }, { data: memberRows }] = await Promise.all([
+      sb.from('customer_balance_diff')
+        .select('customer_no, name, current_deposit_balance, current_loan_balance')
+        .in('customer_no', otherNos),
+      sb.from('members').select('customer_no').in('customer_no', otherNos)
+    ]);
     const rowMap = {};
     for (const r of (otherRows || [])) rowMap[r.customer_no] = r;
+    const memberSet = new Set((memberRows || []).map(m => m.customer_no));
 
     familyList.innerHTML = entries.map(e => {
       const r = rowMap[e.otherNo];
@@ -1302,7 +1308,8 @@
       <div style="padding:8px 0; border-bottom:1px solid var(--line);">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span style="flex:0 0 52px; color:var(--muted); font-size:12px; font-weight:600;">${e.relation}</span>
-          <a href="customer-detail.html?customer_no=${e.otherNo}" style="flex:1; min-width:0;">${r?.name || '(이름없음)'} (${e.otherNo})</a>
+          <a href="customer-detail.html?customer_no=${e.otherNo}" class="family-name-link" style="flex:1; min-width:0;">${r?.name || '(이름없음)'} (${e.otherNo})</a>
+          ${memberSet.has(e.otherNo) ? '<span class="member-badge">🏅조합원</span>' : ''}
           <button class="nav-btn family-delete-btn" data-cno="${e.linkCustomerNo}" data-rno="${e.linkRelatedNo}">삭제</button>
         </div>
         <div style="display:flex; gap:20px; margin-top:5px; padding-left:60px;">
