@@ -49,6 +49,7 @@
   .diff-up{ color:#1a7a4c; }
   .diff-down{ color:var(--danger); }
   .diff-flat{ color:var(--muted); }
+  .member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f; padding:2px 7px; border-radius:999px; }
 
   table{ width:100%; border-collapse:collapse; font-size:13.5px; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   th, td{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
@@ -166,6 +167,7 @@
 
       <div id="infoDisplayMode" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
+        <span id="memberBadgeDisplay" class="member-badge" style="display:none;">🏅조합원</span>
         <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
         <button class="nav-btn" id="editInfoBtn" title="이름·특징·추천인 수정">✏️ 수정</button>
         <button class="nav-btn" id="openMembershipDocBtn" style="margin-left:auto; display:none;">📋 조합원 상담일지</button>
@@ -639,6 +641,9 @@
     document.getElementById('customerNoLabel').textContent = `고객번호 ${data.customer_no}`;
     document.getElementById('nameDisplay').textContent = data.name || '(이름 미등록)';
     document.getElementById('featureDisplay').textContent = data.customer_info || '(특징 없음)';
+
+    const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', customerNo).maybeSingle();
+    document.getElementById('memberBadgeDisplay').style.display = memberRow ? 'inline-block' : 'none';
 
     let assigneeLabel = '미배정';
     if (data.assigned_to){
@@ -1266,17 +1271,23 @@
     });
 
     const otherNos = entries.map(e => e.otherNo);
-    const { data: otherRows } = await sb.from('customers').select('customer_no, name').in('customer_no', otherNos);
-    const nameMap = {};
-    for (const r of (otherRows || [])) nameMap[r.customer_no] = r.name;
+    const { data: otherRows } = await sb.from('customer_balance_diff')
+      .select('customer_no, name, current_deposit_balance, current_loan_balance')
+      .in('customer_no', otherNos);
+    const rowMap = {};
+    for (const r of (otherRows || [])) rowMap[r.customer_no] = r;
 
-    familyList.innerHTML = entries.map(e => `
+    familyList.innerHTML = entries.map(e => {
+      const r = rowMap[e.otherNo];
+      return `
       <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); flex-wrap:wrap;">
         <span style="min-width:60px; color:var(--muted); font-size:12.5px;">${e.relation}</span>
-        <a href="customer-detail.html?customer_no=${e.otherNo}">${nameMap[e.otherNo] || '(이름없음)'} (${e.otherNo})</a>
+        <a href="customer-detail.html?customer_no=${e.otherNo}">${r?.name || '(이름없음)'} (${e.otherNo})</a>
+        <span style="font-size:12.5px; color:var(--muted);">수신 ${fmtNum(r?.current_deposit_balance)} · 여신 ${fmtNum(r?.current_loan_balance)}</span>
         <button class="nav-btn family-delete-btn" data-cno="${e.linkCustomerNo}" data-rno="${e.linkRelatedNo}" style="margin-left:auto;">삭제</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     familyList.querySelectorAll('.family-delete-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
