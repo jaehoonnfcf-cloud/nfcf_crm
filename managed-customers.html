@@ -6,17 +6,24 @@
 <title>전체 관리 고객</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#1c2024; --paper:#f7f7f5; --panel:#ffffff; --line:#e2e1dd;
-    --accent:#2f5d50; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
+    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
+    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
+    --green:#1a7a4c; --green-soft:#e3f5ea;
+    --warn:#b5601f; --warn-soft:#fdecd4;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
+    --shadow-md:0 8px 28px rgba(16,24,20,.09);
   }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
-    font-family:-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; }
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
+  button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-  .login-mark{ width:44px;height:44px;border-radius:9px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:22px; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow-md); }
+  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(46,115,252,.15); }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
   .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
@@ -24,28 +31,33 @@
   .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
 
   #app{ display:none; }
-  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; gap:10px; }
-  .brand{ display:flex; align-items:center; gap:10px; }
-  .brand .login-mark{ margin:0; width:32px; height:32px; font-size:17px; border-radius:8px; }
-  .brand h2{ font-size:16px; margin:0; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 12px; border-radius:7px; font-size:12.5px; cursor:pointer; text-decoration:none; white-space:nowrap; }
-  .nav-btn:hover{ background:#f2f1ee; }
+  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; white-space:nowrap; transition:background .12s ease; }
+  .nav-btn:hover{ background:#f4f5f4; }
 
-  main{ max-width:1440px; margin:0 auto; padding:32px 24px 60px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
-  section.card h1{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
-  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+  main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
+  section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:10px 8px; border-bottom:1px solid var(--line); background:#fafaf8; white-space:nowrap; }
-  tbody td{ padding:6px 6px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:13px 8px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:8px 8px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:nth-child(even){ background:#fcfcfb; }
-  tr.clickable{ cursor:pointer; }
-  tr.clickable:hover{ background:var(--accent-soft); }
+  tr.clickable{ cursor:pointer; transition:background .12s ease; }
+  tr.clickable:hover{ background:#fafafa; }
 
-  .diff-up{ color:#1a7a4c; font-weight:600; }
+  .diff-up{ color:var(--green); font-weight:600; }
   .diff-down{ color:var(--danger); font-weight:600; }
   .diff-flat{ color:var(--muted); }
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
@@ -102,7 +114,7 @@
 
   <main>
     <section class="card" id="familyReportSection">
-      <h1>👪 가족단위 합계 보고서</h1>
+      <h1><span class="section-icon green">👪</span> 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
       <div style="max-width:900px; margin-bottom:20px; position:relative; height:520px;"><canvas id="familyChart"></canvas></div>
       <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
@@ -110,7 +122,7 @@
     </section>
 
     <section class="card">
-      <h1>👥 전체 관리 고객</h1>
+      <h1><span class="section-icon blue">👥</span> 전체 관리 고객</h1>
       <p class="desc">담당자와 무관하게, 현재 배정되어 관리 중인 모든 고객입니다. 조합활동·마케팅활동은 가장 최근 항목만 표시됩니다.</p>
       <input type="text" id="managedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
       <select id="staffFilterSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px; margin-left:8px;">
