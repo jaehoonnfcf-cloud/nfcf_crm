@@ -58,6 +58,7 @@
   .badge.pending{ background:#fdf1e0; color:#a3690f; }
   .badge.approved{ background:var(--green-soft); color:var(--green); }
   .badge.rejected{ background:#fbeceb; color:var(--danger); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f; padding:2px 7px; border-radius:999px; }
   .small-btn{ border:1px solid var(--line); background:#f8f9fb; border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:all .15s ease; }
   .small-btn:hover{ background:var(--accent-soft); border-color:#c7d9d2; color:var(--accent-hover); }
 
@@ -380,20 +381,24 @@
     const rows = data || [];
 
     let unionMap = {};
+    let memberSet = new Set();
     if (rows.length){
       const customerNos = rows.map(r => r.customer_no);
-      const { data: unionData } = await sb
-        .from('customer_activities')
-        .select('customer_no, content, activity_date')
-        .in('customer_no', customerNos)
-        .eq('activity_type', '조합활동')
-        .order('activity_date', { ascending: false });
+      const [{ data: unionData }, { data: memberData }] = await Promise.all([
+        sb.from('customer_activities')
+          .select('customer_no, content, activity_date')
+          .in('customer_no', customerNos)
+          .eq('activity_type', '조합활동')
+          .order('activity_date', { ascending: false }),
+        sb.from('members').select('customer_no').in('customer_no', customerNos)
+      ]);
       for (const a of (unionData || [])){
         if (!(a.customer_no in unionMap)) unionMap[a.customer_no] = a.content;
       }
+      for (const m of (memberData || [])) memberSet.add(m.customer_no);
     }
 
-    myCustomerRows = rows.map(r => ({ ...r, unionActivity: unionMap[r.customer_no] || '-' }));
+    myCustomerRows = rows.map(r => ({ ...r, unionActivity: unionMap[r.customer_no] || '-', isMember: memberSet.has(r.customer_no) }));
     renderMyCustomerTable(myCustomerRows);
   }
 
@@ -411,7 +416,7 @@
     for (const c of rows){
       html += `<tr>
         <td class="clickable" data-customer="${c.customer_no}" data-label="고객번호"><span class="v">${c.customer_no}</span></td>
-        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}</span></td>
+        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}${c.isMember ? '<span class="member-badge">🏅조합원</span>' : ''}</span></td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="특징" title="${(c.customer_info||'').replace(/"/g,'&quot;')}"><span class="v">${c.customer_info||''}</span></td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="조합활동" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}"><span class="v">${c.unionActivity}</span></td>
         <td class="clickable num" data-customer="${c.customer_no}" data-label="수신잔액"><span class="v">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</span></td>
