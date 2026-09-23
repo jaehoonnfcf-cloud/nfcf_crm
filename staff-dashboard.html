@@ -6,23 +6,23 @@
 <title>내 전담고객</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#181b25; --paper:#f7f8fa; --panel:#ffffff; --line:#e5e7eb;
-    --accent:#2f5d50; --accent-hover:#20423a; --accent-soft:#e7efec; --danger:#a4443a; --muted:#6d7278;
-    --green:#2f5d50; --green-soft:#e7efec;
-    --info:#2f6fed; --info-hover:#255bc4; --info-soft:#e8f0fe;
-    --shadow-sm:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
-    --shadow-md:0 8px 24px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.06);
+    --ink:#16181a; --paper:#f7f8f7; --panel:#ffffff; --line:#e7e9e8; --line-strong:#d7dad8;
+    --accent:#2563eb; --accent-hover:#1d4fc4; --accent-soft:#eaf1fe; --danger:#a4443a; --muted:#6b7370;
+    --green:#1a7a4c; --green-soft:#e6f4ea;
+    --warn:#b5601f; --warn-soft:#fdf1e6;
+    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
+    --shadow-md:0 8px 28px rgba(16,24,20,.09);
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:linear-gradient(135deg, #eef8f2 0%, #eef2fb 100%); background-attachment:fixed; color:var(--ink); zoom:1.2;
-    font-family:'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
+  body{ margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
   button, select{ font-family:inherit; }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow-md); }
-  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(47,93,80,.15); }
+  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(37,99,235,.15); }
   .login-card h1{ font-size:19px; margin:0 0 6px; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
   .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
@@ -32,35 +32,37 @@
   #app{ display:none; }
   header{ display:flex; align-items:center; justify-content:space-between; padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:12px; }
-  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(47,93,80,.25); }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(37,99,235,.25); }
   .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line); background:#f8f9fb; color:var(--ink); padding:8px 15px; border-radius:10px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s ease; }
-  .nav-btn:hover{ background:var(--accent-soft); border-color:#c7d9d2; color:var(--accent-hover); }
+  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
+  .nav-btn:hover{ background:#f4f5f4; }
 
   main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:none; border-radius:24px; padding:32px; box-shadow:var(--shadow-md); }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
   section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
 
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:13px 14px; border-bottom:1px solid var(--line); background:var(--accent-soft); white-space:nowrap; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:13px 14px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
   tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:nth-child(even){ background:#fbfbfc; }
   tr.clickable{ cursor:pointer; transition:background .12s ease; }
-  tr.clickable:hover{ background:var(--info-soft); }
+  tr.clickable:hover{ background:#fafafa; }
 
-  .diff-up{ color:#1a7a4c; font-weight:600; }
+  .diff-up{ color:var(--green); font-weight:600; }
   .diff-down{ color:var(--danger); font-weight:600; }
   .diff-flat{ color:var(--muted); }
   .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; }
-  .badge.pending{ background:#fdf1e0; color:#a3690f; }
+  .badge.pending{ background:var(--warn-soft); color:var(--warn); }
   .badge.approved{ background:var(--green-soft); color:var(--green); }
   .badge.rejected{ background:#fbeceb; color:var(--danger); }
-  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#fdf1e0; color:#a3690f; padding:2px 7px; border-radius:999px; }
-  .small-btn{ border:1px solid var(--line); background:#f8f9fb; border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:all .15s ease; }
-  .small-btn:hover{ background:var(--accent-soft); border-color:#c7d9d2; color:var(--accent-hover); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
+  .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
+  .small-btn:hover{ background:#f4f5f4; }
+  .small-btn.primary{ border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(37,99,235,.28); }
+  .small-btn.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
 
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
 
@@ -498,7 +500,7 @@
         <td class="clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
         <td class="clickable" data-customer="${c.customer_no}">${c.name||'<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
         <td class="clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
-        <td><button class="small-btn" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
+        <td><button class="small-btn primary" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
       </tr>`;
     }
     html += `</tbody></table>`;
