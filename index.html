@@ -1099,7 +1099,8 @@
     let query = sb
       .from(VIEW_NAME)
       .select('*', { count: 'exact' })
-      .order('customer_no', { ascending: true })
+      .order('created_at', { ascending: false })
+      .order('customer_no', { ascending: false })
       .range(from, to);
     if (membersOnly) query = query.eq('membership', '조합원');
     const { data, error, count } = await query;
