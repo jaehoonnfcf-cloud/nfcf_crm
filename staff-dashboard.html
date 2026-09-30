@@ -270,6 +270,13 @@
       <div id="giftReportTable"><p class="empty">사은품명을 선택하면 지급받은 고객이 표시됩니다.</p></div>
     </section>
 
+    <section class="card" id="membershipDocReportSection">
+      <h1><span class="section-icon blue">📋</span> 조합원 상담일지 작성 고객</h1>
+      <p class="desc">「조합원 가입 사유 및 상담일지」를 작성한 고객 목록입니다. 행을 클릭하면 고객 상세 화면에서 상담일지를 확인·인쇄할 수 있습니다.</p>
+      <input type="text" id="membershipDocSearchBox" placeholder="🔍 고객번호 · 성명 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <div id="membershipDocReportTable"><p class="empty">불러오는 중...</p></div>
+    </section>
+
     <section class="card" id="familyReportSection">
       <h1><span class="section-icon green">👪</span> 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
@@ -378,6 +385,7 @@
     await loadMyRequests();
     await loadUnionReportOptions();
     await loadGiftReportOptions();
+    await loadMembershipDocReport();
     await loadFamilyReport();
   }
 
@@ -789,6 +797,79 @@
   }
 
   giftReportSelect.addEventListener('change', renderGiftReport);
+
+  // ---- 조합원 상담일지 작성 고객 ----
+  const membershipDocReportTable = document.getElementById('membershipDocReportTable');
+  const membershipDocSearchBox = document.getElementById('membershipDocSearchBox');
+  let membershipDocRowsCache = [];
+
+  async function loadMembershipDocReport(){
+    membershipDocReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data: appRows, error } = await sb
+      .from('membership_applications')
+      .select('customer_no, created_at, qualification_type, consultant_name')
+      .order('created_at', { ascending: false });
+
+    if (error){ membershipDocReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (!appRows.length){ membershipDocReportTable.innerHTML = `<p class="empty">작성된 상담일지가 없습니다.</p>`; return; }
+
+    // 고객당 가장 최근 상담일지 한 건만 표시
+    const latestByCustomer = {};
+    for (const r of appRows) if (!(r.customer_no in latestByCustomer)) latestByCustomer[r.customer_no] = r;
+    const rows = Object.values(latestByCustomer).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const customerNos = rows.map(r => r.customer_no);
+    await getStaffNameMap();
+    const [{ data: custRows }, { data: memberRows }] = await Promise.all([
+      sb.from('customers').select('customer_no, name, assigned_to').in('customer_no', customerNos),
+      sb.from('members').select('customer_no').in('customer_no', customerNos)
+    ]);
+    const custMap = {};
+    for (const c of (custRows || [])) custMap[c.customer_no] = c;
+    const memberSet = new Set((memberRows || []).map(m => m.customer_no));
+
+    membershipDocRowsCache = rows.map(r => ({
+      ...r,
+      name: custMap[r.customer_no]?.name || '',
+      assigned_to: custMap[r.customer_no]?.assigned_to || null,
+      isMember: memberSet.has(r.customer_no)
+    }));
+    renderMembershipDocReportTable(membershipDocRowsCache);
+  }
+
+  function renderMembershipDocReportTable(rows){
+    if (!rows.length){ membershipDocReportTable.innerHTML = `<p class="empty">조건에 맞는 고객이 없습니다.</p>`; return; }
+    let html = `<p class="readonly-note" style="margin:0 0 8px;">총 ${rows.length}명</p>
+      <table><thead><tr><th>고객번호</th><th>성명</th><th>조합원의 자격</th><th>담당자</th><th>작성일</th><th>상담자</th></tr></thead><tbody>`;
+    for (const r of rows){
+      html += `<tr class="clickable" data-customer="${r.customer_no}">
+        <td>${r.customer_no}</td>
+        <td>${r.name || ''}${r.isMember ? '<span class="member-badge">🏅조합원</span>' : ''}</td>
+        <td>${r.qualification_type || '-'}</td>
+        <td>${r.assigned_to ? (staffNameMapCache?.[r.assigned_to] || r.assigned_to) : '미배정'}</td>
+        <td>${(r.created_at || '').slice(0, 10)}</td>
+        <td>${r.consultant_name || '-'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    membershipDocReportTable.innerHTML = html;
+
+    membershipDocReportTable.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        window.location.href = `customer-detail.html?customer_no=${row.dataset.customer}`;
+      });
+    });
+  }
+
+  membershipDocSearchBox.addEventListener('input', () => {
+    const kw = membershipDocSearchBox.value.trim().toLowerCase();
+    if (!kw){ renderMembershipDocReportTable(membershipDocRowsCache); return; }
+    const filtered = membershipDocRowsCache.filter(r =>
+      String(r.customer_no).includes(kw) || (r.name || '').toLowerCase().includes(kw)
+    );
+    renderMembershipDocReportTable(filtered);
+  });
 
   // ---- 가족단위 합계 보고서 ----
   const familyReportTable = document.getElementById('familyReportTable');
