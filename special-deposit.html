@@ -137,53 +137,9 @@
   </header>
 
   <main>
-    <div class="card-frame mint">
-    <section class="card">
-      <h1><span class="section-icon blue">📝</span> 실적 등록</h1>
-      <p class="desc">예금·적금 특판 신규 건을 한 건씩 등록하세요. 등록하면 아래 집계에 바로 반영됩니다.</p>
-      <div id="editingNotice" style="display:none; margin-bottom:12px;">
-        <span class="badge pending">✏️ 수정 중</span>
-        <button type="button" class="small-btn" id="cancelEditBtn" style="margin-left:8px;">취소</button>
-      </div>
-      <form id="entryForm">
-        <div class="form-row">
-          <div><label>날짜</label><input type="date" id="fDate" required /></div>
-          <div><label>지점</label>
-            <select id="fBranch" required>
-              <option value="본점">🏢 본점</option>
-              <option value="지점">🏬 지점</option>
-            </select>
-          </div>
-          <div><label>상품</label>
-            <select id="fProduct" required>
-              <option value="예금">예금</option>
-              <option value="적금">적금</option>
-            </select>
-          </div>
-          <div><label>구분</label>
-            <select id="fCategory" required>
-              <option value="최초신규">최초신규</option>
-              <option value="재예치">재예치</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div><label>금액</label><input type="number" id="fAmount" min="1" step="1" required placeholder="예: 10000000" /></div>
-          <div><label>고객번호 (선택)</label><input type="number" id="fCustomerNo" placeholder="기존 고객이면 입력" /></div>
-          <div style="flex:2; min-width:200px;"><label>고객명</label><input type="text" id="fCustomerName" placeholder="고객명" /></div>
-        </div>
-        <div class="form-row">
-          <div><label>비고 (선택)</label><input type="text" id="fNote" placeholder="메모" /></div>
-        </div>
-        <button type="submit" class="primary-btn" id="submitEntryBtn">➕ 등록</button>
-        <div class="status-msg" id="entryStatus"></div>
-      </form>
-    </section>
-    </div>
-
     <section class="card">
       <h1><span class="section-icon green">📊</span> 실적 대시보드</h1>
-      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다.</p>
+      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다.</p>
 
       <div class="toolbar">
         <button class="small-btn primary period-btn" data-period="today">오늘</button>
@@ -207,7 +163,7 @@
 
     <section class="card">
       <h1><span class="section-icon peach">📋</span> 등록 내역</h1>
-      <p class="desc">등록된 건별 내역입니다. 본인이 등록한 건과 관리자만 수정·삭제할 수 있습니다.</p>
+      <p class="desc">등록된 건별 내역입니다. 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 본인이 등록한 건과 관리자만 삭제할 수 있습니다.</p>
       <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="width:280px; margin-bottom:12px;" />
       <div id="entryListTable"><p class="empty">불러오는 중...</p></div>
     </section>
@@ -285,7 +241,6 @@
     const { data: admin } = await sb.rpc('is_admin');
     isAdmin = !!admin;
 
-    document.getElementById('fDate').value = new Date().toISOString().slice(0, 10);
     await loadEntries();
   }
 
@@ -308,7 +263,6 @@
 
   // ---- 데이터 로드 ----
   let entriesCache = [];
-  let editingEntryId = null;
   let currentPeriod = 'today';
   let productFilter = '';
   let entrySearchKeyword = '';
@@ -477,18 +431,12 @@
         <td>${custLabel}</td>
         <td>${r.created_by || r.created_by_email || ''}</td>
         <td class="ellipsis" title="${(r.note || '').replace(/"/g, '&quot;')}">${r.note || ''}</td>
-        <td>${canEdit ? `<button class="small-btn edit-entry-btn" data-id="${r.id}">✏️</button> <button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
+        <td>${canEdit ? `<button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
     document.getElementById('entryListTable').innerHTML = html;
 
-    document.querySelectorAll('.edit-entry-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const row = entriesCache.find(r => r.id === Number(btn.dataset.id));
-        if (row) startEdit(row);
-      });
-    });
     document.querySelectorAll('.del-entry-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('이 내역을 삭제할까요?')) return;
@@ -522,100 +470,6 @@
     renderEntryList();
   });
 
-  // ---- 등록/수정 폼 ----
-  const entryForm = document.getElementById('entryForm');
-  const entryStatus = document.getElementById('entryStatus');
-  const submitEntryBtn = document.getElementById('submitEntryBtn');
-  const editingNotice = document.getElementById('editingNotice');
-
-  document.getElementById('fCustomerNo').addEventListener('blur', async (e) => {
-    const no = Number(e.target.value);
-    if (!no) return;
-    const { data } = await sb.from('customers').select('name').eq('customer_no', no).eq('is_deleted', false).maybeSingle();
-    if (data) document.getElementById('fCustomerName').value = data.name || '';
-  });
-
-  function startEdit(row){
-    editingEntryId = row.id;
-    document.getElementById('fDate').value = row.entry_date;
-    document.getElementById('fBranch').value = row.branch;
-    document.getElementById('fProduct').value = row.product_type;
-    document.getElementById('fCategory').value = row.category;
-    document.getElementById('fAmount').value = row.amount;
-    document.getElementById('fCustomerNo').value = row.customer_no || '';
-    document.getElementById('fCustomerName').value = row.customer_name || '';
-    document.getElementById('fNote').value = row.note || '';
-    submitEntryBtn.textContent = '💾 수정 저장';
-    editingNotice.style.display = 'block';
-    entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function resetFormAfterSave(){
-    document.getElementById('fAmount').value = '';
-    document.getElementById('fCustomerNo').value = '';
-    document.getElementById('fCustomerName').value = '';
-    document.getElementById('fNote').value = '';
-  }
-
-  document.getElementById('cancelEditBtn').addEventListener('click', () => {
-    editingEntryId = null;
-    submitEntryBtn.textContent = '➕ 등록';
-    editingNotice.style.display = 'none';
-    resetFormAfterSave();
-    entryStatus.className = 'status-msg';
-    entryStatus.textContent = '';
-  });
-
-  entryForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const amount = Number(document.getElementById('fAmount').value);
-    if (!amount || amount <= 0){
-      entryStatus.className = 'status-msg error';
-      entryStatus.textContent = '금액을 올바르게 입력하세요.';
-      return;
-    }
-    const customerNoVal = document.getElementById('fCustomerNo').value;
-    const payload = {
-      entry_date: document.getElementById('fDate').value,
-      branch: document.getElementById('fBranch').value,
-      product_type: document.getElementById('fProduct').value,
-      category: document.getElementById('fCategory').value,
-      amount,
-      customer_no: customerNoVal ? Number(customerNoVal) : null,
-      customer_name: document.getElementById('fCustomerName').value.trim() || null,
-      note: document.getElementById('fNote').value.trim() || null
-    };
-
-    submitEntryBtn.disabled = true;
-    entryStatus.className = 'status-msg';
-    entryStatus.textContent = '저장 중...';
-
-    let error;
-    if (editingEntryId){
-      ({ error } = await sb.from('special_deposit_entries').update(payload).eq('id', editingEntryId));
-    } else {
-      payload.created_by_email = currentUserEmail;
-      payload.created_by = currentUserName;
-      ({ error } = await sb.from('special_deposit_entries').insert(payload));
-    }
-
-    submitEntryBtn.disabled = false;
-    if (error){
-      entryStatus.className = 'status-msg error';
-      entryStatus.textContent = '저장 실패: ' + error.message;
-      return;
-    }
-
-    entryStatus.className = 'status-msg success';
-    entryStatus.textContent = editingEntryId ? '수정되었습니다.' : '등록되었습니다.';
-    const wasEditing = !!editingEntryId;
-    editingEntryId = null;
-    submitEntryBtn.textContent = '➕ 등록';
-    editingNotice.style.display = 'none';
-    resetFormAfterSave();
-    await loadEntries();
-    if (wasEditing) entryForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
 </script>
 </body>
 </html>

@@ -329,6 +329,7 @@
         <button class="tab-btn" data-tab="edit-history">📝 수정이력</button>
         <button class="tab-btn" data-tab="csv-history">📤 CSV 업로드 이력</button>
         <button class="tab-btn" data-tab="members">🏅 조합원 관리</button>
+        <button class="tab-btn" data-tab="special-deposit">🏦 특판 실적 업로드</button>
         <button class="tab-btn" data-tab="assignments">🙋 담당자/접점활동</button>
         <button class="tab-btn" data-tab="vip-history">💎 VIP 수정이력</button>
       </div>
@@ -492,6 +493,22 @@
           <input type="file" id="memberFileInput" accept=".csv" style="display:none;" />
         </div>
         <div class="status-line" id="memberStatus"></div>
+       </div>
+      </div>
+
+      <!-- ===== 특판 실적 업로드 ===== -->
+      <div class="tab-panel card-frame peach" id="panel-special-deposit">
+       <div class="card">
+        <h1 class="page-title">🏦 특판 실적 업로드</h1>
+        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 구분(최초신규/재예치), 금액, 고객번호(선택), 고객명(선택), 비고(선택). 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
+        <div class="toolbar">
+          <input type="file" id="specialDepositCsvInput" accept=".csv" />
+        </div>
+        <div id="specialDepositPreview"></div>
+        <div class="toolbar" style="margin-top:12px;">
+          <button class="btn" id="specialDepositUploadBtn" disabled>📤 업로드 실행</button>
+        </div>
+        <div class="status-line" id="specialDepositStatus"></div>
        </div>
       </div>
 
@@ -675,6 +692,8 @@
     deniedScreen.style.display = 'flex';
     app.style.display = 'none';
   }
+  let currentUserEmail = '';
+  let currentUserName = '';
   let userNameMap = {}; // email -> name (이력 diff, 담당자 표시 등에서 재사용)
   async function loadUserNameMap(){
     const { data } = await sb.from('allowed_emails').select('email, name');
@@ -688,7 +707,9 @@
     deniedScreen.style.display = 'none';
     app.style.display = 'block';
     const { data: name } = await sb.rpc('current_user_name');
-    userEmail.textContent = name || session.user.email;
+    currentUserEmail = session.user.email;
+    currentUserName = name || currentUserEmail;
+    userEmail.textContent = currentUserName;
     loadUserNameMap();
     loadDashboard();
   }
@@ -708,6 +729,7 @@
       if (btn.dataset.tab === 'login-history') loadLoginHistory(1);
       if (btn.dataset.tab === 'csv-history') loadCsvHistory();
       if (btn.dataset.tab === 'members') loadMemberCount();
+      if (btn.dataset.tab === 'special-deposit') resetSpecialDepositForm();
       if (btn.dataset.tab === 'assignments') { loadAssignSummary(); loadActivityLog(1); }
       if (btn.dataset.tab === 'vip-history') loadVipHistory(1);
     });
@@ -1449,6 +1471,183 @@
       },
       error: (err) => setMemberStatus('CSV 파싱 실패: ' + err.message, 'err-flash')
     });
+  });
+
+  // ==================== 특판 실적 업로드 ====================
+  const specialDepositCsvInput = document.getElementById('specialDepositCsvInput');
+  const specialDepositPreview = document.getElementById('specialDepositPreview');
+  const specialDepositUploadBtn = document.getElementById('specialDepositUploadBtn');
+  const specialDepositStatus = document.getElementById('specialDepositStatus');
+  let parsedSpecialDepositRows = [];
+  let invalidSpecialDepositRows = [];
+
+  const SPECIAL_DEPOSIT_HEADER_MAP = {
+    '날짜':'entry_date', 'entry_date':'entry_date',
+    '지점':'branch', 'branch':'branch',
+    '상품':'product_type', '상품구분':'product_type', 'product_type':'product_type',
+    '구분':'category', 'category':'category',
+    '금액':'amount', 'amount':'amount',
+    '고객번호':'customer_no', '번호':'customer_no', 'customer_no':'customer_no',
+    '고객명':'customer_name', '성명':'customer_name', '이름':'customer_name',
+    '비고':'note', 'note':'note'
+  };
+
+  function setSpecialDepositStatus(text, cls){
+    specialDepositStatus.textContent = text;
+    specialDepositStatus.className = 'status-line ' + (cls || '');
+  }
+
+  function resetSpecialDepositForm(keepStatus){
+    specialDepositCsvInput.value = '';
+    parsedSpecialDepositRows = [];
+    invalidSpecialDepositRows = [];
+    specialDepositPreview.innerHTML = '';
+    specialDepositUploadBtn.disabled = true;
+    if (!keepStatus) setSpecialDepositStatus('', '');
+  }
+
+  function parseAmount(v){
+    if (v === null || v === undefined || v === '') return NaN;
+    return Number(String(v).replace(/,/g, '').trim());
+  }
+
+  specialDepositCsvInput.addEventListener('change', () => {
+    const file = specialDepositCsvInput.files[0];
+    if (!file) return;
+    setSpecialDepositStatus('CSV 분석 중...', '');
+
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        const mappedRows = results.data.map(row => {
+          const mapped = {};
+          for (const key of Object.keys(row)){
+            const mappedKey = SPECIAL_DEPOSIT_HEADER_MAP[key.trim()];
+            if (mappedKey) mapped[mappedKey] = (row[key] ?? '').toString().trim();
+          }
+          return mapped;
+        });
+
+        parsedSpecialDepositRows = [];
+        invalidSpecialDepositRows = [];
+
+        mappedRows.forEach((r, idx) => {
+          const rowNo = idx + 2; // 1행은 헤더
+          const errors = [];
+          if (!r.entry_date || !/^\d{4}-\d{2}-\d{2}$/.test(r.entry_date)) errors.push('날짜 형식 오류(YYYY-MM-DD)');
+          if (!['본점', '지점'].includes(r.branch)) errors.push('지점은 본점/지점만 가능');
+          if (!['예금', '적금'].includes(r.product_type)) errors.push('상품은 예금/적금만 가능');
+          if (!['최초신규', '재예치'].includes(r.category)) errors.push('구분은 최초신규/재예치만 가능');
+          const amount = parseAmount(r.amount);
+          if (!amount || isNaN(amount) || amount <= 0) errors.push('금액 오류');
+          if (r.customer_no && isNaN(Number(r.customer_no))) errors.push('고객번호는 숫자여야 함');
+
+          if (errors.length){
+            invalidSpecialDepositRows.push({ rowNo, errors });
+          } else {
+            parsedSpecialDepositRows.push({
+              entry_date: r.entry_date,
+              branch: r.branch,
+              product_type: r.product_type,
+              category: r.category,
+              amount,
+              customer_no: r.customer_no ? Number(r.customer_no) : null,
+              customer_name: r.customer_name || null,
+              note: r.note || null
+            });
+          }
+        });
+
+        renderSpecialDepositPreview();
+      },
+      error: (err) => setSpecialDepositStatus('CSV 파싱 실패: ' + err.message, 'err-flash')
+    });
+  });
+
+  function renderSpecialDepositPreview(){
+    let html = '';
+    if (invalidSpecialDepositRows.length){
+      html += `<p class="status-line err-flash" style="margin:0 0 6px;">⚠️ 오류가 있는 행 ${invalidSpecialDepositRows.length}건 — CSV를 수정한 뒤 다시 업로드해주세요 (업로드 버튼은 오류가 없을 때만 활성화됩니다).</p>`;
+      html += `<table><thead><tr><th>행</th><th>오류</th></tr></thead><tbody>`;
+      for (const r of invalidSpecialDepositRows.slice(0, 30)){
+        html += `<tr><td>${r.rowNo}</td><td>${r.errors.join(', ')}</td></tr>`;
+      }
+      html += `</tbody></table>`;
+      if (invalidSpecialDepositRows.length > 30) html += `<p class="empty-note">외 ${invalidSpecialDepositRows.length - 30}건</p>`;
+    }
+
+    if (parsedSpecialDepositRows.length){
+      html += `<p class="status-line" style="margin:14px 0 6px;">정상 인식된 ${parsedSpecialDepositRows.length}건 (미리보기 50건)</p>`;
+      html += `<table><thead><tr><th>날짜</th><th>지점</th><th>상품</th><th>구분</th><th class="num">금액</th><th>고객</th></tr></thead><tbody>`;
+      for (const r of parsedSpecialDepositRows.slice(0, 50)){
+        const custLabel = r.customer_name || r.customer_no ? `${r.customer_name || ''}${r.customer_no ? ` (${r.customer_no})` : ''}` : '-';
+        html += `<tr><td>${r.entry_date}</td><td>${r.branch}</td><td>${r.product_type}</td><td>${r.category}</td><td class="num">${Number(r.amount).toLocaleString('ko-KR')}</td><td>${custLabel}</td></tr>`;
+      }
+      html += `</tbody></table>`;
+      if (parsedSpecialDepositRows.length > 50) html += `<p class="empty-note">외 ${parsedSpecialDepositRows.length - 50}건</p>`;
+    } else if (!invalidSpecialDepositRows.length){
+      html = `<p class="empty-note">인식된 행이 없습니다. 헤더(날짜, 지점, 상품, 구분, 금액)를 확인해주세요.</p>`;
+    }
+
+    specialDepositPreview.innerHTML = html;
+    specialDepositUploadBtn.disabled = !(parsedSpecialDepositRows.length && !invalidSpecialDepositRows.length);
+    setSpecialDepositStatus('', '');
+  }
+
+  specialDepositUploadBtn.addEventListener('click', async () => {
+    specialDepositUploadBtn.disabled = true;
+    setSpecialDepositStatus('고객번호 확인 중...', '');
+
+    const nos = Array.from(new Set(parsedSpecialDepositRows.filter(r => r.customer_no).map(r => r.customer_no)));
+    let existingSet = new Set();
+    if (nos.length){
+      const { data, error } = await sb.from('customers').select('customer_no').in('customer_no', nos);
+      if (error){
+        setSpecialDepositStatus(`고객번호 확인 실패: ${error.message}`, 'err-flash');
+        specialDepositUploadBtn.disabled = false;
+        return;
+      }
+      existingSet = new Set((data || []).map(c => c.customer_no));
+    }
+
+    let droppedLinkCount = 0;
+    const rows = parsedSpecialDepositRows.map(r => {
+      let customer_no = r.customer_no;
+      if (customer_no && !existingSet.has(customer_no)){
+        customer_no = null;
+        droppedLinkCount++;
+      }
+      return {
+        entry_date: r.entry_date,
+        branch: r.branch,
+        product_type: r.product_type,
+        category: r.category,
+        amount: r.amount,
+        customer_no,
+        customer_name: r.customer_name,
+        note: r.note,
+        created_by: currentUserName,
+        created_by_email: currentUserEmail
+      };
+    });
+
+    setSpecialDepositStatus('업로드 중...', '');
+    const { error } = await sb.from('special_deposit_entries').insert(rows);
+    if (error){
+      setSpecialDepositStatus(`업로드 실패: ${error.message}`, 'err-flash');
+      specialDepositUploadBtn.disabled = false;
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: rows.length, p_updated: 0,
+      p_summary: `특판 실적 일괄등록 ${rows.length}건 (${specialDepositCsvInput.files[0]?.name || ''})`
+    });
+
+    let msg = `${rows.length}건 등록 완료.`;
+    if (droppedLinkCount) msg += ` 이 중 ${droppedLinkCount}건은 등록되지 않은 고객번호라 고객 연결 없이 저장됐습니다.`;
+    resetSpecialDepositForm(true);
+    setSpecialDepositStatus(msg, 'saved-flash');
   });
 
   // ==================== 담당자/접점활동 ====================
