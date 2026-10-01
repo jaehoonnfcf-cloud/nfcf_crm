@@ -500,7 +500,7 @@
       <div class="tab-panel card-frame peach" id="panel-special-deposit">
        <div class="card">
         <h1 class="page-title">🏦 특판 실적 업로드</h1>
-        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 구분(최초신규/재예치), 금액, 고객번호(선택), 고객명(선택), 비고(선택). 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
+        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 전체금액, 신규금액, 고객번호(선택), 고객명(선택), 비고(선택). 한 건 안에 최초신규와 재예치가 섞여 있으면(예: 전체 5,200만원 중 신규 200만원) 전체금액과 신규금액만 입력하면 재예치금액은 자동 계산됩니다. 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
         <div class="toolbar">
           <input type="file" id="specialDepositCsvInput" accept=".csv" />
         </div>
@@ -1485,8 +1485,8 @@
     '날짜':'entry_date', 'entry_date':'entry_date',
     '지점':'branch', 'branch':'branch',
     '상품':'product_type', '상품구분':'product_type', 'product_type':'product_type',
-    '구분':'category', 'category':'category',
-    '금액':'amount', 'amount':'amount',
+    '전체금액':'total_amount', '금액':'total_amount', 'total_amount':'total_amount',
+    '신규금액':'new_amount', '최초신규금액':'new_amount', 'new_amount':'new_amount',
     '고객번호':'customer_no', '번호':'customer_no', 'customer_no':'customer_no',
     '고객명':'customer_name', '성명':'customer_name', '이름':'customer_name',
     '비고':'note', 'note':'note'
@@ -1537,9 +1537,11 @@
           if (!r.entry_date || !/^\d{4}-\d{2}-\d{2}$/.test(r.entry_date)) errors.push('날짜 형식 오류(YYYY-MM-DD)');
           if (!['본점', '지점'].includes(r.branch)) errors.push('지점은 본점/지점만 가능');
           if (!['예금', '적금'].includes(r.product_type)) errors.push('상품은 예금/적금만 가능');
-          if (!['최초신규', '재예치'].includes(r.category)) errors.push('구분은 최초신규/재예치만 가능');
-          const amount = parseAmount(r.amount);
-          if (!amount || isNaN(amount) || amount <= 0) errors.push('금액 오류');
+          const total_amount = parseAmount(r.total_amount);
+          if (!total_amount || isNaN(total_amount) || total_amount <= 0) errors.push('전체금액 오류');
+          const new_amount = (r.new_amount === '' || r.new_amount === undefined) ? 0 : parseAmount(r.new_amount);
+          if (isNaN(new_amount) || new_amount < 0) errors.push('신규금액 오류');
+          if (!errors.length && new_amount > total_amount) errors.push('신규금액이 전체금액보다 큼');
           if (r.customer_no && isNaN(Number(r.customer_no))) errors.push('고객번호는 숫자여야 함');
 
           if (errors.length){
@@ -1549,8 +1551,8 @@
               entry_date: r.entry_date,
               branch: r.branch,
               product_type: r.product_type,
-              category: r.category,
-              amount,
+              total_amount,
+              new_amount,
               customer_no: r.customer_no ? Number(r.customer_no) : null,
               customer_name: r.customer_name || null,
               note: r.note || null
@@ -1578,15 +1580,15 @@
 
     if (parsedSpecialDepositRows.length){
       html += `<p class="status-line" style="margin:14px 0 6px;">정상 인식된 ${parsedSpecialDepositRows.length}건 (미리보기 50건)</p>`;
-      html += `<table><thead><tr><th>날짜</th><th>지점</th><th>상품</th><th>구분</th><th class="num">금액</th><th>고객</th></tr></thead><tbody>`;
+      html += `<table><thead><tr><th>날짜</th><th>지점</th><th>상품</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>고객</th></tr></thead><tbody>`;
       for (const r of parsedSpecialDepositRows.slice(0, 50)){
         const custLabel = r.customer_name || r.customer_no ? `${r.customer_name || ''}${r.customer_no ? ` (${r.customer_no})` : ''}` : '-';
-        html += `<tr><td>${r.entry_date}</td><td>${r.branch}</td><td>${r.product_type}</td><td>${r.category}</td><td class="num">${Number(r.amount).toLocaleString('ko-KR')}</td><td>${custLabel}</td></tr>`;
+        html += `<tr><td>${r.entry_date}</td><td>${r.branch}</td><td>${r.product_type}</td><td class="num">${Number(r.total_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.new_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.total_amount - r.new_amount).toLocaleString('ko-KR')}</td><td>${custLabel}</td></tr>`;
       }
       html += `</tbody></table>`;
       if (parsedSpecialDepositRows.length > 50) html += `<p class="empty-note">외 ${parsedSpecialDepositRows.length - 50}건</p>`;
     } else if (!invalidSpecialDepositRows.length){
-      html = `<p class="empty-note">인식된 행이 없습니다. 헤더(날짜, 지점, 상품, 구분, 금액)를 확인해주세요.</p>`;
+      html = `<p class="empty-note">인식된 행이 없습니다. 헤더(날짜, 지점, 상품, 전체금액, 신규금액)를 확인해주세요.</p>`;
     }
 
     specialDepositPreview.innerHTML = html;
@@ -1621,8 +1623,8 @@
         entry_date: r.entry_date,
         branch: r.branch,
         product_type: r.product_type,
-        category: r.category,
-        amount: r.amount,
+        total_amount: r.total_amount,
+        new_amount: r.new_amount,
         customer_no,
         customer_name: r.customer_name,
         note: r.note,

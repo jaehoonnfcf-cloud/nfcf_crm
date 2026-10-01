@@ -258,7 +258,9 @@
 
   function sumBy(rows, pred){
     const matched = rows.filter(pred);
-    return { count: matched.length, amount: matched.reduce((s, r) => s + Number(r.amount), 0) };
+    const totalAmount = matched.reduce((s, r) => s + Number(r.total_amount), 0);
+    const newAmount = matched.reduce((s, r) => s + Number(r.new_amount), 0);
+    return { count: matched.length, totalAmount, newAmount, reAmount: totalAmount - newAmount };
   }
 
   // ---- 데이터 로드 ----
@@ -309,30 +311,26 @@
   function renderBranchSummary(rows){
     const branches = ['본점', '지점'];
     let html = `<div class="table-scroll"><table><thead><tr>
-      <th>구분</th><th class="num">최초신규 건수</th><th class="num">최초신규 금액</th>
-      <th class="num">재예치 건수</th><th class="num">재예치 금액</th>
-      <th class="num">합계 건수</th><th class="num">합계 금액</th>
+      <th>구분</th><th class="num">건수</th>
+      <th class="num">신규금액</th><th class="num">재예치금액</th><th class="num">전체금액</th>
     </tr></thead><tbody>`;
-    let totalFirst = { count: 0, amount: 0 }, totalRe = { count: 0, amount: 0 };
+    let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
     for (const b of branches){
-      const first = sumBy(rows, r => r.branch === b && r.category === '최초신규');
-      const re = sumBy(rows, r => r.branch === b && r.category === '재예치');
-      totalFirst.count += first.count; totalFirst.amount += first.amount;
-      totalRe.count += re.count; totalRe.amount += re.amount;
+      const s = sumBy(rows, r => r.branch === b);
+      total.count += s.count; total.totalAmount += s.totalAmount;
+      total.newAmount += s.newAmount; total.reAmount += s.reAmount;
       html += `<tr>
         <td>${b === '본점' ? '🏢' : '🏬'} ${b}</td>
-        <td class="num">${first.count}건</td><td class="num">${fmtNum(first.amount)}</td>
-        <td class="num">${re.count}건</td><td class="num">${fmtNum(re.amount)}</td>
-        <td class="num" style="font-weight:700;">${first.count + re.count}건</td>
-        <td class="num" style="font-weight:700;">${fmtNum(first.amount + re.amount)}</td>
+        <td class="num">${s.count}건</td>
+        <td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td>
+        <td class="num" style="font-weight:700;">${fmtNum(s.totalAmount)}</td>
       </tr>`;
     }
     html += `<tr style="font-weight:700; background:#fafafa;">
       <td>합계</td>
-      <td class="num">${totalFirst.count}건</td><td class="num">${fmtNum(totalFirst.amount)}</td>
-      <td class="num">${totalRe.count}건</td><td class="num">${fmtNum(totalRe.amount)}</td>
-      <td class="num">${totalFirst.count + totalRe.count}건</td>
-      <td class="num">${fmtNum(totalFirst.amount + totalRe.amount)}</td>
+      <td class="num">${total.count}건</td>
+      <td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td>
+      <td class="num">${fmtNum(total.totalAmount)}</td>
     </tr>`;
     html += `</tbody></table></div>`;
     document.getElementById('branchSummaryTable').innerHTML = html;
@@ -343,25 +341,19 @@
     const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
     let html = `<div class="table-scroll"><table><thead><tr>
       <th>날짜</th>
-      <th class="num">🏢본점<br>최초신규 건수</th><th class="num">🏢본점<br>최초신규 금액</th>
-      <th class="num">🏢본점<br>재예치 건수</th><th class="num">🏢본점<br>재예치 금액</th>
-      <th class="num">🏬지점<br>최초신규 건수</th><th class="num">🏬지점<br>최초신규 금액</th>
-      <th class="num">🏬지점<br>재예치 건수</th><th class="num">🏬지점<br>재예치 금액</th>
+      <th class="num">🏢본점<br>건수</th><th class="num">🏢본점<br>신규금액</th><th class="num">🏢본점<br>재예치금액</th>
+      <th class="num">🏬지점<br>건수</th><th class="num">🏬지점<br>신규금액</th><th class="num">🏬지점<br>재예치금액</th>
       <th class="num">합계 금액</th>
     </tr></thead><tbody>`;
     for (const d of dates){
       const dayRows = rows.filter(r => r.entry_date === d);
-      const hqFirst = sumBy(dayRows, r => r.branch === '본점' && r.category === '최초신규');
-      const hqRe = sumBy(dayRows, r => r.branch === '본점' && r.category === '재예치');
-      const brFirst = sumBy(dayRows, r => r.branch === '지점' && r.category === '최초신규');
-      const brRe = sumBy(dayRows, r => r.branch === '지점' && r.category === '재예치');
-      const total = hqFirst.amount + hqRe.amount + brFirst.amount + brRe.amount;
+      const hq = sumBy(dayRows, r => r.branch === '본점');
+      const br = sumBy(dayRows, r => r.branch === '지점');
+      const total = hq.totalAmount + br.totalAmount;
       html += `<tr>
         <td>${d}</td>
-        <td class="num">${hqFirst.count}건</td><td class="num">${fmtNum(hqFirst.amount)}</td>
-        <td class="num">${hqRe.count}건</td><td class="num">${fmtNum(hqRe.amount)}</td>
-        <td class="num">${brFirst.count}건</td><td class="num">${fmtNum(brFirst.amount)}</td>
-        <td class="num">${brRe.count}건</td><td class="num">${fmtNum(brRe.amount)}</td>
+        <td class="num">${hq.count}건</td><td class="num">${fmtNum(hq.newAmount)}</td><td class="num">${fmtNum(hq.reAmount)}</td>
+        <td class="num">${br.count}건</td><td class="num">${fmtNum(br.newAmount)}</td><td class="num">${fmtNum(br.reAmount)}</td>
         <td class="num" style="font-weight:700;">${fmtNum(total)}</td>
       </tr>`;
     }
@@ -374,8 +366,8 @@
     const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort();
     if (trendChartInstance) trendChartInstance.destroy();
     if (!dates.length) return;
-    const firstByDate = dates.map(d => rows.filter(r => r.entry_date === d && r.category === '최초신규').reduce((s, r) => s + Number(r.amount), 0));
-    const reByDate = dates.map(d => rows.filter(r => r.entry_date === d && r.category === '재예치').reduce((s, r) => s + Number(r.amount), 0));
+    const firstByDate = dates.map(d => rows.filter(r => r.entry_date === d).reduce((s, r) => s + Number(r.new_amount), 0));
+    const reByDate = dates.map(d => rows.filter(r => r.entry_date === d).reduce((s, r) => s + (Number(r.total_amount) - Number(r.new_amount)), 0));
 
     const ctx = document.getElementById('trendChart').getContext('2d');
     trendChartInstance = new Chart(ctx, {
@@ -415,7 +407,7 @@
     if (!rows.length){ document.getElementById('entryListTable').innerHTML = `<p class="empty">등록된 내역이 없습니다.</p>`; return; }
 
     let html = `<div class="table-scroll"><table><thead><tr>
-      <th>날짜</th><th>지점</th><th>상품</th><th>구분</th><th class="num">금액</th><th>고객</th><th>등록자</th><th>비고</th><th></th>
+      <th>날짜</th><th>지점</th><th>상품</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>고객</th><th>등록자</th><th>비고</th><th></th>
     </tr></thead><tbody>`;
     for (const r of rows){
       const canEdit = isAdmin || r.created_by_email === currentUserEmail;
@@ -426,8 +418,9 @@
         <td>${r.entry_date}</td>
         <td>${r.branch === '본점' ? '🏢' : '🏬'} ${r.branch}</td>
         <td>${r.product_type}</td>
-        <td><span class="badge ${r.category === '최초신규' ? 'approved' : 'pending'}">${r.category}</span></td>
-        <td class="num">${fmtNum(r.amount)}</td>
+        <td class="num">${fmtNum(r.total_amount)}</td>
+        <td class="num">${fmtNum(r.new_amount)}</td>
+        <td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
         <td>${custLabel}</td>
         <td>${r.created_by || r.created_by_email || ''}</td>
         <td class="ellipsis" title="${(r.note || '').replace(/"/g, '&quot;')}">${r.note || ''}</td>
