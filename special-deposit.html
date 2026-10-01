@@ -110,6 +110,26 @@
     .summary-grid{ grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); }
     .form-row > div{ min-width:100%; }
   }
+
+  #specialDepositPrintView{ display:none; }
+  .sdp-print-title{ text-align:center; font-size:16px; font-weight:800; margin:0 0 2px; letter-spacing:-0.01em; }
+  .sdp-print-sub{ text-align:center; font-size:10px; color:#444; margin:0 0 8px; }
+  .sdp-print-section-title{ font-size:11px; font-weight:700; margin:7px 0 3px; }
+  .sdp-print-table{ width:100%; border-collapse:collapse; font-size:9.5px; line-height:1.1; }
+  .sdp-print-table th, .sdp-print-table td{ border:1px solid #999; padding:2px 5px; }
+  .sdp-print-table th{ background:#f0f0f0; font-weight:700; text-align:center; }
+  .sdp-print-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .sdp-print-table tr.total-row{ font-weight:700; background:#f7f7f7; }
+  .sdp-print-note{ font-size:8.5px; color:#555; margin-top:3px; }
+
+  @media print{
+    @page{ size:A4 landscape; margin:10mm 12mm; }
+    body{ zoom:1; }
+    body.printing-special-deposit-report > *:not(#specialDepositPrintView){ display:none !important; }
+    body.printing-special-deposit-report #specialDepositPrintView{ display:block !important; }
+    body.printing-special-deposit-report{ background:#fff; }
+    #specialDepositPrintView{ font-family:'Pretendard Variable', Pretendard, sans-serif; color:#111; }
+  }
 </style>
 </head>
 <body>
@@ -146,7 +166,10 @@
 
   <main>
     <section class="card">
-      <h1><span class="section-icon green">📊</span> 실적 대시보드</h1>
+      <h1 style="justify-content:space-between;">
+        <span style="display:flex; align-items:center;"><span class="section-icon green">📊</span> 실적 대시보드</span>
+        <button class="nav-btn" id="dashboardPrintBtn">🖨️ 일별 보고서 인쇄</button>
+      </h1>
       <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다.</p>
 
       <div class="toolbar">
@@ -177,6 +200,8 @@
     </section>
   </main>
 </div>
+
+<div id="specialDepositPrintView"></div>
 
 <script>
   const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
@@ -330,7 +355,7 @@
       total.count += s.count; total.totalAmount += s.totalAmount;
       total.newAmount += s.newAmount; total.reAmount += s.reAmount;
       html += `<tr>
-        <td>${b === '본점' ? '🏢' : '🏬'} ${b}</td>
+        <td>${b}</td>
         <td class="num">${s.count}건</td>
         <td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td>
         <td class="num" style="font-weight:700;">${fmtNum(s.totalAmount)}</td>
@@ -351,8 +376,8 @@
     const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
     let html = `<div class="table-scroll"><table><thead><tr>
       <th>날짜</th>
-      <th class="num">🏢본점<br>건수</th><th class="num">🏢본점<br>신규금액</th><th class="num">🏢본점<br>재예치금액</th>
-      <th class="num">🏬지점<br>건수</th><th class="num">🏬지점<br>신규금액</th><th class="num">🏬지점<br>재예치금액</th>
+      <th class="num">본점<br>건수</th><th class="num">본점<br>신규금액</th><th class="num">본점<br>재예치금액</th>
+      <th class="num">지점<br>건수</th><th class="num">지점<br>신규금액</th><th class="num">지점<br>재예치금액</th>
       <th class="num">합계 금액</th>
     </tr></thead><tbody>`;
     for (const d of dates){
@@ -426,7 +451,7 @@
         : (r.customer_name || '-');
       html += `<tr data-id="${r.id}">
         <td>${r.entry_date}</td>
-        <td>${r.branch === '본점' ? '🏢' : '🏬'} ${r.branch}</td>
+        <td>${r.branch}</td>
         <td>${r.product_type}</td>
         <td class="num">${fmtNum(r.total_amount)}</td>
         <td class="num">${fmtNum(r.new_amount)}</td>
@@ -471,6 +496,73 @@
   document.getElementById('entrySearchBox').addEventListener('input', (e) => {
     entrySearchKeyword = e.target.value.trim();
     renderEntryList();
+  });
+
+  // ---- 일별 보고서 인쇄 ----
+  function periodLabel(period){
+    const [start, end] = periodRange(period);
+    if (period === 'today') return `오늘 (${start})`;
+    if (period === '7d') return `최근 7일 (${start} ~ ${end})`;
+    if (period === 'month') return `이번달 (${start.slice(0, 7)})`;
+    return '전체 기간';
+  }
+
+  const MAX_PRINT_DAILY_ROWS = 20;
+
+  function renderPrintReport(){
+    const rows = getFilteredEntries();
+    const branches = ['본점', '지점'];
+    let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
+    let branchRowsHtml = '';
+    for (const b of branches){
+      const s = sumBy(rows, r => r.branch === b);
+      total.count += s.count; total.totalAmount += s.totalAmount;
+      total.newAmount += s.newAmount; total.reAmount += s.reAmount;
+      branchRowsHtml += `<tr><td>${b}</td><td class="num">${s.count}건</td><td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td><td class="num"><b>${fmtNum(s.totalAmount)}</b></td></tr>`;
+    }
+    branchRowsHtml += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
+
+    const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
+    const shownDates = dates.slice(0, MAX_PRINT_DAILY_ROWS);
+    let dailyRowsHtml = '';
+    for (const d of shownDates){
+      const dayRows = rows.filter(r => r.entry_date === d);
+      const hq = sumBy(dayRows, r => r.branch === '본점');
+      const br = sumBy(dayRows, r => r.branch === '지점');
+      const dayTotal = hq.totalAmount + br.totalAmount;
+      dailyRowsHtml += `<tr>
+        <td>${d}</td>
+        <td class="num">${hq.count}건</td><td class="num">${fmtNum(hq.newAmount)}</td><td class="num">${fmtNum(hq.reAmount)}</td>
+        <td class="num">${br.count}건</td><td class="num">${fmtNum(br.newAmount)}</td><td class="num">${fmtNum(br.reAmount)}</td>
+        <td class="num"><b>${fmtNum(dayTotal)}</b></td>
+      </tr>`;
+    }
+    if (!shownDates.length) dailyRowsHtml = `<tr><td colspan="8" style="text-align:center; color:#777;">데이터 없음</td></tr>`;
+    const truncNote = dates.length > MAX_PRINT_DAILY_ROWS
+      ? `<p class="sdp-print-note">※ 최근 ${MAX_PRINT_DAILY_ROWS}일만 표시했습니다 (전체 ${dates.length}일 중). 전체 내역은 화면에서 확인해주세요.</p>` : '';
+
+    const html = `
+      <div class="sdp-print-title">예금·적금 특판 실적 보고서</div>
+      <div class="sdp-print-sub">기간: ${periodLabel(currentPeriod)} · 상품: ${productFilter || '상품 전체'} · 출력일시: ${new Date().toLocaleString('ko-KR')}</div>
+      <div class="sdp-print-section-title">본점·지점 집계</div>
+      <table class="sdp-print-table"><thead><tr>
+        <th>구분</th><th>건수</th><th>신규금액</th><th>재예치금액</th><th>전체금액</th>
+      </tr></thead><tbody>${branchRowsHtml}</tbody></table>
+      <div class="sdp-print-section-title">일별 집계</div>
+      <table class="sdp-print-table"><thead><tr>
+        <th>날짜</th><th>본점 건수</th><th>본점 신규금액</th><th>본점 재예치금액</th>
+        <th>지점 건수</th><th>지점 신규금액</th><th>지점 재예치금액</th><th>합계금액</th>
+      </tr></thead><tbody>${dailyRowsHtml}</tbody></table>
+      ${truncNote}
+    `;
+    document.getElementById('specialDepositPrintView').innerHTML = html;
+  }
+
+  document.getElementById('dashboardPrintBtn').addEventListener('click', () => {
+    renderPrintReport();
+    document.body.classList.add('printing-special-deposit-report');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-special-deposit-report'), 500);
   });
 
 </script>
