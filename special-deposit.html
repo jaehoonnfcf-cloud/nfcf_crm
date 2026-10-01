@@ -109,6 +109,35 @@
     section.card{ padding:18px; }
     .summary-grid{ grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); }
     .form-row > div{ min-width:100%; }
+    #entrySearchBox{ width:100% !important; }
+    section.card h1{ flex-wrap:wrap; row-gap:8px; }
+
+    /* 표 대신 카드 형태로 표시 (가로 스크롤 없이) */
+    .table-scroll{ overflow-x:visible; }
+    .compact-table thead{ display:none; }
+    .compact-table, .compact-table tbody{ display:block; width:100%; }
+    .compact-table tr{
+      display:block; border:1px solid var(--line); border-radius:12px;
+      padding:10px 12px; margin-bottom:10px; background:var(--panel); box-shadow:var(--shadow-sm);
+    }
+    .compact-table td{
+      display:flex; align-items:baseline; gap:10px; width:auto !important;
+      border-bottom:none; padding:4px 0; font-size:13px; white-space:normal;
+    }
+    .compact-table td[data-label]::before{
+      content:attr(data-label); flex:0 0 auto; max-width:40%; color:var(--muted);
+      font-size:11px; font-weight:600; text-align:left;
+    }
+    .compact-table td .v{ flex:1; text-align:right; word-break:break-word; }
+    .compact-table td[data-label="구분"] .v,
+    .compact-table td[data-label="날짜"] .v,
+    .compact-table td[data-label="지점"] .v,
+    .compact-table td[data-label="상품"] .v,
+    .compact-table td[data-label="고객"] .v{ text-align:left; font-weight:600; }
+    .compact-table td.ellipsis{ white-space:normal; }
+    .compact-table td.ellipsis .v{ text-align:left; white-space:normal; }
+    .compact-table td.action-cell{ justify-content:flex-end; padding-top:8px; }
+    .compact-table td.action-cell:empty{ display:none; }
   }
 
   #specialDepositPrintView{ display:none; }
@@ -345,7 +374,7 @@
 
   function renderBranchSummary(rows){
     const branches = ['본점', '지점'];
-    let html = `<div class="table-scroll"><table><thead><tr>
+    let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
       <th>구분</th><th class="num">건수</th>
       <th class="num">신규금액</th><th class="num">재예치금액</th><th class="num">전체금액</th>
     </tr></thead><tbody>`;
@@ -355,17 +384,19 @@
       total.count += s.count; total.totalAmount += s.totalAmount;
       total.newAmount += s.newAmount; total.reAmount += s.reAmount;
       html += `<tr>
-        <td>${b}</td>
-        <td class="num">${s.count}건</td>
-        <td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td>
-        <td class="num" style="font-weight:700;">${fmtNum(s.totalAmount)}</td>
+        <td data-label="구분"><span class="v">${b}</span></td>
+        <td class="num" data-label="건수"><span class="v">${s.count}건</span></td>
+        <td class="num" data-label="신규금액"><span class="v">${fmtNum(s.newAmount)}</span></td>
+        <td class="num" data-label="재예치금액"><span class="v">${fmtNum(s.reAmount)}</span></td>
+        <td class="num" data-label="전체금액" style="font-weight:700;"><span class="v">${fmtNum(s.totalAmount)}</span></td>
       </tr>`;
     }
     html += `<tr style="font-weight:700; background:#fafafa;">
-      <td>합계</td>
-      <td class="num">${total.count}건</td>
-      <td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td>
-      <td class="num">${fmtNum(total.totalAmount)}</td>
+      <td data-label="구분"><span class="v">합계</span></td>
+      <td class="num" data-label="건수"><span class="v">${total.count}건</span></td>
+      <td class="num" data-label="신규금액"><span class="v">${fmtNum(total.newAmount)}</span></td>
+      <td class="num" data-label="재예치금액"><span class="v">${fmtNum(total.reAmount)}</span></td>
+      <td class="num" data-label="전체금액"><span class="v">${fmtNum(total.totalAmount)}</span></td>
     </tr>`;
     html += `</tbody></table></div>`;
     document.getElementById('branchSummaryTable').innerHTML = html;
@@ -374,7 +405,7 @@
   function renderDailyTable(rows){
     if (!rows.length){ document.getElementById('dailyTable').innerHTML = `<p class="empty">조건에 맞는 실적이 없습니다.</p>`; return; }
     const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
-    let html = `<div class="table-scroll"><table><thead><tr>
+    let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
       <th>날짜</th>
       <th class="num">본점<br>건수</th><th class="num">본점<br>신규금액</th><th class="num">본점<br>재예치금액</th>
       <th class="num">지점<br>건수</th><th class="num">지점<br>신규금액</th><th class="num">지점<br>재예치금액</th>
@@ -386,10 +417,14 @@
       const br = sumBy(dayRows, r => r.branch === '지점');
       const total = hq.totalAmount + br.totalAmount;
       html += `<tr>
-        <td>${d}</td>
-        <td class="num">${hq.count}건</td><td class="num">${fmtNum(hq.newAmount)}</td><td class="num">${fmtNum(hq.reAmount)}</td>
-        <td class="num">${br.count}건</td><td class="num">${fmtNum(br.newAmount)}</td><td class="num">${fmtNum(br.reAmount)}</td>
-        <td class="num" style="font-weight:700;">${fmtNum(total)}</td>
+        <td data-label="날짜"><span class="v">${d}</span></td>
+        <td class="num" data-label="본점 건수"><span class="v">${hq.count}건</span></td>
+        <td class="num" data-label="본점 신규금액"><span class="v">${fmtNum(hq.newAmount)}</span></td>
+        <td class="num" data-label="본점 재예치금액"><span class="v">${fmtNum(hq.reAmount)}</span></td>
+        <td class="num" data-label="지점 건수"><span class="v">${br.count}건</span></td>
+        <td class="num" data-label="지점 신규금액"><span class="v">${fmtNum(br.newAmount)}</span></td>
+        <td class="num" data-label="지점 재예치금액"><span class="v">${fmtNum(br.reAmount)}</span></td>
+        <td class="num" data-label="합계 금액" style="font-weight:700;"><span class="v">${fmtNum(total)}</span></td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
@@ -441,7 +476,7 @@
     }
     if (!rows.length){ document.getElementById('entryListTable').innerHTML = `<p class="empty">등록된 내역이 없습니다.</p>`; return; }
 
-    let html = `<div class="table-scroll"><table><thead><tr>
+    let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
       <th>날짜</th><th>지점</th><th>상품</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>고객</th><th>등록자</th><th>비고</th><th></th>
     </tr></thead><tbody>`;
     for (const r of rows){
@@ -450,16 +485,16 @@
         ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>`
         : (r.customer_name || '-');
       html += `<tr data-id="${r.id}">
-        <td>${r.entry_date}</td>
-        <td>${r.branch}</td>
-        <td>${r.product_type}</td>
-        <td class="num">${fmtNum(r.total_amount)}</td>
-        <td class="num">${fmtNum(r.new_amount)}</td>
-        <td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
-        <td>${custLabel}</td>
-        <td>${r.created_by || r.created_by_email || ''}</td>
-        <td class="ellipsis" title="${(r.note || '').replace(/"/g, '&quot;')}">${r.note || ''}</td>
-        <td>${canEdit ? `<button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
+        <td data-label="날짜"><span class="v">${r.entry_date}</span></td>
+        <td data-label="지점"><span class="v">${r.branch}</span></td>
+        <td data-label="상품"><span class="v">${r.product_type}</span></td>
+        <td class="num" data-label="전체금액"><span class="v">${fmtNum(r.total_amount)}</span></td>
+        <td class="num" data-label="신규금액"><span class="v">${fmtNum(r.new_amount)}</span></td>
+        <td class="num" data-label="재예치금액"><span class="v">${fmtNum(r.total_amount - r.new_amount)}</span></td>
+        <td data-label="고객"><span class="v">${custLabel}</span></td>
+        <td data-label="등록자"><span class="v">${r.created_by || r.created_by_email || ''}</span></td>
+        <td class="ellipsis" data-label="비고" title="${(r.note || '').replace(/"/g, '&quot;')}"><span class="v">${r.note || ''}</span></td>
+        <td class="action-cell">${canEdit ? `<button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
