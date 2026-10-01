@@ -40,6 +40,9 @@
     transition:background .12s ease;
   }
   .back-link:hover{ background:#f4f5f4; }
+  .back-link.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .back-link.active:hover{ background:var(--accent-hover); }
+  .user-box{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
   main{ max-width:880px; margin:0 auto; padding:32px 24px 80px; }
 
@@ -143,7 +146,16 @@
       <div class="mark">📖</div>
       <h2>사용설명서</h2>
     </div>
-    <a href="index.html" class="back-link">🗂️ 고객정보 관리로 돌아가기</a>
+    <div class="user-box">
+      <a href="index.html" class="back-link">🗂️ 고객정보 관리</a>
+      <a href="staff-dashboard.html" class="back-link">🙋 전담고객 관리</a>
+      <a href="managed-customers.html" class="back-link">👥 전체 관리 고객</a>
+      <a href="customer-assignment.html" class="back-link">🗂️ 배정관리</a>
+      <a href="vip.html" class="back-link">💎 VIP 만기내역</a>
+      <a href="special-deposit.html" class="back-link">🏦 특판 실적</a>
+      <a href="manual.html" class="back-link active">📖 사용설명서</a>
+      <a href="admin.html" class="back-link">⚙️ 관리자</a>
+    </div>
   </header>
 
   <main>

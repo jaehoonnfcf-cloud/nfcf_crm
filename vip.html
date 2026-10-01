@@ -62,6 +62,8 @@
     transition:background .12s ease;
   }
   .link-btn:hover{ background:#f4f5f4; }
+  .link-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .link-btn.active:hover{ background:var(--accent-hover); }
 
   main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
 
@@ -317,7 +319,13 @@
       <div class="user-box">
         <span id="userEmail"></span>
         <a href="index.html" class="link-btn">🗂️ 고객정보 관리</a>
+        <a href="staff-dashboard.html" class="link-btn">🙋 전담고객 관리</a>
+        <a href="managed-customers.html" class="link-btn">👥 전체 관리 고객</a>
+        <a href="customer-assignment.html" class="link-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
+        <a href="vip.html" class="link-btn active">💎 VIP 만기내역</a>
+        <a href="special-deposit.html" class="link-btn">🏦 특판 실적</a>
         <a href="manual.html" class="link-btn">📖 사용설명서</a>
+        <a href="admin.html" class="link-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
         <button class="link-btn" id="signOutBtn">🚪 로그아웃</button>
       </div>
     </header>
@@ -568,6 +576,8 @@
   const loginError = document.getElementById('loginError');
   const signOutBtn = document.getElementById('signOutBtn');
   const userEmail = document.getElementById('userEmail');
+  const navAssignLink = document.getElementById('navAssignLink');
+  const navAdminLink = document.getElementById('navAdminLink');
 
   const statThisMonth = document.getElementById('statThisMonth');
   const statNextMonth = document.getElementById('statNextMonth');
@@ -693,6 +703,9 @@
     const { data: name } = await sb.rpc('current_user_name');
     currentUserName = name || session.user.email;
     userEmail.textContent = currentUserName;
+    const { data: admin } = await sb.rpc('is_admin');
+    navAssignLink.style.display = admin ? 'inline-flex' : 'none';
+    navAdminLink.style.display = admin ? 'inline-flex' : 'none';
     loadDashboard();
     showIdle();
   }

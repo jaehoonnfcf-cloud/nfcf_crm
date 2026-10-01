@@ -38,6 +38,8 @@
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
   .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
   .nav-btn:hover{ background:#f4f5f4; }
+  .nav-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .nav-btn.active:hover{ background:var(--accent-hover); }
 
   main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
   section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
@@ -225,11 +227,13 @@
     <div class="user-box">
       <span id="userEmail"></span>
       <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="staff-dashboard.html" class="nav-btn active">🙋 전담고객 관리</a>
       <a href="managed-customers.html" class="nav-btn">👥 전체 관리 고객</a>
-      <a href="customer-assignment.html" class="nav-btn" id="adminAssignBtn" style="display:none">🗂️ 배정관리</a>
-      <a href="manual.html" class="nav-btn">📖 사용설명서</a>
+      <a href="customer-assignment.html" class="nav-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
       <a href="vip.html" class="nav-btn">💎 VIP 만기내역</a>
       <a href="special-deposit.html" class="nav-btn">🏦 특판 실적</a>
+      <a href="manual.html" class="nav-btn">📖 사용설명서</a>
+      <a href="admin.html" class="nav-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
       <button class="nav-btn" id="printBtn">🖨️ 인쇄</button>
       <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
     </div>
@@ -319,7 +323,8 @@
   const loginError = document.getElementById('loginError');
   const signOutBtn = document.getElementById('signOutBtn');
   const userEmail = document.getElementById('userEmail');
-  const adminAssignBtn = document.getElementById('adminAssignBtn');
+  const navAssignLink = document.getElementById('navAssignLink');
+  const navAdminLink = document.getElementById('navAdminLink');
 
   let currentUserEmail = '';
 
@@ -379,7 +384,8 @@
     userEmail.textContent = name || currentUserEmail;
 
     const { data: admin } = await sb.rpc('is_admin');
-    adminAssignBtn.style.display = admin ? 'inline-flex' : 'none';
+    navAssignLink.style.display = admin ? 'inline-flex' : 'none';
+    navAdminLink.style.display = admin ? 'inline-flex' : 'none';
 
     await loadMyCustomers();
     await loadUnassigned();
