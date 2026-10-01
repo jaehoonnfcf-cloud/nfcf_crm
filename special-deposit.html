@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>특판 실적</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
+    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
+    --green:#1a7a4c; --green-soft:#e3f5ea;
+    --warn:#b5601f; --warn-soft:#fdecd4;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
+    --shadow-md:0 8px 28px rgba(16,24,20,.09);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
+  button, select{ font-family:inherit; }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow-md); }
+  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(46,115,252,.15); }
+  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
+  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
+  .nav-btn:hover{ background:#f4f5f4; }
+
+  main{ max-width:1320px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
+  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
+  section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+
+  .card-frame{ padding:14px; border-radius:24px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > section.card{ box-shadow:none; }
+  .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:12px 13px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:11px 13px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#fafafa; }
+  td.ellipsis{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .badge.approved{ background:var(--accent-soft); color:var(--accent-hover); }
+  .badge.pending{ background:var(--warn-soft); color:var(--warn); }
+
+  .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
+  .small-btn:hover{ background:#f4f5f4; }
+  .small-btn.primary{ border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(46,115,252,.28); }
+  .small-btn.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+
+  .primary-btn{ padding:10px 20px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:13.5px; font-weight:700; cursor:pointer; box-shadow:0 4px 14px rgba(46,115,252,.28); transition:background .15s ease; }
+  .primary-btn:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+  .primary-btn:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+
+  label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=date], select{
+    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:8px; background:#fff; color:var(--ink); width:100%;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .form-row{ display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .form-row > div{ flex:1; min-width:140px; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.success{ color:var(--green); }
+  .readonly-note{ font-size:12px; color:var(--muted); }
+
+  .summary-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:22px; }
+  .summary-item{ border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--panel); box-shadow:var(--shadow-sm); }
+  .summary-item .label{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .summary-item .value{ font-size:17px; font-weight:700; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .toolbar .sep{ width:1px; align-self:stretch; background:var(--line); margin:0 4px; }
+
+  @media (max-width:720px){
+    header{ padding:14px 16px; gap:8px; }
+    main{ padding:18px 14px 48px; gap:20px; }
+    section.card{ padding:18px; }
+    .summary-grid{ grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); }
+    .form-row > div{ min-width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">🏦</div>
+    <h1>특판 실적</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">🏦</div>
+      <h2>예금·적금 특판 실적</h2>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="staff-dashboard.html" class="nav-btn">🙋 전담고객 관리</a>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card-frame mint">
+    <section class="card">
+      <h1><span class="section-icon blue">📝</span> 실적 등록</h1>
+      <p class="desc">예금·적금 특판 신규 건을 한 건씩 등록하세요. 등록하면 아래 집계에 바로 반영됩니다.</p>
+      <div id="editingNotice" style="display:none; margin-bottom:12px;">
+        <span class="badge pending">✏️ 수정 중</span>
+        <button type="button" class="small-btn" id="cancelEditBtn" style="margin-left:8px;">취소</button>
+      </div>
+      <form id="entryForm">
+        <div class="form-row">
+          <div><label>날짜</label><input type="date" id="fDate" required /></div>
+          <div><label>지점</label>
+            <select id="fBranch" required>
+              <option value="본점">🏢 본점</option>
+              <option value="지점">🏬 지점</option>
+            </select>
+          </div>
+          <div><label>상품</label>
+            <select id="fProduct" required>
+              <option value="예금">예금</option>
+              <option value="적금">적금</option>
+            </select>
+          </div>
+          <div><label>구분</label>
+            <select id="fCategory" required>
+              <option value="최초신규">최초신규</option>
+              <option value="재예치">재예치</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div><label>금액</label><input type="number" id="fAmount" min="1" step="1" required placeholder="예: 10000000" /></div>
+          <div><label>고객번호 (선택)</label><input type="number" id="fCustomerNo" placeholder="기존 고객이면 입력" /></div>
+          <div style="flex:2; min-width:200px;"><label>고객명</label><input type="text" id="fCustomerName" placeholder="고객명" /></div>
+        </div>
+        <div class="form-row">
+          <div><label>비고 (선택)</label><input type="text" id="fNote" placeholder="메모" /></div>
+        </div>
+        <button type="submit" class="primary-btn" id="submitEntryBtn">➕ 등록</button>
+        <div class="status-msg" id="entryStatus"></div>
+      </form>
+    </section>
+    </div>
+
+    <section class="card">
+      <h1><span class="section-icon green">📊</span> 실적 대시보드</h1>
+      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다.</p>
+
+      <div class="toolbar">
+        <button class="small-btn primary period-btn" data-period="today">오늘</button>
+        <button class="small-btn period-btn" data-period="7d">최근 7일</button>
+        <button class="small-btn period-btn" data-period="month">이번달</button>
+        <button class="small-btn period-btn" data-period="all">전체</button>
+        <div class="sep"></div>
+        <button class="small-btn primary product-btn" data-product="">상품 전체</button>
+        <button class="small-btn product-btn" data-product="예금">예금</button>
+        <button class="small-btn product-btn" data-product="적금">적금</button>
+      </div>
+
+      <p class="readonly-note" style="margin:0 0 6px;">본점·지점 집계</p>
+      <div id="branchSummaryTable" style="margin-bottom:24px;"><p class="empty">불러오는 중...</p></div>
+
+      <div style="max-width:960px; margin-bottom:26px; position:relative; height:300px;"><canvas id="trendChart"></canvas></div>
+
+      <p class="readonly-note" style="margin:0 0 6px;">일별 집계</p>
+      <div id="dailyTable"><p class="empty">불러오는 중...</p></div>
+    </section>
+
+    <section class="card">
+      <h1><span class="section-icon peach">📋</span> 등록 내역</h1>
+      <p class="desc">등록된 건별 내역입니다. 본인이 등록한 건과 관리자만 수정·삭제할 수 있습니다.</p>
+      <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="width:280px; margin-bottom:12px;" />
+      <div id="entryListTable"><p class="empty">불러오는 중...</p></div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+
+  let currentUserEmail = '';
+  let currentUserName = '';
+  let isAdmin = false;
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    currentUserName = name || currentUserEmail;
+    userEmail.textContent = currentUserName;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    isAdmin = !!admin;
+
+    document.getElementById('fDate').value = new Date().toISOString().slice(0, 10);
+    await loadEntries();
+  }
+
+  // ---- 유틸 ----
+  function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
+
+  function periodRange(period){
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0, 10);
+    if (period === 'today') return [fmt(today), fmt(today)];
+    if (period === '7d'){ const s = new Date(today); s.setDate(s.getDate() - 6); return [fmt(s), fmt(today)]; }
+    if (period === 'month'){ const s = new Date(today.getFullYear(), today.getMonth(), 1); return [fmt(s), fmt(today)]; }
+    return [null, null];
+  }
+
+  function sumBy(rows, pred){
+    const matched = rows.filter(pred);
+    return { count: matched.length, amount: matched.reduce((s, r) => s + Number(r.amount), 0) };
+  }
+
+  // ---- 데이터 로드 ----
+  let entriesCache = [];
+  let editingEntryId = null;
+  let currentPeriod = 'today';
+  let productFilter = '';
+  let entrySearchKeyword = '';
+
+  async function loadEntries(){
+    document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
+    document.getElementById('dailyTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
+    document.getElementById('entryListTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
+
+    const { data, error } = await sb
+      .from('special_deposit_entries')
+      .select('*')
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error){
+      document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`;
+      document.getElementById('dailyTable').innerHTML = '';
+      document.getElementById('entryListTable').innerHTML = '';
+      return;
+    }
+    entriesCache = data || [];
+    renderDashboard();
+    renderEntryList();
+  }
+
+  function getFilteredEntries(){
+    const [start, end] = periodRange(currentPeriod);
+    return entriesCache.filter(e => {
+      if (start && e.entry_date < start) return false;
+      if (end && e.entry_date > end) return false;
+      if (productFilter && e.product_type !== productFilter) return false;
+      return true;
+    });
+  }
+
+  function renderDashboard(){
+    const rows = getFilteredEntries();
+    renderBranchSummary(rows);
+    renderDailyTable(rows);
+    renderTrendChart(rows);
+  }
+
+  function renderBranchSummary(rows){
+    const branches = ['본점', '지점'];
+    let html = `<div class="table-scroll"><table><thead><tr>
+      <th>구분</th><th class="num">최초신규 건수</th><th class="num">최초신규 금액</th>
+      <th class="num">재예치 건수</th><th class="num">재예치 금액</th>
+      <th class="num">합계 건수</th><th class="num">합계 금액</th>
+    </tr></thead><tbody>`;
+    let totalFirst = { count: 0, amount: 0 }, totalRe = { count: 0, amount: 0 };
+    for (const b of branches){
+      const first = sumBy(rows, r => r.branch === b && r.category === '최초신규');
+      const re = sumBy(rows, r => r.branch === b && r.category === '재예치');
+      totalFirst.count += first.count; totalFirst.amount += first.amount;
+      totalRe.count += re.count; totalRe.amount += re.amount;
+      html += `<tr>
+        <td>${b === '본점' ? '🏢' : '🏬'} ${b}</td>
+        <td class="num">${first.count}건</td><td class="num">${fmtNum(first.amount)}</td>
+        <td class="num">${re.count}건</td><td class="num">${fmtNum(re.amount)}</td>
+        <td class="num" style="font-weight:700;">${first.count + re.count}건</td>
+        <td class="num" style="font-weight:700;">${fmtNum(first.amount + re.amount)}</td>
+      </tr>`;
+    }
+    html += `<tr style="font-weight:700; background:#fafafa;">
+      <td>합계</td>
+      <td class="num">${totalFirst.count}건</td><td class="num">${fmtNum(totalFirst.amount)}</td>
+      <td class="num">${totalRe.count}건</td><td class="num">${fmtNum(totalRe.amount)}</td>
+      <td class="num">${totalFirst.count + totalRe.count}건</td>
+      <td class="num">${fmtNum(totalFirst.amount + totalRe.amount)}</td>
+    </tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('branchSummaryTable').innerHTML = html;
+  }
+
+  function renderDailyTable(rows){
+    if (!rows.length){ document.getElementById('dailyTable').innerHTML = `<p class="empty">조건에 맞는 실적이 없습니다.</p>`; return; }
+    const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
+    let html = `<div class="table-scroll"><table><thead><tr>
+      <th>날짜</th>
+      <th class="num">🏢본점<br>최초신규 건수</th><th class="num">🏢본점<br>최초신규 금액</th>
+      <th class="num">🏢본점<br>재예치 건수</th><th class="num">🏢본점<br>재예치 금액</th>
+      <th class="num">🏬지점<br>최초신규 건수</th><th class="num">🏬지점<br>최초신규 금액</th>
+      <th class="num">🏬지점<br>재예치 건수</th><th class="num">🏬지점<br>재예치 금액</th>
+      <th class="num">합계 금액</th>
+    </tr></thead><tbody>`;
+    for (const d of dates){
+      const dayRows = rows.filter(r => r.entry_date === d);
+      const hqFirst = sumBy(dayRows, r => r.branch === '본점' && r.category === '최초신규');
+      const hqRe = sumBy(dayRows, r => r.branch === '본점' && r.category === '재예치');
+      const brFirst = sumBy(dayRows, r => r.branch === '지점' && r.category === '최초신규');
+      const brRe = sumBy(dayRows, r => r.branch === '지점' && r.category === '재예치');
+      const total = hqFirst.amount + hqRe.amount + brFirst.amount + brRe.amount;
+      html += `<tr>
+        <td>${d}</td>
+        <td class="num">${hqFirst.count}건</td><td class="num">${fmtNum(hqFirst.amount)}</td>
+        <td class="num">${hqRe.count}건</td><td class="num">${fmtNum(hqRe.amount)}</td>
+        <td class="num">${brFirst.count}건</td><td class="num">${fmtNum(brFirst.amount)}</td>
+        <td class="num">${brRe.count}건</td><td class="num">${fmtNum(brRe.amount)}</td>
+        <td class="num" style="font-weight:700;">${fmtNum(total)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    document.getElementById('dailyTable').innerHTML = html;
+  }
+
+  let trendChartInstance = null;
+  function renderTrendChart(rows){
+    const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort();
+    if (trendChartInstance) trendChartInstance.destroy();
+    if (!dates.length) return;
+    const firstByDate = dates.map(d => rows.filter(r => r.entry_date === d && r.category === '최초신규').reduce((s, r) => s + Number(r.amount), 0));
+    const reByDate = dates.map(d => rows.filter(r => r.entry_date === d && r.category === '재예치').reduce((s, r) => s + Number(r.amount), 0));
+
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    trendChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dates,
+        datasets: [
+          { label: '최초신규', data: firstByDate, backgroundColor: '#2e73fc', borderRadius: 4, maxBarThickness: 36 },
+          { label: '재예치', data: reByDate, backgroundColor: '#b5601f', borderRadius: 4, maxBarThickness: 36 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 12 } } },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtNum(c.raw)}` } }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: { stacked: true, grid: { color: '#ece9e2' }, ticks: { font: { size: 11 }, callback: v => fmtNum(v) } }
+        }
+      }
+    });
+  }
+
+  function renderEntryList(){
+    let rows = entriesCache;
+    if (entrySearchKeyword){
+      const kw = entrySearchKeyword.toLowerCase();
+      rows = rows.filter(r =>
+        (r.customer_name || '').toLowerCase().includes(kw) ||
+        String(r.customer_no || '').includes(kw) ||
+        (r.note || '').toLowerCase().includes(kw)
+      );
+    }
+    if (!rows.length){ document.getElementById('entryListTable').innerHTML = `<p class="empty">등록된 내역이 없습니다.</p>`; return; }
+
+    let html = `<div class="table-scroll"><table><thead><tr>
+      <th>날짜</th><th>지점</th><th>상품</th><th>구분</th><th class="num">금액</th><th>고객</th><th>등록자</th><th>비고</th><th></th>
+    </tr></thead><tbody>`;
+    for (const r of rows){
+      const canEdit = isAdmin || r.created_by_email === currentUserEmail;
+      const custLabel = r.customer_no
+        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>`
+        : (r.customer_name || '-');
+      html += `<tr data-id="${r.id}">
+        <td>${r.entry_date}</td>
+        <td>${r.branch === '본점' ? '🏢' : '🏬'} ${r.branch}</td>
+        <td>${r.product_type}</td>
+        <td><span class="badge ${r.category === '최초신규' ? 'approved' : 'pending'}">${r.category}</span></td>
+        <td class="num">${fmtNum(r.amount)}</td>
+        <td>${custLabel}</td>
+        <td>${r.created_by || r.created_by_email || ''}</td>
+        <td class="ellipsis" title="${(r.note || '').replace(/"/g, '&quot;')}">${r.note || ''}</td>
+        <td>${canEdit ? `<button class="small-btn edit-entry-btn" data-id="${r.id}">✏️</button> <button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    document.getElementById('entryListTable').innerHTML = html;
+
+    document.querySelectorAll('.edit-entry-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = entriesCache.find(r => r.id === Number(btn.dataset.id));
+        if (row) startEdit(row);
+      });
+    });
+    document.querySelectorAll('.del-entry-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 내역을 삭제할까요?')) return;
+        const { error } = await sb.from('special_deposit_entries').delete().eq('id', Number(btn.dataset.id));
+        if (error){ alert('삭제 실패: ' + error.message); return; }
+        await loadEntries();
+      });
+    });
+  }
+
+  // ---- 필터 토글 ----
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('primary'));
+      btn.classList.add('primary');
+      currentPeriod = btn.dataset.period;
+      renderDashboard();
+    });
+  });
+  document.querySelectorAll('.product-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('primary'));
+      btn.classList.add('primary');
+      productFilter = btn.dataset.product;
+      renderDashboard();
+    });
+  });
+
+  document.getElementById('entrySearchBox').addEventListener('input', (e) => {
+    entrySearchKeyword = e.target.value.trim();
+    renderEntryList();
+  });
+
+  // ---- 등록/수정 폼 ----
+  const entryForm = document.getElementById('entryForm');
+  const entryStatus = document.getElementById('entryStatus');
+  const submitEntryBtn = document.getElementById('submitEntryBtn');
+  const editingNotice = document.getElementById('editingNotice');
+
+  document.getElementById('fCustomerNo').addEventListener('blur', async (e) => {
+    const no = Number(e.target.value);
+    if (!no) return;
+    const { data } = await sb.from('customers').select('name').eq('customer_no', no).eq('is_deleted', false).maybeSingle();
+    if (data) document.getElementById('fCustomerName').value = data.name || '';
+  });
+
+  function startEdit(row){
+    editingEntryId = row.id;
+    document.getElementById('fDate').value = row.entry_date;
+    document.getElementById('fBranch').value = row.branch;
+    document.getElementById('fProduct').value = row.product_type;
+    document.getElementById('fCategory').value = row.category;
+    document.getElementById('fAmount').value = row.amount;
+    document.getElementById('fCustomerNo').value = row.customer_no || '';
+    document.getElementById('fCustomerName').value = row.customer_name || '';
+    document.getElementById('fNote').value = row.note || '';
+    submitEntryBtn.textContent = '💾 수정 저장';
+    editingNotice.style.display = 'block';
+    entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function resetFormAfterSave(){
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fCustomerNo').value = '';
+    document.getElementById('fCustomerName').value = '';
+    document.getElementById('fNote').value = '';
+  }
+
+  document.getElementById('cancelEditBtn').addEventListener('click', () => {
+    editingEntryId = null;
+    submitEntryBtn.textContent = '➕ 등록';
+    editingNotice.style.display = 'none';
+    resetFormAfterSave();
+    entryStatus.className = 'status-msg';
+    entryStatus.textContent = '';
+  });
+
+  entryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = Number(document.getElementById('fAmount').value);
+    if (!amount || amount <= 0){
+      entryStatus.className = 'status-msg error';
+      entryStatus.textContent = '금액을 올바르게 입력하세요.';
+      return;
+    }
+    const customerNoVal = document.getElementById('fCustomerNo').value;
+    const payload = {
+      entry_date: document.getElementById('fDate').value,
+      branch: document.getElementById('fBranch').value,
+      product_type: document.getElementById('fProduct').value,
+      category: document.getElementById('fCategory').value,
+      amount,
+      customer_no: customerNoVal ? Number(customerNoVal) : null,
+      customer_name: document.getElementById('fCustomerName').value.trim() || null,
+      note: document.getElementById('fNote').value.trim() || null
+    };
+
+    submitEntryBtn.disabled = true;
+    entryStatus.className = 'status-msg';
+    entryStatus.textContent = '저장 중...';
+
+    let error;
+    if (editingEntryId){
+      ({ error } = await sb.from('special_deposit_entries').update(payload).eq('id', editingEntryId));
+    } else {
+      payload.created_by_email = currentUserEmail;
+      payload.created_by = currentUserName;
+      ({ error } = await sb.from('special_deposit_entries').insert(payload));
+    }
+
+    submitEntryBtn.disabled = false;
+    if (error){
+      entryStatus.className = 'status-msg error';
+      entryStatus.textContent = '저장 실패: ' + error.message;
+      return;
+    }
+
+    entryStatus.className = 'status-msg success';
+    entryStatus.textContent = editingEntryId ? '수정되었습니다.' : '등록되었습니다.';
+    const wasEditing = !!editingEntryId;
+    editingEntryId = null;
+    submitEntryBtn.textContent = '➕ 등록';
+    editingNotice.style.display = 'none';
+    resetFormAfterSave();
+    await loadEntries();
+    if (wasEditing) entryForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+</script>
+</body>
+</html>
