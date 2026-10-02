@@ -84,6 +84,7 @@
   .brand{ display:flex; align-items:center; gap:12px; }
   .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
   .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); width:36px; height:36px; border-radius:8px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
   .signout-btn{
     border:1px solid var(--line-strong); background:var(--panel); color:var(--ink);
@@ -329,10 +330,19 @@
   @media (max-width: 720px){
     .login-card{ padding:32px 22px; }
 
-    header{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
+    header{ flex-wrap:wrap; gap:10px; padding:14px 16px; position:sticky; }
+    .brand{ flex:1; }
     .brand h2{ font-size:14.5px; }
-    .user-box{ gap:8px; font-size:12px; flex-wrap:wrap; justify-content:flex-end; }
-    .user-box span{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .nav-toggle-btn{ display:flex; }
+    .user-box{
+      display:none; width:100%; position:absolute; left:0; right:0; top:100%;
+      flex-direction:column; align-items:stretch; gap:8px; font-size:13px;
+      background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line);
+      box-shadow:0 8px 20px rgba(16,24,40,.12); z-index:30;
+    }
+    header.nav-open .user-box{ display:flex; }
+    .user-box span#userEmail{ max-width:none; overflow:visible; text-overflow:clip; white-space:normal; font-weight:700; color:var(--ink); margin-bottom:2px; }
+    .user-box .signout-btn{ width:100%; box-sizing:border-box; }
 
     main{ padding:18px 14px 40px; }
 
@@ -435,6 +445,7 @@
       <div class="brand">
         <div class="login-mark">🗂️</div>
         <h2>고객정보 관리</h2>
+        <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
       </div>
       <div class="user-box">
         <span id="userEmail"></span>
@@ -835,6 +846,11 @@
   const signOutBtn = document.getElementById('signOutBtn');
   const navAdminLink = document.getElementById('navAdminLink');
   const navAssignLink = document.getElementById('navAssignLink');
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  navToggleBtn.addEventListener('click', () => {
+    const isOpen = navToggleBtn.closest('header').classList.toggle('nav-open');
+    navToggleBtn.textContent = isOpen ? '✕' : '☰';
+  });
   const greetingTitle = document.getElementById('greetingTitle');
   const pstatInsert = document.getElementById('pstatInsert');
   const pstatUpdate = document.getElementById('pstatUpdate');

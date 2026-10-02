@@ -42,6 +42,7 @@
   .back-link:hover{ background:#f4f5f4; }
   .back-link.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .back-link.active:hover{ background:var(--accent-hover); }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); width:36px; height:36px; border-radius:8px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
   .user-box{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
   main{ max-width:880px; margin:0 auto; padding:32px 24px 80px; }
@@ -134,6 +135,16 @@
 
   @media (max-width:640px){
     header{ padding:14px 16px; }
+    .brand{ flex:1; }
+    .nav-toggle-btn{ display:flex; }
+    .user-box{
+      display:none; width:100%; position:absolute; left:0; right:0; top:100%;
+      flex-direction:column; align-items:stretch; gap:8px;
+      background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line);
+      box-shadow:0 8px 20px rgba(16,24,40,.12); z-index:30;
+    }
+    header.nav-open .user-box{ display:flex; }
+    .user-box .back-link{ width:100%; box-sizing:border-box; text-align:left; }
     main{ padding:24px 16px 60px; }
     .guide-item{ flex-direction:column; gap:10px; }
   }
@@ -145,6 +156,7 @@
     <div class="brand">
       <div class="mark">📖</div>
       <h2>사용설명서</h2>
+      <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
     </div>
     <div class="user-box">
       <a href="index.html" class="back-link">🗂️ 고객정보 관리</a>
@@ -369,5 +381,13 @@
     </section>
 
   </main>
+
+<script>
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  navToggleBtn.addEventListener('click', () => {
+    const isOpen = navToggleBtn.closest('header').classList.toggle('nav-open');
+    navToggleBtn.textContent = isOpen ? '✕' : '☰';
+  });
+</script>
 </body>
 </html>
