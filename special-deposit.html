@@ -332,12 +332,27 @@
   function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
 
   const BRANCH_SORT_ORDER = { '본점': 0, '지점': 1 };
+  // 본점 먼저 → 지점 다음, 그 안에서는 고객별 합계 내림차순. 같은 고객번호의 여러 건은 서로 인접하게 묶는다.
   function sortByBranchThenAmount(rows){
-    return [...rows].sort((a, b) => {
+    const groups = [];
+    const indexByKey = new Map();
+    for (const r of rows){
+      const key = r.branch + '|' + (r.customer_no || ('__no_customer_' + r.id));
+      if (!indexByKey.has(key)){
+        indexByKey.set(key, groups.length);
+        groups.push({ branch: r.branch, total: 0, rows: [] });
+      }
+      const g = groups[indexByKey.get(key)];
+      g.total += Number(r.total_amount);
+      g.rows.push(r);
+    }
+    groups.forEach(g => g.rows.sort((a, b) => Number(b.total_amount) - Number(a.total_amount)));
+    groups.sort((a, b) => {
       const branchDiff = (BRANCH_SORT_ORDER[a.branch] ?? 2) - (BRANCH_SORT_ORDER[b.branch] ?? 2);
       if (branchDiff !== 0) return branchDiff;
-      return Number(b.total_amount) - Number(a.total_amount);
+      return b.total - a.total;
     });
+    return groups.flatMap(g => g.rows);
   }
 
   function periodRange(period){
