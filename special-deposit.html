@@ -263,9 +263,10 @@
 
     <section class="card">
       <h1><span class="section-icon peach">📋</span> 등록 내역</h1>
-      <p class="desc">날짜를 선택하면 그 날 등록된 건별 내역이 보입니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있으며, 이 연결은 담당자 누구나 할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 삭제는 본인이 등록한 건과 관리자만 할 수 있습니다.</p>
+      <p class="desc">날짜를 선택하면 그 날 등록된 건별 내역이 보이고, "전체 조회"를 누르면 날짜 상관없이 전체 내역을 볼 수 있습니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있으며, 이 연결은 담당자 누구나 할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 삭제는 본인이 등록한 건과 관리자만 할 수 있습니다.</p>
       <div class="toolbar">
         <input type="date" id="entryListDateInput" style="width:160px;" />
+        <button class="small-btn" id="entryListShowAllBtn">📋 전체 조회</button>
         <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="flex:1; min-width:200px;" />
       </div>
       <div id="entryListTable"><p class="empty">불러오는 중...</p></div>
@@ -420,8 +421,20 @@
   let productFilter = '';
   let entrySearchKeyword = '';
   const entryListDateInput = document.getElementById('entryListDateInput');
+  const entryListShowAllBtn = document.getElementById('entryListShowAllBtn');
   entryListDateInput.value = new Date().toISOString().slice(0, 10);
-  entryListDateInput.addEventListener('change', renderEntryList);
+  let entryListShowAll = false;
+
+  entryListDateInput.addEventListener('change', () => {
+    entryListShowAll = false;
+    entryListShowAllBtn.classList.remove('primary');
+    renderEntryList();
+  });
+  entryListShowAllBtn.addEventListener('click', () => {
+    entryListShowAll = true;
+    entryListShowAllBtn.classList.add('primary');
+    renderEntryList();
+  });
 
   async function loadCustomerInfoMap(rows){
     const nos = Array.from(new Set(rows.filter(r => r.customer_no).map(r => r.customer_no)));
@@ -564,12 +577,17 @@
   }
 
   function renderEntryList(){
-    const selectedDate = entryListDateInput.value;
-    if (!selectedDate){
-      document.getElementById('entryListTable').innerHTML = `<p class="empty">날짜를 선택하면 해당 일자의 등록 내역이 보입니다.</p>`;
-      return;
+    let rows;
+    if (entryListShowAll){
+      rows = entriesCache;
+    } else {
+      const selectedDate = entryListDateInput.value;
+      if (!selectedDate){
+        document.getElementById('entryListTable').innerHTML = `<p class="empty">날짜를 선택하면 해당 일자의 등록 내역이 보입니다.</p>`;
+        return;
+      }
+      rows = entriesCache.filter(r => r.entry_date === selectedDate);
     }
-    let rows = entriesCache.filter(r => r.entry_date === selectedDate);
     if (entrySearchKeyword){
       const kw = entrySearchKeyword.toLowerCase();
       rows = rows.filter(r =>
