@@ -38,7 +38,7 @@
   .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
   .nav-toggle-btn{ display:none; margin-left:auto; border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); width:36px; height:36px; border-radius:8px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
   .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
+  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; white-space:nowrap; transition:background .12s ease; }
   .nav-btn:hover{ background:#f4f5f4; }
   .nav-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .nav-btn.active:hover{ background:var(--accent-hover); }
@@ -48,6 +48,9 @@
   section.card:hover{ box-shadow:var(--shadow-md); }
   section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .dashboard-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .dashboard-controls > input[type=date],
+  .dashboard-controls > button{ flex:0 0 auto; width:auto; }
 
   .card-frame{ padding:14px; border-radius:24px; }
   .card-frame.mint{ background:var(--mint); }
@@ -142,10 +145,14 @@
     .user-box .nav-btn{ width:100%; box-sizing:border-box; text-align:left; }
     main{ padding:18px 14px 48px; gap:20px; }
     section.card{ padding:18px; }
+    section.card p.desc{ display:none; }
     .summary-grid{ grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); }
     .form-row > div{ min-width:100%; }
     #entrySearchBox{ width:100% !important; }
     section.card h1{ flex-wrap:wrap; row-gap:8px; }
+    .dashboard-controls{ width:100%; }
+    .dashboard-controls > input[type=date],
+    .dashboard-controls > button{ flex:1 1 auto; }
 
     /* 표 대신 카드 형태로 표시 (가로 스크롤 없이) */
     .table-scroll{ overflow-x:visible; }
@@ -235,8 +242,8 @@
     <section class="card">
       <h1 style="justify-content:space-between; flex-wrap:wrap;">
         <span style="display:flex; align-items:center;"><span class="section-icon green">📊</span> 실적 대시보드</span>
-        <span style="display:flex; align-items:center; gap:8px;">
-          <input type="date" id="printDateInput" style="width:150px;" />
+        <span class="dashboard-controls">
+          <input type="date" id="printDateInput" />
           <button class="nav-btn" id="dashboardPrintBtn">🖨️ 일별 보고서 인쇄</button>
           <button class="nav-btn" id="kakaoShareBtn" style="background:#FEE500; border-color:#FEE500; color:#3C1E1E;">💬 카톡 공유</button>
         </span>
