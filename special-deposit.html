@@ -261,7 +261,7 @@
 
     <section class="card">
       <h1><span class="section-icon peach">📋</span> 등록 내역</h1>
-      <p class="desc">등록된 건별 내역입니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 본인이 등록한 건과 관리자만 삭제·연결할 수 있습니다.</p>
+      <p class="desc">등록된 건별 내역입니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있으며, 이 연결은 담당자 누구나 할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 삭제는 본인이 등록한 건과 관리자만 할 수 있습니다.</p>
       <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="width:280px; margin-bottom:12px;" />
       <div id="entryListTable"><p class="empty">불러오는 중...</p></div>
     </section>
@@ -572,7 +572,7 @@
       <th>날짜</th><th>본/지점</th><th>고객명</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>비고</th><th></th>
     </tr></thead><tbody>`;
     for (const r of rows){
-      const canEdit = isAdmin || r.created_by_email === currentUserEmail;
+      const canDelete = isAdmin || r.created_by_email === currentUserEmail;
       const custLabel = r.customer_no
         ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>`
         : (r.customer_name || '-');
@@ -585,7 +585,7 @@
         <td class="num" data-label="신규금액"><span class="v">${fmtNum(r.new_amount)}</span></td>
         <td class="num" data-label="재예치금액"><span class="v">${fmtNum(r.total_amount - r.new_amount)}</span></td>
         <td class="ellipsis" data-label="비고" title="${note.replace(/"/g, '&quot;')}"><span class="v">${note}</span></td>
-        <td class="action-cell">${canEdit ? `<button class="small-btn link-entry-btn" data-id="${r.id}" title="고객번호 연결">🔗</button><button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
+        <td class="action-cell"><button class="small-btn link-entry-btn" data-id="${r.id}" title="고객번호 연결">🔗</button>${canDelete ? `<button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
