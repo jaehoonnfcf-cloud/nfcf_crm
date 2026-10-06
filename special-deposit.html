@@ -331,6 +331,15 @@
   // ---- 유틸 ----
   function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
 
+  const BRANCH_SORT_ORDER = { '본점': 0, '지점': 1 };
+  function sortByBranchThenAmount(rows){
+    return [...rows].sort((a, b) => {
+      const branchDiff = (BRANCH_SORT_ORDER[a.branch] ?? 2) - (BRANCH_SORT_ORDER[b.branch] ?? 2);
+      if (branchDiff !== 0) return branchDiff;
+      return Number(b.total_amount) - Number(a.total_amount);
+    });
+  }
+
   function periodRange(period){
     const today = new Date();
     const fmt = d => d.toISOString().slice(0, 10);
@@ -505,6 +514,7 @@
       );
     }
     if (!rows.length){ document.getElementById('entryListTable').innerHTML = `<p class="empty">등록된 내역이 없습니다.</p>`; return; }
+    rows = sortByBranchThenAmount(rows);
 
     let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
       <th>날짜</th><th>본/지점</th><th>고객명</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>비고</th><th></th>
@@ -566,7 +576,6 @@
   const printDateInput = document.getElementById('printDateInput');
   printDateInput.value = new Date().toISOString().slice(0, 10);
 
-  const BRANCH_SORT_ORDER = { '본점': 0, '지점': 1 };
   const MAX_PRINT_ENTRY_ROWS = 30;
 
   function renderPrintReport(){
@@ -584,11 +593,7 @@
     }
     branchRowsHtml += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
 
-    const sortedRows = [...rows].sort((a, b) => {
-      const branchDiff = (BRANCH_SORT_ORDER[a.branch] ?? 2) - (BRANCH_SORT_ORDER[b.branch] ?? 2);
-      if (branchDiff !== 0) return branchDiff;
-      return Number(b.total_amount) - Number(a.total_amount);
-    });
+    const sortedRows = sortByBranchThenAmount(rows);
     const shownRows = sortedRows.slice(0, MAX_PRINT_ENTRY_ROWS);
     let entryRowsHtml = shownRows.map(r => {
       const custLabel = r.customer_no ? `${r.customer_name || ''} (${r.customer_no})` : (r.customer_name || '-');
