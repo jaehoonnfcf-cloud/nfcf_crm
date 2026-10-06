@@ -6,6 +6,7 @@
 <title>특판 실적</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://developers.kakao.com/sdk/js/kakao.min.js"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
@@ -237,9 +238,10 @@
         <span style="display:flex; align-items:center; gap:8px;">
           <input type="date" id="printDateInput" style="width:150px;" />
           <button class="nav-btn" id="dashboardPrintBtn">🖨️ 일별 보고서 인쇄</button>
+          <button class="nav-btn" id="kakaoShareBtn" style="background:#FEE500; border-color:#FEE500; color:#3C1E1E;">💬 카톡 공유</button>
         </span>
       </h1>
-      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다. 인쇄 보고서는 위 날짜를 선택해 해당 일자의 집계와 개별 등록 내역을 출력합니다.</p>
+      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다. 인쇄 보고서는 위 날짜를 선택해 해당 일자의 집계와 개별 등록 내역을 출력합니다. 카톡 공유는 같은 날짜의 본점·지점 집계만 요약해서 보냅니다.</p>
 
       <div class="toolbar">
         <button class="small-btn primary period-btn" data-period="today">오늘</button>
@@ -775,6 +777,39 @@
     document.body.classList.add('printing-special-deposit-report');
     window.print();
     setTimeout(() => document.body.classList.remove('printing-special-deposit-report'), 500);
+  });
+
+  // ---- 카카오톡 공유 ----
+  if (window.Kakao && !Kakao.isInitialized()){
+    Kakao.init('ad57c8d5f9168c24deab1a4f8d108bce');
+  }
+
+  function buildKakaoShareText(){
+    const date = printDateInput.value;
+    const rows = entriesCache.filter(r => r.entry_date === date && (!productFilter || r.product_type === productFilter));
+    const branches = ['본점', '지점'];
+    let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
+    const lines = [];
+    for (const b of branches){
+      const s = sumBy(rows, r => r.branch === b);
+      total.count += s.count; total.totalAmount += s.totalAmount;
+      total.newAmount += s.newAmount; total.reAmount += s.reAmount;
+      lines.push(`${b}: ${s.count}건 / 신규 ${fmtNum(s.newAmount)} · 재예치 ${fmtNum(s.reAmount)} · 합계 ${fmtNum(s.totalAmount)}`);
+    }
+    lines.push(`합계: ${total.count}건 / 신규 ${fmtNum(total.newAmount)} · 재예치 ${fmtNum(total.reAmount)} · 합계 ${fmtNum(total.totalAmount)}`);
+    return `📊 예금·적금 특판 실적 (${date || '-'})\n\n${lines.join('\n')}`;
+  }
+
+  document.getElementById('kakaoShareBtn').addEventListener('click', () => {
+    if (!window.Kakao || !Kakao.isInitialized()){
+      alert('카카오톡 공유 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    Kakao.Share.sendDefault({
+      objectType: 'text',
+      text: buildKakaoShareText(),
+      link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+    });
   });
 
 </script>
