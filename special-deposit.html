@@ -787,17 +787,28 @@
   function buildKakaoShareText(){
     const date = printDateInput.value;
     const rows = entriesCache.filter(r => r.entry_date === date && (!productFilter || r.product_type === productFilter));
+    const branchIcons = { '본점': '🏢', '지점': '🏬' };
     const branches = ['본점', '지점'];
     let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
-    const lines = [];
+    const blocks = [];
     for (const b of branches){
       const s = sumBy(rows, r => r.branch === b);
       total.count += s.count; total.totalAmount += s.totalAmount;
       total.newAmount += s.newAmount; total.reAmount += s.reAmount;
-      lines.push(`${b}: ${s.count}건 / 신규 ${fmtNum(s.newAmount)} · 재예치 ${fmtNum(s.reAmount)} · 합계 ${fmtNum(s.totalAmount)}`);
+      blocks.push(
+        `${branchIcons[b]} ${b} ${s.count}건\n` +
+        `ㆍ신규 ${fmtNum(s.newAmount)}\n` +
+        `ㆍ재예치 ${fmtNum(s.reAmount)}\n` +
+        `ㆍ합계 ${fmtNum(s.totalAmount)}`
+      );
     }
-    lines.push(`합계: ${total.count}건 / 신규 ${fmtNum(total.newAmount)} · 재예치 ${fmtNum(total.reAmount)} · 합계 ${fmtNum(total.totalAmount)}`);
-    return `📊 예금·적금 특판 실적 (${date || '-'})\n\n${lines.join('\n')}`;
+    blocks.push(
+      `📌 합계 ${total.count}건\n` +
+      `ㆍ신규 ${fmtNum(total.newAmount)}\n` +
+      `ㆍ재예치 ${fmtNum(total.reAmount)}\n` +
+      `ㆍ합계 ${fmtNum(total.totalAmount)}`
+    );
+    return `📊 특판 실적 (${date || '-'})\n\n${blocks.join('\n\n')}`;
   }
 
   document.getElementById('kakaoShareBtn').addEventListener('click', () => {
