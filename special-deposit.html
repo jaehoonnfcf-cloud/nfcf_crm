@@ -75,6 +75,7 @@
   .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
   .badge.approved{ background:var(--accent-soft); color:var(--accent-hover); }
   .badge.pending{ background:var(--warn-soft); color:var(--warn); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
 
   .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
   .small-btn:hover{ background:#f4f5f4; }
@@ -118,14 +119,14 @@
   #entryListTable table{ table-layout:fixed; }
   #entryListTable th:nth-child(1), #entryListTable td:nth-child(1){ width:9%; }
   #entryListTable th:nth-child(2), #entryListTable td:nth-child(2){ width:7%; }
-  #entryListTable th:nth-child(3), #entryListTable td:nth-child(3){ width:13%; }
+  #entryListTable th:nth-child(3), #entryListTable td:nth-child(3){ width:18%; }
   #entryListTable th:nth-child(4), #entryListTable td:nth-child(4){ width:7%; }
-  #entryListTable th:nth-child(5), #entryListTable td:nth-child(5){ width:11%; }
-  #entryListTable th:nth-child(6), #entryListTable td:nth-child(6){ width:11%; }
-  #entryListTable th:nth-child(7), #entryListTable td:nth-child(7){ width:11%; }
-  #entryListTable th:nth-child(8), #entryListTable td:nth-child(8){ width:16%; }
+  #entryListTable th:nth-child(5), #entryListTable td:nth-child(5){ width:10%; }
+  #entryListTable th:nth-child(6), #entryListTable td:nth-child(6){ width:10%; }
+  #entryListTable th:nth-child(7), #entryListTable td:nth-child(7){ width:10%; }
+  #entryListTable th:nth-child(8), #entryListTable td:nth-child(8){ width:14%; }
   #entryListTable th:nth-child(9), #entryListTable td:nth-child(9){ width:15%; }
-  #entryListTable td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #entryListTable td:nth-child(3){ white-space:normal; word-break:keep-all; }
   #entryListTable .action-cell{ text-align:right; white-space:nowrap; }
   #entryListTable .action-cell .small-btn{ margin-left:6px; }
   #entryListTable .action-cell .small-btn:first-child{ margin-left:0; }
@@ -191,6 +192,7 @@
   .sdp-print-table th{ background:#f0f0f0; font-weight:700; text-align:center; }
   .sdp-print-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   .sdp-print-table tr.total-row{ font-weight:700; background:#f7f7f7; }
+  .sdp-print-table .member-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   /* 인쇄시 페이지가 넘어가도 표 헤더가 각 페이지 상단에 반복되도록 */
   .sdp-print-table thead{ display:table-header-group; }
   .sdp-print-table tr{ page-break-inside:avoid; break-inside:avoid; }
@@ -426,6 +428,7 @@
   // ---- 데이터 로드 ----
   let entriesCache = [];
   let customerInfoMap = {};
+  let memberSet = new Set();
   let currentPeriod = 'today';
   let productFilter = '';
   let entrySearchKeyword = '';
@@ -447,10 +450,14 @@
 
   async function loadCustomerInfoMap(rows){
     const nos = Array.from(new Set(rows.filter(r => r.customer_no).map(r => r.customer_no)));
-    if (!nos.length){ customerInfoMap = {}; return; }
-    const { data } = await sb.from('customers').select('customer_no, customer_info').in('customer_no', nos);
+    if (!nos.length){ customerInfoMap = {}; memberSet = new Set(); return; }
+    const [{ data: custRows }, { data: memberRows }] = await Promise.all([
+      sb.from('customers').select('customer_no, customer_info').in('customer_no', nos),
+      sb.from('members').select('customer_no').in('customer_no', nos)
+    ]);
     customerInfoMap = {};
-    (data || []).forEach(c => { customerInfoMap[c.customer_no] = c.customer_info || ''; });
+    (custRows || []).forEach(c => { customerInfoMap[c.customer_no] = c.customer_info || ''; });
+    memberSet = new Set((memberRows || []).map(m => m.customer_no));
   }
 
   async function loadEntries(){
@@ -614,7 +621,7 @@
     for (const r of rows){
       const canDelete = isAdmin || r.created_by_email === currentUserEmail;
       const custLabel = r.customer_no
-        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>`
+        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${memberSet.has(r.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}`
         : (r.customer_name || '-');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       html += `<tr data-id="${r.id}">
@@ -754,7 +761,7 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = r.customer_no ? `${r.customer_name || ''} (${r.customer_no})` : (r.customer_name || '-');
+      const custLabel = (r.customer_name || '-') + (r.customer_no && memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       return `<tr>
         <td>${r.branch}</td><td>${custLabel}</td><td>${r.product_type}</td>
