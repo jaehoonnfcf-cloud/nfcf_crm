@@ -114,12 +114,13 @@
   #entryListTable table{ table-layout:fixed; }
   #entryListTable th:nth-child(1), #entryListTable td:nth-child(1){ width:9%; }
   #entryListTable th:nth-child(2), #entryListTable td:nth-child(2){ width:7%; }
-  #entryListTable th:nth-child(3), #entryListTable td:nth-child(3){ width:15%; }
-  #entryListTable th:nth-child(4), #entryListTable td:nth-child(4){ width:12%; }
-  #entryListTable th:nth-child(5), #entryListTable td:nth-child(5){ width:12%; }
-  #entryListTable th:nth-child(6), #entryListTable td:nth-child(6){ width:12%; }
-  #entryListTable th:nth-child(7), #entryListTable td:nth-child(7){ width:18%; }
-  #entryListTable th:nth-child(8), #entryListTable td:nth-child(8){ width:15%; }
+  #entryListTable th:nth-child(3), #entryListTable td:nth-child(3){ width:13%; }
+  #entryListTable th:nth-child(4), #entryListTable td:nth-child(4){ width:7%; }
+  #entryListTable th:nth-child(5), #entryListTable td:nth-child(5){ width:11%; }
+  #entryListTable th:nth-child(6), #entryListTable td:nth-child(6){ width:11%; }
+  #entryListTable th:nth-child(7), #entryListTable td:nth-child(7){ width:11%; }
+  #entryListTable th:nth-child(8), #entryListTable td:nth-child(8){ width:16%; }
+  #entryListTable th:nth-child(9), #entryListTable td:nth-child(9){ width:15%; }
   #entryListTable td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #entryListTable .action-cell{ text-align:right; white-space:nowrap; }
   #entryListTable .action-cell .small-btn{ margin-left:6px; }
@@ -165,7 +166,8 @@
     .compact-table td[data-label="구분"] .v,
     .compact-table td[data-label="날짜"] .v,
     .compact-table td[data-label="본/지점"] .v,
-    .compact-table td[data-label="고객명"] .v{ text-align:left; font-weight:600; }
+    .compact-table td[data-label="고객명"] .v,
+    .compact-table td[data-label="예적금"] .v{ text-align:left; font-weight:600; }
     .compact-table td.ellipsis{ white-space:normal; }
     .compact-table td.ellipsis .v{ text-align:left; white-space:normal; }
     .compact-table td.action-cell{ justify-content:flex-end; padding-top:8px; }
@@ -261,8 +263,11 @@
 
     <section class="card">
       <h1><span class="section-icon peach">📋</span> 등록 내역</h1>
-      <p class="desc">등록된 건별 내역입니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있으며, 이 연결은 담당자 누구나 할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 삭제는 본인이 등록한 건과 관리자만 할 수 있습니다.</p>
-      <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="width:280px; margin-bottom:12px;" />
+      <p class="desc">날짜를 선택하면 그 날 등록된 건별 내역이 보입니다. 업로드 당시 고객정보 화면에 없던 고객은 🔗 버튼으로 나중에 고객번호를 연결할 수 있으며, 이 연결은 담당자 누구나 할 수 있습니다. 그 외 잘못 등록된 건은 삭제 후 관리자 페이지에서 CSV를 수정해 다시 업로드해주세요. 삭제는 본인이 등록한 건과 관리자만 할 수 있습니다.</p>
+      <div class="toolbar">
+        <input type="date" id="entryListDateInput" style="width:160px;" />
+        <input type="text" id="entrySearchBox" placeholder="🔍 고객명 · 고객번호 · 비고 검색" style="flex:1; min-width:200px;" />
+      </div>
       <div id="entryListTable"><p class="empty">불러오는 중...</p></div>
     </section>
   </main>
@@ -414,6 +419,9 @@
   let currentPeriod = 'today';
   let productFilter = '';
   let entrySearchKeyword = '';
+  const entryListDateInput = document.getElementById('entryListDateInput');
+  entryListDateInput.value = new Date().toISOString().slice(0, 10);
+  entryListDateInput.addEventListener('change', renderEntryList);
 
   async function loadCustomerInfoMap(rows){
     const nos = Array.from(new Set(rows.filter(r => r.customer_no).map(r => r.customer_no)));
@@ -556,7 +564,12 @@
   }
 
   function renderEntryList(){
-    let rows = entriesCache;
+    const selectedDate = entryListDateInput.value;
+    if (!selectedDate){
+      document.getElementById('entryListTable').innerHTML = `<p class="empty">날짜를 선택하면 해당 일자의 등록 내역이 보입니다.</p>`;
+      return;
+    }
+    let rows = entriesCache.filter(r => r.entry_date === selectedDate);
     if (entrySearchKeyword){
       const kw = entrySearchKeyword.toLowerCase();
       rows = rows.filter(r =>
@@ -569,7 +582,7 @@
     rows = sortByBranchThenAmount(rows);
 
     let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
-      <th>날짜</th><th>본/지점</th><th>고객명</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>비고</th><th></th>
+      <th>날짜</th><th>본/지점</th><th>고객명</th><th>예적금</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>비고</th><th></th>
     </tr></thead><tbody>`;
     for (const r of rows){
       const canDelete = isAdmin || r.created_by_email === currentUserEmail;
@@ -581,6 +594,7 @@
         <td data-label="날짜"><span class="v">${r.entry_date}</span></td>
         <td data-label="본/지점"><span class="v">${r.branch}</span></td>
         <td data-label="고객명"><span class="v">${custLabel}</span></td>
+        <td data-label="예적금"><span class="v">${r.product_type}</span></td>
         <td class="num" data-label="전체금액"><span class="v">${fmtNum(r.total_amount)}</span></td>
         <td class="num" data-label="신규금액"><span class="v">${fmtNum(r.new_amount)}</span></td>
         <td class="num" data-label="재예치금액"><span class="v">${fmtNum(r.total_amount - r.new_amount)}</span></td>
@@ -716,12 +730,12 @@
       const custLabel = r.customer_no ? `${r.customer_name || ''} (${r.customer_no})` : (r.customer_name || '-');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       return `<tr>
-        <td>${r.branch}</td><td>${custLabel}</td>
+        <td>${r.branch}</td><td>${custLabel}</td><td>${r.product_type}</td>
         <td class="num">${fmtNum(r.total_amount)}</td><td class="num">${fmtNum(r.new_amount)}</td><td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
         <td>${note}</td>
       </tr>`;
     }).join('');
-    if (!sortedRows.length) entryRowsHtml = `<tr><td colspan="6" style="text-align:center; color:#777;">데이터 없음</td></tr>`;
+    if (!sortedRows.length) entryRowsHtml = `<tr><td colspan="7" style="text-align:center; color:#777;">데이터 없음</td></tr>`;
 
     const html = `
       <div class="sdp-print-title">예금·적금 특판 실적 보고서</div>
@@ -732,7 +746,7 @@
       </tr></thead><tbody>${branchRowsHtml}</tbody></table>
       <div class="sdp-print-section-title">개별 등록 내역</div>
       <table class="sdp-print-table"><thead><tr>
-        <th>본/지점</th><th>고객명</th><th>전체금액</th><th>신규금액</th><th>재예치금액</th><th>비고</th>
+        <th>본/지점</th><th>고객명</th><th>예적금</th><th>전체금액</th><th>신규금액</th><th>재예치금액</th><th>비고</th>
       </tr></thead><tbody>${entryRowsHtml}</tbody></table>
     `;
     document.getElementById('specialDepositPrintView').innerHTML = html;
