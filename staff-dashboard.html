@@ -155,6 +155,7 @@
     body{ zoom:1; }
 
     body.print-customers-only header,
+    body.print-customers-only #printBtn,
     body.print-customers-only #myCustomerSearchBox,
     body.print-customers-only .unassign-btn,
     body.print-customers-only #unassignedSection,
@@ -244,9 +245,7 @@
       <a href="customer-assignment.html" class="nav-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
       <a href="vip.html" class="nav-btn">🏛️ 법인단체등 만기관리</a>
       <a href="special-deposit.html" class="nav-btn">🏦 특판 실적</a>
-      <a href="manual.html" class="nav-btn">📖 사용설명서</a>
       <a href="admin.html" class="nav-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
-      <button class="nav-btn" id="printBtn">🖨️ 인쇄</button>
       <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
     </div>
   </header>
@@ -254,7 +253,10 @@
   <main>
     <div class="card-frame mint">
     <section class="card">
-      <h1>🙋 내 고객</h1>
+      <h1 style="justify-content:space-between; flex-wrap:wrap;">
+        <span style="display:flex; align-items:center;">🙋 내 고객</span>
+        <button class="nav-btn" id="printBtn">🖨️ 인쇄</button>
+      </h1>
       <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 월별 잔액 이력을 볼 수 있습니다.</p>
       <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
       <div id="myCustomerTable"></div>
