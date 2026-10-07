@@ -1047,6 +1047,7 @@
     e.preventDefault();
     amdReferrerHint.style.display = 'none';
     amdFamilyHint.style.display = 'none';
+    try {
 
     const deposit = parseMoneyInput(document.getElementById('amdDeposit'));
     const loan = parseMoneyInput(document.getElementById('amdLoan'));
@@ -1085,11 +1086,13 @@
     if (referrerNo === customerNo){
       amdReferrerHint.textContent = '본인을 추천인으로 지정할 수 없습니다.';
       amdReferrerHint.style.display = 'block';
+      amdReferrerHint.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     if (familyNo === customerNo){
       amdFamilyHint.textContent = '본인을 가족으로 등록할 수 없습니다.';
       amdFamilyHint.style.display = 'block';
+      amdFamilyHint.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
 
@@ -1103,6 +1106,7 @@
         amdSubmitBtn.textContent = '📋 저장';
         amdReferrerHint.textContent = `추천인 고객번호 ${referrerNo}를 찾을 수 없습니다.`;
         amdReferrerHint.style.display = 'block';
+        amdReferrerHint.scrollIntoView({ block: 'center', behavior: 'smooth' });
         return;
       }
     }
@@ -1113,6 +1117,7 @@
         amdSubmitBtn.textContent = '📋 저장';
         amdFamilyHint.textContent = `가족 고객번호 ${familyNo}를 찾을 수 없습니다.`;
         amdFamilyHint.style.display = 'block';
+        amdFamilyHint.scrollIntoView({ block: 'center', behavior: 'smooth' });
         return;
       }
     }
@@ -1226,6 +1231,12 @@
       document.body.classList.add('printing-membership-doc');
       window.print();
       setTimeout(() => document.body.classList.remove('printing-membership-doc'), 500);
+    }
+    } catch (err){
+      console.error('상담일지 저장 중 오류:', err);
+      amdSubmitBtn.disabled = false;
+      amdSubmitBtn.textContent = editingMembershipRecord ? '✏️ 수정 저장' : '📋 저장';
+      alert('상담일지 저장 중 예상치 못한 오류가 발생했습니다: ' + (err?.message || err));
     }
   });
 
