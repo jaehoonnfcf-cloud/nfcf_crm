@@ -784,12 +784,12 @@
     openMembershipDocBtn.textContent = '📋 상담일지 보기';
     openMembershipDocBtn.style.display = 'inline-flex';
 
-    const dateStr = appRow.created_at.slice(0, 10);
     const { data: snapshotRow } = await sb
       .from('balance_snapshots')
       .select('deposit_balance, loan_balance')
       .eq('customer_no', customerNo)
-      .eq('snapshot_date', dateStr)
+      .order('snapshot_date', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let referrerLabel = '';
@@ -1140,9 +1140,10 @@
     await sb.from('members').upsert({ customer_no: customerNo, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
 
     if (deposit || loan){
+      // 수기 입력한 여수신잔액은 상담일(과거일 수 있음)이 아니라 입력 시점(오늘) 기준 최신값으로 저장합니다.
       await sb.from('balance_snapshots').upsert({
         customer_no: customerNo,
-        snapshot_date: targetDate,
+        snapshot_date: todayDateStr(),
         deposit_balance: deposit ? Number(deposit) : null,
         loan_balance: loan ? Number(loan) : null,
         uploaded_by: currentUserEmail
