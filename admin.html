@@ -362,7 +362,7 @@
         <a href="staff-dashboard.html" class="link-btn">🙋 전담고객 관리</a>
         <a href="managed-customers.html" class="link-btn">👥 전체 관리 고객</a>
         <a href="customer-assignment.html" class="link-btn" id="navAssignLink">🗂️ 배정관리</a>
-        <a href="vip.html" class="link-btn">💎 VIP 만기내역</a>
+        <a href="vip.html" class="link-btn">🏛️ 법인단체등 만기관리</a>
         <a href="special-deposit.html" class="link-btn">🏦 특판 실적</a>
         <a href="manual.html" class="link-btn">📖 사용설명서</a>
         <a href="admin.html" class="link-btn active" id="navAdminLink">⚙️ 관리자</a>
@@ -382,7 +382,7 @@
         <button class="tab-btn" data-tab="members">🏅 조합원 관리</button>
         <button class="tab-btn" data-tab="special-deposit">🏦 특판 실적 업로드</button>
         <button class="tab-btn" data-tab="assignments">🙋 담당자/접점활동</button>
-        <button class="tab-btn" data-tab="vip-history">💎 VIP 수정이력</button>
+        <button class="tab-btn" data-tab="vip-history">🏛️ 법인단체 수정이력</button>
       </div>
 
       <!-- ===== 대시보드 ===== -->
@@ -444,7 +444,7 @@
       <!-- ===== 고객번호 정정 ===== -->
       <div class="tab-panel" id="panel-customer-no-fix">
         <h1 class="page-title">🔢 고객번호 정정</h1>
-        <p class="page-sub">일괄 등록 시 잘못 입력된 고객번호를 관리자가 직접 정정합니다. 조합활동·마케팅활동·잔액이력·가족관계·조합원 여부·VIP 이력·배정이력 등 이 고객번호와 연결된 모든 기록이 새 번호로 함께 이전됩니다. (되돌리려면 다시 반대로 변경하면 됩니다)</p>
+        <p class="page-sub">일괄 등록 시 잘못 입력된 고객번호를 관리자가 직접 정정합니다. 조합활동·마케팅활동·잔액이력·가족관계·조합원 여부·법인단체 이력·배정이력 등 이 고객번호와 연결된 모든 기록이 새 번호로 함께 이전됩니다. (되돌리려면 다시 반대로 변경하면 됩니다)</p>
 
         <div class="field" style="max-width:420px;">
           <label for="fixOldNo">기존(잘못된) 고객번호</label>
@@ -613,10 +613,10 @@
         </div>
       </div>
 
-      <!-- ===== VIP 수정이력 ===== -->
+      <!-- ===== 법인단체 수정이력 ===== -->
       <div class="tab-panel" id="panel-vip-history">
-        <h1 class="page-title"><span class="section-icon peach">💎</span> VIP 수정이력</h1>
-        <p class="page-sub">VIP 만기일자내역의 등록/수정/삭제 기록입니다.</p>
+        <h1 class="page-title"><span class="section-icon peach">🏛️</span> 법인단체 수정이력</h1>
+        <p class="page-sub">법인단체등 만기관리의 등록/수정/삭제 기록입니다.</p>
         <div class="toolbar">
           <input type="text" id="vipHistorySearch" placeholder="고객번호로 검색" />
           <button class="btn" id="vipHistorySearchBtn">🔍 검색</button>
@@ -1187,7 +1187,7 @@
     const oldNo = Number(fixOldNo.value.trim());
     const newNo = Number(fixNewNo.value.trim());
     if (!fixOldValid || !fixNewValid) return;
-    if (!confirm(`고객번호 ${oldNo}를 ${newNo}로 변경할까요?\n관련된 모든 활동·잔액·가족관계·조합원·VIP 이력이 함께 이전됩니다.`)) return;
+    if (!confirm(`고객번호 ${oldNo}를 ${newNo}로 변경할까요?\n관련된 모든 활동·잔액·가족관계·조합원·법인단체 이력이 함께 이전됩니다.`)) return;
 
     fixSubmitBtn.disabled = true;
     fixStatus.textContent = '변경 중...';
@@ -1265,7 +1265,7 @@
   delSubmitBtn.addEventListener('click', async () => {
     const no = Number(delCustomerNo.value.trim());
     if (!delValid) return;
-    if (!confirm(`고객번호 ${no}를 영구 삭제할까요?\n연결된 모든 활동·잔액·가족관계·조합원·VIP 기록이 함께 삭제되며, 되돌릴 수 없습니다.`)) return;
+    if (!confirm(`고객번호 ${no}를 영구 삭제할까요?\n연결된 모든 활동·잔액·가족관계·조합원·법인단체 기록이 함께 삭제되며, 되돌릴 수 없습니다.`)) return;
     if (!confirm(`정말 삭제하시겠습니까? 마지막 확인입니다.\n고객번호: ${no}`)) return;
 
     delSubmitBtn.disabled = true;
@@ -2240,7 +2240,7 @@
     if (activityPage < totalPages) loadActivityLog(activityPage + 1);
   });
 
-  // ==================== VIP 수정이력 ====================
+  // ==================== 법인단체 수정이력 ====================
   const vipHistorySearch = document.getElementById('vipHistorySearch');
   const vipHistorySearchBtn = document.getElementById('vipHistorySearchBtn');
   const vipHistoryAllBtn = document.getElementById('vipHistoryAllBtn');

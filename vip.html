@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>VIP 만기일자내역</title>
+<title>법인단체등 만기관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
@@ -309,9 +309,9 @@
 
   <div class="login-wrap" id="loginScreen">
     <div class="login-card">
-      <div class="login-mark">💎</div>
-      <h1>VIP 만기일자내역</h1>
-      <p>승인된 Google 계정으로 로그인 후<br/>VIP 만기 정보를 조회하고 관리할 수 있습니다.</p>
+      <div class="login-mark">🏛️</div>
+      <h1>법인단체등 만기관리</h1>
+      <p>승인된 Google 계정으로 로그인 후<br/>법인단체 만기 정보를 조회하고 관리할 수 있습니다.</p>
       <button class="google-btn" id="googleLoginBtn">
         <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 16 3 9.1 7.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.6 2.4-7.2 2.4-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9 40.4 15.9 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C40.9 36.3 45 30.7 45 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
         Google 계정으로 로그인
@@ -323,8 +323,8 @@
   <div id="app">
     <header>
       <div class="brand">
-        <div class="login-mark">💎</div>
-        <h2>VIP 만기일자내역</h2>
+        <div class="login-mark">🏛️</div>
+        <h2>법인단체등 만기관리</h2>
         <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
       </div>
       <div class="user-box">
@@ -333,7 +333,7 @@
         <a href="staff-dashboard.html" class="link-btn">🙋 전담고객 관리</a>
         <a href="managed-customers.html" class="link-btn">👥 전체 관리 고객</a>
         <a href="customer-assignment.html" class="link-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
-        <a href="vip.html" class="link-btn active">💎 VIP 만기내역</a>
+        <a href="vip.html" class="link-btn active">🏛️ 법인단체등 만기관리</a>
         <a href="special-deposit.html" class="link-btn">🏦 특판 실적</a>
         <a href="manual.html" class="link-btn">📖 사용설명서</a>
         <a href="admin.html" class="link-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
@@ -342,8 +342,8 @@
     </header>
 
     <main>
-      <h1 class="page-title"><span class="section-icon peach">💎</span> VIP 만기일자내역</h1>
-      <p class="page-sub">주요 법인 · 단체 · VIP 고객의 예금 만기일자를 관리합니다.</p>
+      <h1 class="page-title"><span class="section-icon peach">🏛️</span> 법인단체등 만기관리</h1>
+      <p class="page-sub">법인 · 단체 등 주요 고객의 예금 만기일자를 관리합니다.</p>
 
       <div class="stat-grid">
         <div class="stat-card warn">
@@ -359,7 +359,7 @@
         <div class="stat-card danger"><div class="num" id="statOverdue">-</div><div class="label">⚠️ 만기 경과</div></div>
         <div class="stat-card">
           <div class="num" id="statTotal">-</div>
-          <div class="label">💎 전체 등록 건수</div>
+          <div class="label">🏛️ 전체 등록 건수</div>
           <div class="stat-amount" id="statTotalAmount"></div>
         </div>
         <div class="stat-card">
@@ -399,7 +399,7 @@
         <button class="csv-btn" id="csvUploadBtn">📤 CSV 업로드</button>
         <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
         <button class="btn-secondary" id="downloadCsvBtn">⬇️ 결과 다운로드</button>
-        <button class="add-btn" id="openAddBtn">➕ VIP 등록</button>
+        <button class="add-btn" id="openAddBtn">➕ 법인단체 등록</button>
       </div>
 
       <div class="table-scroll">
@@ -419,16 +419,16 @@
           <tbody id="tableBody"></tbody>
         </table>
       </div>
-      <div class="empty-state" id="idleState">🔍 검색어를 입력하거나, "📋 전체 보기"를 눌러 VIP 목록을 불러오세요.</div>
-      <div class="empty-state" id="emptyState" style="display:none;">📭 등록된 VIP 정보가 없습니다.</div>
+      <div class="empty-state" id="idleState">🔍 검색어를 입력하거나, "📋 전체 보기"를 눌러 법인단체 목록을 불러오세요.</div>
+      <div class="empty-state" id="emptyState" style="display:none;">📭 등록된 법인단체 정보가 없습니다.</div>
       <div class="status-line" id="statusLine"></div>
     </main>
   </div>
 
-  <!-- VIP 등록 모달 -->
+  <!-- 법인단체 등록 모달 -->
   <div class="modal-overlay" id="addModalOverlay">
     <div class="modal">
-      <h2>➕ VIP 등록</h2>
+      <h2>➕ 법인단체 등록</h2>
       <p class="sub">고객번호를 입력하고 포커스를 벗어나면, 이미 등록된 고객이면 성명이 자동으로 채워져요.</p>
       <form id="addForm">
         <div class="field">
@@ -468,10 +468,10 @@
     </div>
   </div>
 
-  <!-- VIP 수정 모달 -->
+  <!-- 법인단체 수정 모달 -->
   <div class="modal-overlay" id="editModalOverlay">
     <div class="modal">
-      <h2>✏️ VIP 정보 수정</h2>
+      <h2>✏️ 법인단체 정보 수정</h2>
       <p class="sub" id="editModalSub">고객번호와 성명 등 전체 항목을 여기서 한 번에 수정합니다.</p>
       <form id="editForm">
         <div class="field">
@@ -526,7 +526,7 @@
   <!-- CSV 안내 모달 -->
   <div class="modal-overlay" id="csvGuideModalOverlay">
     <div class="modal" style="max-width:460px;">
-      <h2>📤 VIP 명단 CSV 업로드 전 확인해주세요</h2>
+      <h2>📤 법인단체 명단 CSV 업로드 전 확인해주세요</h2>
       <p class="sub">
         엑셀에서 저장할 때 <b>"CSV UTF-8(쉼표로 분리)"</b>로 저장해야 한글이 안 깨져요.<br/><br/>
         첫 줄(헤더)에 아래 열이 있어야 합니다:<br/>
@@ -884,7 +884,7 @@
     }
     currentRows = data || [];
     renderTable(currentRows);
-    if (currentRows.length === 0) emptyState.textContent = `📭 ${label} 만기인 VIP가 없습니다.`;
+    if (currentRows.length === 0) emptyState.textContent = `📭 ${label} 만기인 법인단체가 없습니다.`;
     setStatus(`총 ${currentRows.length}건 (${label} 만기)`, '');
   }
 
@@ -912,7 +912,7 @@
     }
     currentRows = data || [];
     renderTable(currentRows);
-    if (currentRows.length === 0) emptyState.textContent = `📭 ${type} 계좌인 VIP가 없습니다.`;
+    if (currentRows.length === 0) emptyState.textContent = `📭 ${type} 계좌인 법인단체가 없습니다.`;
     setStatus(`총 ${currentRows.length}건 (${type})`, '');
     clearBranchActive();
     (type === '본점' ? hqFilterBtn : brFilterBtn).classList.add('active');
@@ -976,7 +976,7 @@
     const a = document.createElement('a');
     const today = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `VIP만기내역_${today}.csv`;
+    a.download = `법인단체만기관리_${today}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -989,7 +989,7 @@
     tableBody.innerHTML = '';
     vipTable.style.display = rows.length === 0 ? 'none' : 'table';
     emptyState.style.display = rows.length === 0 ? 'block' : 'none';
-    if (rows.length === 0) emptyState.textContent = '📭 조건에 맞는 VIP 정보가 없습니다.';
+    if (rows.length === 0) emptyState.textContent = '📭 조건에 맞는 법인단체 정보가 없습니다.';
 
     rows.forEach(row => {
       const tr = document.createElement('tr');
@@ -1015,7 +1015,7 @@
       tr.querySelector('.edit-row-btn').addEventListener('click', () => openEditModal(row));
 
       tr.querySelector('.del').addEventListener('click', async () => {
-        if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 VIP 만기 정보를 삭제할까요?\n(이 작업은 되돌릴 수 없습니다)`)) return;
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name})의 법인단체 만기 정보를 삭제할까요?\n(이 작업은 되돌릴 수 없습니다)`)) return;
         const { error } = await sb.from(TABLE_NAME).delete().eq('id', row.id);
         if (error){
           setStatus('삭제 실패: ' + error.message, 'err-flash');
@@ -1025,7 +1025,7 @@
           if (currentRows.length === 0){
             vipTable.style.display = 'none';
             emptyState.style.display = 'block';
-            emptyState.textContent = '📭 등록된 VIP 정보가 없습니다.';
+            emptyState.textContent = '📭 등록된 법인단체 정보가 없습니다.';
           }
           setStatus(`고객번호 ${row.customer_no} 삭제 완료`, 'saved-flash');
           loadDashboard();
@@ -1044,7 +1044,7 @@
   hqFilterBtn.addEventListener('click', () => { searchBox.value = ''; loadByBranch('본점'); });
   brFilterBtn.addEventListener('click', () => { searchBox.value = ''; loadByBranch('지점'); });
 
-  // ---- VIP 등록 ----
+  // ---- 법인단체 등록 ----
   function openAddModal(){
     addForm.reset();
     addModalOverlay.classList.add('open');
@@ -1096,7 +1096,7 @@
     if (before.length !== editAccount.value.length) editAccount.selectionStart = editAccount.selectionEnd = editAccount.value.length;
   });
 
-  // ---- VIP 수정 모달 ----
+  // ---- 법인단체 수정 모달 ----
   function openEditModal(row){
     editingRow = row;
     editModalSub.textContent = `고객번호 ${row.customer_no} (${row.name})의 정보를 수정합니다.`;
@@ -1206,7 +1206,7 @@
       return;
     }
     closeAddModal();
-    setStatus(`고객번호 ${inNo.value} VIP 등록 완료`, 'saved-flash');
+    setStatus(`고객번호 ${inNo.value} 법인단체 등록 완료`, 'saved-flash');
     loadDashboard();
     if (searchBox.value.trim()) runSearch(); else if (vipTable.style.display !== 'none') loadAll();
   });
