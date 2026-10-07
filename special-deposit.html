@@ -605,12 +605,14 @@
       <th>날짜</th>
       <th class="num">본점<br>건수</th><th class="num">본점<br>신규금액</th><th class="num">본점<br>재예치금액</th>
       <th class="num">지점<br>건수</th><th class="num">지점<br>신규금액</th><th class="num">지점<br>재예치금액</th>
+      <th class="num">신규금액<br>합계</th>
       <th class="num">합계 금액</th>
     </tr></thead><tbody>`;
     for (const d of dates){
       const dayRows = rows.filter(r => r.entry_date === d);
       const hq = sumBy(dayRows, r => r.branch === '본점');
       const br = sumBy(dayRows, r => r.branch === '지점');
+      const newTotal = hq.newAmount + br.newAmount;
       const total = hq.totalAmount + br.totalAmount;
       html += `<tr>
         <td data-label="날짜"><span class="v">${d}</span></td>
@@ -620,6 +622,7 @@
         <td class="num" data-label="지점 건수"><span class="v">${br.count}건</span></td>
         <td class="num" data-label="지점 신규금액"><span class="v">${fmtNum(br.newAmount)}</span></td>
         <td class="num" data-label="지점 재예치금액"><span class="v">${fmtNum(br.reAmount)}</span></td>
+        <td class="num" data-label="신규금액 합계" style="font-weight:700;"><span class="v">${fmtNum(newTotal)}</span></td>
         <td class="num" data-label="합계 금액" style="font-weight:700;"><span class="v">${fmtNum(total)}</span></td>
       </tr>`;
     }
