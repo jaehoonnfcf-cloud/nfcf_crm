@@ -80,6 +80,7 @@
   .branch-badge.branch-hq{ background:var(--accent-soft); color:var(--accent-hover); }
   .branch-badge.branch-br{ background:var(--mint); color:var(--green); }
 
+  .goal-progress-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .goal-progress-box{ border:1px solid var(--line); background:#fafcf9; border-radius:12px; padding:16px 18px; }
   .goal-progress-header{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
   .goal-progress-title{ font-size:14px; font-weight:700; }
@@ -166,6 +167,7 @@
     .dashboard-controls{ width:100%; }
     .dashboard-controls > input[type=date],
     .dashboard-controls > button{ flex:1 1 auto; }
+    .goal-progress-grid{ grid-template-columns:1fr; }
 
     /* 표 대신 카드 형태로 표시 (가로 스크롤 없이) */
     .table-scroll{ overflow-x:visible; }
@@ -514,28 +516,49 @@
     });
   }
 
-  const NEW_MONEY_GOAL = 20000000000; // 내부 순수신규 목표 200억원 (전체기간·전체상품 누적 기준)
+  const DEPOSIT_GOAL_AMOUNT = 20000000000; // 예금 순수신규 목표 200억원 (전체기간 누적 기준)
+  const SAVINGS_GOAL_COUNT = 300; // 적금 목표 300계좌 (전체기간 누적 기준)
 
-  function calcGoalProgress(){
-    const totalNewAmount = entriesCache.reduce((sum, r) => sum + Number(r.new_amount || 0), 0);
-    const pct = NEW_MONEY_GOAL > 0 ? (totalNewAmount / NEW_MONEY_GOAL * 100) : 0;
+  function calcDepositGoalProgress(){
+    const totalNewAmount = entriesCache
+      .filter(r => r.product_type === '예금')
+      .reduce((sum, r) => sum + Number(r.new_amount || 0), 0);
+    const pct = DEPOSIT_GOAL_AMOUNT > 0 ? (totalNewAmount / DEPOSIT_GOAL_AMOUNT * 100) : 0;
     return { totalNewAmount, pct };
   }
 
-  function renderGoalProgress(){
-    const { totalNewAmount, pct } = calcGoalProgress();
+  function calcSavingsGoalProgress(){
+    const totalCount = entriesCache.filter(r => r.product_type === '적금').length;
+    const pct = SAVINGS_GOAL_COUNT > 0 ? (totalCount / SAVINGS_GOAL_COUNT * 100) : 0;
+    return { totalCount, pct };
+  }
+
+  function goalProgressBoxHtml(title, note, pct, detailHtml){
     const pctLabel = pct.toFixed(1);
     const barWidth = Math.min(pct, 100).toFixed(1);
-    const remaining = Math.max(NEW_MONEY_GOAL - totalNewAmount, 0);
-    document.getElementById('goalProgressBox').innerHTML = `
+    return `
       <div class="goal-progress-box">
         <div class="goal-progress-header">
-          <span class="goal-progress-title">🎯 순수신규 목표 달성률<span class="goal-progress-note">(전체기간·전체상품 누적)</span></span>
+          <span class="goal-progress-title">🎯 ${title}<span class="goal-progress-note">(${note})</span></span>
           <span class="goal-progress-pct">${pctLabel}%</span>
         </div>
         <div class="goal-progress-track"><div class="goal-progress-fill" style="width:${barWidth}%"></div></div>
-        <div class="goal-progress-detail">${fmtNum(totalNewAmount)}원 / 목표 ${fmtNum(NEW_MONEY_GOAL)}원${remaining > 0 ? ` (목표까지 ${fmtNum(remaining)}원)` : ' · 목표 달성!'}</div>
+        <div class="goal-progress-detail">${detailHtml}</div>
       </div>`;
+  }
+
+  function renderGoalProgress(){
+    const deposit = calcDepositGoalProgress();
+    const depositRemaining = Math.max(DEPOSIT_GOAL_AMOUNT - deposit.totalNewAmount, 0);
+    const depositDetail = `${fmtNum(deposit.totalNewAmount)}원 / 목표 ${fmtNum(DEPOSIT_GOAL_AMOUNT)}원${depositRemaining > 0 ? ` (목표까지 ${fmtNum(depositRemaining)}원)` : ' · 목표 달성!'}`;
+    const depositBox = goalProgressBoxHtml('예금 목표 달성률', '신규금액 누적', deposit.pct, depositDetail);
+
+    const savings = calcSavingsGoalProgress();
+    const savingsRemaining = Math.max(SAVINGS_GOAL_COUNT - savings.totalCount, 0);
+    const savingsDetail = `${savings.totalCount.toLocaleString('ko-KR')}좌 / 목표 ${SAVINGS_GOAL_COUNT.toLocaleString('ko-KR')}좌${savingsRemaining > 0 ? ` (목표까지 ${savingsRemaining.toLocaleString('ko-KR')}좌)` : ' · 목표 달성!'}`;
+    const savingsBox = goalProgressBoxHtml('적금 목표 달성률', '계좌수 누적', savings.pct, savingsDetail);
+
+    document.getElementById('goalProgressBox').innerHTML = `<div class="goal-progress-grid">${depositBox}${savingsBox}</div>`;
   }
 
   function renderDashboard(){
@@ -868,12 +891,19 @@
       `ㆍ재예치 ${fmtNum(total.reAmount)}\n` +
       `ㆍ합계 ${fmtNum(total.totalAmount)}`
     );
-    const goal = calcGoalProgress();
+    const deposit = calcDepositGoalProgress();
     blocks.push(
-      `🎯 순수신규 목표 달성률 (전체누적)\n` +
-      `ㆍ누적신규 ${fmtNum(goal.totalNewAmount)}\n` +
-      `ㆍ목표 ${fmtNum(NEW_MONEY_GOAL)}\n` +
-      `ㆍ달성률 ${goal.pct.toFixed(1)}%`
+      `🎯 예금 목표 달성률 (전체누적)\n` +
+      `ㆍ누적신규 ${fmtNum(deposit.totalNewAmount)}\n` +
+      `ㆍ목표 ${fmtNum(DEPOSIT_GOAL_AMOUNT)}\n` +
+      `ㆍ달성률 ${deposit.pct.toFixed(1)}%`
+    );
+    const savings = calcSavingsGoalProgress();
+    blocks.push(
+      `🎯 적금 목표 달성률 (전체누적)\n` +
+      `ㆍ누적계좌 ${savings.totalCount.toLocaleString('ko-KR')}좌\n` +
+      `ㆍ목표 ${SAVINGS_GOAL_COUNT.toLocaleString('ko-KR')}좌\n` +
+      `ㆍ달성률 ${savings.pct.toFixed(1)}%`
     );
     return `📊 특판 실적 (${date || '-'})\n\n${blocks.join('\n\n')}`;
   }
