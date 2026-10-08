@@ -711,11 +711,7 @@
       snapshotsByCustomer[s.customer_no].push(s);
     }
 
-    let html = `<table><thead><tr>
-      <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th><th>기준월</th>
-      <th class="num">수신증감</th><th class="num">여신증감</th><th>최근 마케팅활동</th>
-    </tr></thead><tbody>`;
-    for (const no of customerNos){
+    const reportRows = customerNos.map(no => {
       const c = custMap[no] || {};
       const m = marketingMap[no];
       const snapshots = snapshotsByCustomer[no] || [];
@@ -731,6 +727,22 @@
         if (baseline.loan_balance != null && latest.loan_balance != null) loanDiff = latest.loan_balance - baseline.loan_balance;
       }
 
+      return { no, c, m, baselineLabel, depositDiff, loanDiff };
+    });
+
+    // 수신증감 내림차순 (자료 없는 경우는 맨 뒤로)
+    reportRows.sort((a, b) => {
+      if (a.depositDiff == null && b.depositDiff == null) return 0;
+      if (a.depositDiff == null) return 1;
+      if (b.depositDiff == null) return -1;
+      return b.depositDiff - a.depositDiff;
+    });
+
+    let html = `<table><thead><tr>
+      <th>고객번호</th><th>성명</th><th>담당자</th><th>참여일</th><th>기준월</th>
+      <th class="num">수신증감</th><th class="num">여신증감</th><th>최근 마케팅활동</th>
+    </tr></thead><tbody>`;
+    for (const { no, c, m, baselineLabel, depositDiff, loanDiff } of reportRows){
       html += `<tr class="clickable" data-customer="${no}">
         <td>${no}</td><td>${c.name||''}</td>
         <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
