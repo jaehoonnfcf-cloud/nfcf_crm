@@ -400,6 +400,7 @@
 
   // ---- 유틸 ----
   function fmtNum(n){ if (n === null || n === undefined) return '-'; return Number(n).toLocaleString('ko-KR'); }
+  function fmtMillion(n){ if (n === null || n === undefined) return '-'; return Math.round(Number(n) / 1000000).toLocaleString('ko-KR') + '백만원'; }
 
   function branchBadge(branch){
     if (branch !== '본점' && branch !== '지점') return branch || '-';
@@ -882,22 +883,22 @@
       total.newAmount += s.newAmount; total.reAmount += s.reAmount;
       blocks.push(
         `${branchIcons[b]} ${b} ${s.count}건\n` +
-        `ㆍ신규 ${fmtNum(s.newAmount)}\n` +
-        `ㆍ재예치 ${fmtNum(s.reAmount)}\n` +
-        `ㆍ합계 ${fmtNum(s.totalAmount)}`
+        `ㆍ신규 ${fmtMillion(s.newAmount)}\n` +
+        `ㆍ재예치 ${fmtMillion(s.reAmount)}\n` +
+        `ㆍ합계 ${fmtMillion(s.totalAmount)}`
       );
     }
     blocks.push(
       `📌 합계 ${total.count}건\n` +
-      `ㆍ신규 ${fmtNum(total.newAmount)}\n` +
-      `ㆍ재예치 ${fmtNum(total.reAmount)}\n` +
-      `ㆍ합계 ${fmtNum(total.totalAmount)}`
+      `ㆍ신규 ${fmtMillion(total.newAmount)}\n` +
+      `ㆍ재예치 ${fmtMillion(total.reAmount)}\n` +
+      `ㆍ합계 ${fmtMillion(total.totalAmount)}`
     );
     const deposit = calcDepositGoalProgress();
     blocks.push(
       `🎯 예금 목표 달성률 (전체누적)\n` +
-      `ㆍ누적신규 ${fmtNum(deposit.totalNewAmount)}\n` +
-      `ㆍ목표 ${fmtNum(DEPOSIT_GOAL_AMOUNT)}\n` +
+      `ㆍ누적신규 ${fmtMillion(deposit.totalNewAmount)}\n` +
+      `ㆍ목표 ${fmtMillion(DEPOSIT_GOAL_AMOUNT)}\n` +
       `ㆍ달성률 ${deposit.pct.toFixed(1)}%`
     );
     const savings = calcSavingsGoalProgress();
