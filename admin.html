@@ -570,7 +570,7 @@
       <div class="tab-panel card-frame peach" id="panel-special-deposit">
        <div class="card">
         <h1 class="page-title">🏦 특판 실적 업로드</h1>
-        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 전체금액, 신규금액, 고객번호(선택), 고객명(선택), 비고(선택). 한 건 안에 최초신규와 재예치가 섞여 있으면(예: 전체 5,200만원 중 신규 200만원) 전체금액과 신규금액만 입력하면 재예치금액은 자동 계산됩니다. <b>적금은 재예치 개념이 없으므로 전체금액에 월불입액을 입력하고 신규금액은 비워두면 전체금액과 동일하게 자동 처리됩니다.</b> 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
+        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 전체금액, 신규금액, 고객번호(선택), 고객명(선택), 비고(선택). 한 건 안에 최초신규와 재예치가 섞여 있으면(예: 전체 5,200만원 중 신규 200만원) 전체금액과 신규금액만 입력하면 재예치금액은 자동 계산됩니다. <b>적금은 재예치 개념이 없으므로 전체금액에 월불입액을 입력하고 신규금액은 비워두면 전체금액과 동일하게 자동 처리됩니다.</b> <b>고객번호를 입력했는데 기존 고객정보가 없는 경우, 고객명도 함께 입력되어 있으면 고객번호+이름만으로 고객정보를 새로 등록해 자동으로 연결합니다(고객명이 없으면 연결 없이 저장).</b> 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
         <div class="toolbar">
           <input type="file" id="specialDepositCsvInput" accept=".csv" />
         </div>
@@ -2074,6 +2074,30 @@
       existingSet = new Set((data || []).map(c => c.customer_no));
     }
 
+    // 고객정보가 없는 고객번호는, 고객명이 함께 있으면 최소정보(고객번호+이름)로 새로 등록해 연결합니다.
+    const missingNos = nos.filter(no => !existingSet.has(no));
+    let autoCreatedCount = 0;
+    if (missingNos.length){
+      const nameByNo = new Map();
+      for (const r of parsedSpecialDepositRows){
+        if (r.customer_no && !existingSet.has(r.customer_no) && r.customer_name && !nameByNo.has(r.customer_no)){
+          nameByNo.set(r.customer_no, r.customer_name);
+        }
+      }
+      if (nameByNo.size){
+        const newCustomerRows = Array.from(nameByNo.entries()).map(([customer_no, name]) => ({ customer_no, name }));
+        setSpecialDepositStatus('신규 고객정보 등록 중...', '');
+        const { error: custError } = await sb.from('customers').insert(newCustomerRows);
+        if (custError){
+          setSpecialDepositStatus(`신규 고객정보 등록 실패: ${custError.message}`, 'err-flash');
+          specialDepositUploadBtn.disabled = false;
+          return;
+        }
+        autoCreatedCount = newCustomerRows.length;
+        newCustomerRows.forEach(c => existingSet.add(c.customer_no));
+      }
+    }
+
     let droppedLinkCount = 0;
     const rows = parsedSpecialDepositRows.map(r => {
       let customer_no = r.customer_no;
@@ -2109,7 +2133,8 @@
     });
 
     let msg = `${rows.length}건 등록 완료.`;
-    if (droppedLinkCount) msg += ` 이 중 ${droppedLinkCount}건은 등록되지 않은 고객번호라 고객 연결 없이 저장됐습니다.`;
+    if (autoCreatedCount) msg += ` 고객정보가 없던 고객번호 ${autoCreatedCount}건은 이름으로 새로 등록해 연결했습니다.`;
+    if (droppedLinkCount) msg += ` 이 중 ${droppedLinkCount}건은 고객명도 없어 고객 연결 없이 저장됐습니다.`;
     resetSpecialDepositForm(true);
     setSpecialDepositStatus(msg, 'saved-flash');
   });
@@ -2165,6 +2190,7 @@
 
     let customer_no = custNoRaw ? Number(custNoRaw) : null;
     let droppedLink = false;
+    let autoCreated = false;
     if (customer_no){
       const { data, error } = await sb.from('customers').select('customer_no').eq('customer_no', customer_no).maybeSingle();
       if (error){
@@ -2172,7 +2198,21 @@
         sdeSubmitBtn.disabled = false;
         return;
       }
-      if (!data){ customer_no = null; droppedLink = true; }
+      if (!data){
+        const nameForNew = sdeCustName.value.trim();
+        if (nameForNew){
+          const { error: custError } = await sb.from('customers').insert([{ customer_no, name: nameForNew }]);
+          if (custError){
+            setSdeStatus(`신규 고객정보 등록 실패: ${custError.message}`, 'err-flash');
+            sdeSubmitBtn.disabled = false;
+            return;
+          }
+          autoCreated = true;
+        } else {
+          customer_no = null;
+          droppedLink = true;
+        }
+      }
     }
 
     const row = {
@@ -2197,7 +2237,8 @@
     });
 
     let msg = '등록 완료.';
-    if (droppedLink) msg += ' 입력한 고객번호가 등록되지 않은 번호라 고객 연결 없이 저장됐습니다.';
+    if (autoCreated) msg += ' 입력한 고객번호가 없던 번호라 고객명으로 새로 등록해 연결했습니다.';
+    if (droppedLink) msg += ' 입력한 고객번호가 등록되지 않은 번호이고 고객명도 없어 고객 연결 없이 저장됐습니다.';
     specialDepositSingleForm.reset();
     sdeDate.value = todayDateStr();
     sdeSubmitBtn.disabled = false;
