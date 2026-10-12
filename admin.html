@@ -563,7 +563,7 @@
       <div class="tab-panel card-frame peach" id="panel-special-deposit">
        <div class="card">
         <h1 class="page-title">🏦 특판 실적 업로드</h1>
-        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 전체금액, 신규금액, 고객번호(선택), 고객명(선택), 비고(선택). 한 건 안에 최초신규와 재예치가 섞여 있으면(예: 전체 5,200만원 중 신규 200만원) 전체금액과 신규금액만 입력하면 재예치금액은 자동 계산됩니다. 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
+        <p class="page-sub">예금·적금 특판 신규 건을 CSV로 한 번에 등록합니다. 헤더: 날짜(YYYY-MM-DD), 지점(본점/지점), 상품(예금/적금), 전체금액, 신규금액, 고객번호(선택), 고객명(선택), 비고(선택). 한 건 안에 최초신규와 재예치가 섞여 있으면(예: 전체 5,200만원 중 신규 200만원) 전체금액과 신규금액만 입력하면 재예치금액은 자동 계산됩니다. <b>적금은 재예치 개념이 없으므로 전체금액에 월불입액을 입력하고 신규금액은 비워두면 전체금액과 동일하게 자동 처리됩니다.</b> 등록된 내역은 <b>🏦 특판 실적</b> 대시보드에서 확인합니다.</p>
         <div class="toolbar">
           <input type="file" id="specialDepositCsvInput" accept=".csv" />
         </div>
@@ -1938,7 +1938,11 @@
           if (!['예금', '적금'].includes(r.product_type)) errors.push('상품은 예금/적금만 가능');
           const total_amount = parseAmount(r.total_amount);
           if (!total_amount || isNaN(total_amount) || total_amount <= 0) errors.push('전체금액 오류');
-          const new_amount = (r.new_amount === '' || r.new_amount === undefined) ? 0 : parseAmount(r.new_amount);
+          const newAmountEmpty = (r.new_amount === '' || r.new_amount === undefined);
+          // 적금은 재예치 개념이 없는 신규 월납입 약정이라, 신규금액을 비워두면 전체금액(월불입액)을 그대로 채웁니다.
+          const new_amount = newAmountEmpty
+            ? (r.product_type === '적금' ? total_amount : 0)
+            : parseAmount(r.new_amount);
           if (isNaN(new_amount) || new_amount < 0) errors.push('신규금액 오류');
           if (!errors.length && new_amount > total_amount) errors.push('신규금액이 전체금액보다 큼');
           if (r.customer_no && isNaN(Number(r.customer_no))) errors.push('고객번호는 숫자여야 함');
