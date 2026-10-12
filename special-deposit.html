@@ -284,8 +284,14 @@
 
       <div style="max-width:960px; margin-bottom:26px; position:relative; height:300px;"><canvas id="trendChart"></canvas></div>
 
-      <p class="readonly-note" style="margin:0 0 6px;">일별 집계</p>
-      <div id="dailyTable"><p class="empty">불러오는 중...</p></div>
+      <div id="dailyDepositSection">
+        <p class="readonly-note" style="margin:0 0 6px;">일별 집계 (예금)</p>
+        <div id="dailyTableDeposit" style="margin-bottom:24px;"><p class="empty">불러오는 중...</p></div>
+      </div>
+      <div id="dailySavingsSection">
+        <p class="readonly-note" style="margin:0 0 6px;">일별 집계 (적금)</p>
+        <div id="dailyTableSavings"><p class="empty">불러오는 중...</p></div>
+      </div>
     </section>
 
     <section class="card">
@@ -485,7 +491,8 @@
 
   async function loadEntries(){
     document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
-    document.getElementById('dailyTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
+    document.getElementById('dailyTableDeposit').innerHTML = `<p class="empty">불러오는 중...</p>`;
+    document.getElementById('dailyTableSavings').innerHTML = `<p class="empty">불러오는 중...</p>`;
     document.getElementById('entryListTable').innerHTML = `<p class="empty">불러오는 중...</p>`;
 
     const { data, error } = await sb
@@ -496,7 +503,8 @@
 
     if (error){
       document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`;
-      document.getElementById('dailyTable').innerHTML = '';
+      document.getElementById('dailyTableDeposit').innerHTML = '';
+      document.getElementById('dailyTableSavings').innerHTML = '';
       document.getElementById('entryListTable').innerHTML = '';
       return;
     }
@@ -600,7 +608,16 @@
   }
 
   function renderDailyTable(rows){
-    if (!rows.length){ document.getElementById('dailyTable').innerHTML = `<p class="empty">조건에 맞는 실적이 없습니다.</p>`; return; }
+    // 상품 필터가 걸려있으면 해당 상품 표만 보여줍니다.
+    document.getElementById('dailyDepositSection').style.display = (productFilter === '적금') ? 'none' : '';
+    document.getElementById('dailySavingsSection').style.display = (productFilter === '예금') ? 'none' : '';
+
+    if (productFilter !== '적금') renderDailyDepositTable(rows.filter(r => r.product_type === '예금'));
+    if (productFilter !== '예금') renderDailySavingsTable(rows.filter(r => r.product_type === '적금'));
+  }
+
+  function renderDailyDepositTable(rows){
+    if (!rows.length){ document.getElementById('dailyTableDeposit').innerHTML = `<p class="empty">조건에 맞는 예금 실적이 없습니다.</p>`; return; }
     const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
     let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
       <th>날짜</th>
@@ -628,7 +645,38 @@
       </tr>`;
     }
     html += `</tbody></table></div>`;
-    document.getElementById('dailyTable').innerHTML = html;
+    document.getElementById('dailyTableDeposit').innerHTML = html;
+  }
+
+  function renderDailySavingsTable(rows){
+    if (!rows.length){ document.getElementById('dailyTableSavings').innerHTML = `<p class="empty">조건에 맞는 적금 실적이 없습니다.</p>`; return; }
+    const dates = Array.from(new Set(rows.map(r => r.entry_date))).sort().reverse();
+    // 적금은 재예치 개념이 없는 신규 월납입 약정이라, 금액은 전체금액(=월납입액) 하나로만 보여줍니다.
+    let html = `<div class="table-scroll"><table class="compact-table"><thead><tr>
+      <th>날짜</th>
+      <th class="num">본점<br>건수</th><th class="num">본점<br>월납입액</th>
+      <th class="num">지점<br>건수</th><th class="num">지점<br>월납입액</th>
+      <th class="num">합계<br>건수</th>
+      <th class="num">합계<br>월납입액</th>
+    </tr></thead><tbody>`;
+    for (const d of dates){
+      const dayRows = rows.filter(r => r.entry_date === d);
+      const hq = sumBy(dayRows, r => r.branch === '본점');
+      const br = sumBy(dayRows, r => r.branch === '지점');
+      const count = hq.count + br.count;
+      const total = hq.totalAmount + br.totalAmount;
+      html += `<tr>
+        <td data-label="날짜"><span class="v">${d}</span></td>
+        <td class="num" data-label="본점 건수"><span class="v">${hq.count}건</span></td>
+        <td class="num" data-label="본점 월납입액"><span class="v">${fmtNum(hq.totalAmount)}</span></td>
+        <td class="num" data-label="지점 건수"><span class="v">${br.count}건</span></td>
+        <td class="num" data-label="지점 월납입액"><span class="v">${fmtNum(br.totalAmount)}</span></td>
+        <td class="num" data-label="합계 건수" style="font-weight:700;"><span class="v">${count}건</span></td>
+        <td class="num" data-label="합계 월납입액" style="font-weight:700;"><span class="v">${fmtNum(total)}</span></td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    document.getElementById('dailyTableSavings').innerHTML = html;
   }
 
   let trendChartInstance = null;
