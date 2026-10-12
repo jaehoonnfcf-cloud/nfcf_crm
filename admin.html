@@ -252,12 +252,19 @@
 
   .field{ margin-bottom:14px; }
   .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
-  .field input[type=text]{
+  .field input[type=text],
+  .field input[type=date],
+  .field select{
     width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff;
   }
-  .field input:focus{ outline:none; border-color:var(--accent); }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--accent); }
   .field.checkbox-field{ display:flex; align-items:center; gap:8px; }
   .field.checkbox-field label{ margin:0; }
+
+  .field-grid{ display:flex; flex-wrap:wrap; gap:12px; }
+  .field-grid .field{ flex:1 1 150px; margin-bottom:0; }
+  .section-divider{ border:none; border-top:1px solid var(--line); margin:22px 0 16px; }
+  .section-subtitle{ font-weight:700; font-size:14.5px; margin:0 0 10px; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
 
   @media (max-width:720px){
@@ -572,6 +579,58 @@
           <button class="btn" id="specialDepositUploadBtn" disabled>📤 업로드 실행</button>
         </div>
         <div class="status-line" id="specialDepositStatus"></div>
+
+        <hr class="section-divider" />
+        <p class="section-subtitle">✍️ 단건 직접 입력</p>
+        <p class="page-sub" style="margin-top:-4px;">한 건만 등록할 때는 CSV 없이 아래에 바로 입력하세요.</p>
+        <form id="specialDepositSingleForm">
+          <div class="field-grid">
+            <div class="field" style="flex-basis:130px;">
+              <label for="sdeDate">날짜</label>
+              <input type="date" id="sdeDate" required />
+            </div>
+            <div class="field" style="flex-basis:110px;">
+              <label for="sdeBranch">지점</label>
+              <select id="sdeBranch" required>
+                <option value="">선택</option>
+                <option value="본점">본점</option>
+                <option value="지점">지점</option>
+              </select>
+            </div>
+            <div class="field" style="flex-basis:110px;">
+              <label for="sdeProduct">상품</label>
+              <select id="sdeProduct" required>
+                <option value="">선택</option>
+                <option value="예금">예금</option>
+                <option value="적금">적금</option>
+              </select>
+            </div>
+            <div class="field" style="flex-basis:160px;">
+              <label for="sdeTotal">전체금액</label>
+              <input type="text" id="sdeTotal" inputmode="numeric" placeholder="예: 50000000" required />
+            </div>
+            <div class="field" style="flex-basis:160px;">
+              <label for="sdeNew">신규금액 (선택)</label>
+              <input type="text" id="sdeNew" inputmode="numeric" placeholder="적금은 비워두면 전체금액과 동일" />
+            </div>
+            <div class="field" style="flex-basis:130px;">
+              <label for="sdeCustNo">고객번호 (선택)</label>
+              <input type="text" id="sdeCustNo" inputmode="numeric" placeholder="예: 12345" />
+            </div>
+            <div class="field" style="flex-basis:130px;">
+              <label for="sdeCustName">고객명 (선택)</label>
+              <input type="text" id="sdeCustName" placeholder="예: 홍길동" />
+            </div>
+            <div class="field" style="flex-basis:200px;">
+              <label for="sdeNote">비고 (선택)</label>
+              <input type="text" id="sdeNote" placeholder="메모" />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:4px;">
+            <button type="submit" class="btn" id="sdeSubmitBtn">➕ 등록</button>
+          </div>
+          <div class="status-line" id="specialDepositSingleStatus"></div>
+        </form>
        </div>
       </div>
 
@@ -2053,6 +2112,96 @@
     if (droppedLinkCount) msg += ` 이 중 ${droppedLinkCount}건은 등록되지 않은 고객번호라 고객 연결 없이 저장됐습니다.`;
     resetSpecialDepositForm(true);
     setSpecialDepositStatus(msg, 'saved-flash');
+  });
+
+  // ---- 특판 실적 단건 직접 입력 ----
+  const specialDepositSingleForm = document.getElementById('specialDepositSingleForm');
+  const sdeDate = document.getElementById('sdeDate');
+  const sdeBranch = document.getElementById('sdeBranch');
+  const sdeProduct = document.getElementById('sdeProduct');
+  const sdeTotal = document.getElementById('sdeTotal');
+  const sdeNew = document.getElementById('sdeNew');
+  const sdeCustNo = document.getElementById('sdeCustNo');
+  const sdeCustName = document.getElementById('sdeCustName');
+  const sdeNote = document.getElementById('sdeNote');
+  const sdeSubmitBtn = document.getElementById('sdeSubmitBtn');
+  const specialDepositSingleStatus = document.getElementById('specialDepositSingleStatus');
+
+  function todayDateStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  sdeDate.value = todayDateStr();
+
+  function setSdeStatus(text, cls){
+    specialDepositSingleStatus.textContent = text;
+    specialDepositSingleStatus.className = 'status-line ' + (cls || '');
+  }
+
+  specialDepositSingleForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setSdeStatus('', '');
+
+    const entry_date = sdeDate.value;
+    const branch = sdeBranch.value;
+    const product_type = sdeProduct.value;
+    const total_amount = parseAmount(sdeTotal.value);
+    const newAmountEmpty = sdeNew.value.trim() === '';
+    const new_amount = newAmountEmpty
+      ? (product_type === '적금' ? total_amount : 0)
+      : parseAmount(sdeNew.value);
+    const custNoRaw = sdeCustNo.value.trim();
+
+    if (!entry_date){ setSdeStatus('날짜를 입력해주세요.', 'err-flash'); return; }
+    if (!['본점', '지점'].includes(branch)){ setSdeStatus('지점을 선택해주세요.', 'err-flash'); return; }
+    if (!['예금', '적금'].includes(product_type)){ setSdeStatus('상품을 선택해주세요.', 'err-flash'); return; }
+    if (!total_amount || isNaN(total_amount) || total_amount <= 0){ setSdeStatus('전체금액을 올바르게 입력해주세요.', 'err-flash'); return; }
+    if (isNaN(new_amount) || new_amount < 0){ setSdeStatus('신규금액을 올바르게 입력해주세요.', 'err-flash'); return; }
+    if (new_amount > total_amount){ setSdeStatus('신규금액이 전체금액보다 클 수 없습니다.', 'err-flash'); return; }
+    if (custNoRaw && isNaN(Number(custNoRaw))){ setSdeStatus('고객번호는 숫자여야 합니다.', 'err-flash'); return; }
+
+    sdeSubmitBtn.disabled = true;
+    setSdeStatus('등록 중...', '');
+
+    let customer_no = custNoRaw ? Number(custNoRaw) : null;
+    let droppedLink = false;
+    if (customer_no){
+      const { data, error } = await sb.from('customers').select('customer_no').eq('customer_no', customer_no).maybeSingle();
+      if (error){
+        setSdeStatus(`고객번호 확인 실패: ${error.message}`, 'err-flash');
+        sdeSubmitBtn.disabled = false;
+        return;
+      }
+      if (!data){ customer_no = null; droppedLink = true; }
+    }
+
+    const row = {
+      entry_date, branch, product_type, total_amount, new_amount,
+      customer_no,
+      customer_name: sdeCustName.value.trim() || null,
+      note: sdeNote.value.trim() || null,
+      created_by: currentUserName,
+      created_by_email: currentUserEmail
+    };
+
+    const { error } = await sb.from('special_deposit_entries').insert([row]);
+    if (error){
+      setSdeStatus(`등록 실패: ${error.message}`, 'err-flash');
+      sdeSubmitBtn.disabled = false;
+      return;
+    }
+
+    await sb.rpc('log_csv_upload', {
+      p_inserted: 1, p_updated: 0,
+      p_summary: `특판 실적 단건 등록 (${branch}/${product_type})`
+    });
+
+    let msg = '등록 완료.';
+    if (droppedLink) msg += ' 입력한 고객번호가 등록되지 않은 번호라 고객 연결 없이 저장됐습니다.';
+    specialDepositSingleForm.reset();
+    sdeDate.value = todayDateStr();
+    sdeSubmitBtn.disabled = false;
+    setSdeStatus(msg, 'saved-flash');
   });
 
   // ==================== 담당자/접점활동 ====================
