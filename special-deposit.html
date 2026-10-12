@@ -76,6 +76,7 @@
   .badge.approved{ background:var(--accent-soft); color:var(--accent-hover); }
   .badge.pending{ background:var(--warn-soft); color:var(--warn); }
   .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
+  .new-customer-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px; }
   .branch-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 9px; border-radius:999px; }
   .branch-badge.branch-hq{ background:var(--accent-soft); color:var(--accent-hover); }
   .branch-badge.branch-br{ background:var(--mint); color:var(--green); }
@@ -211,6 +212,7 @@
   .sdp-print-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   .sdp-print-table tr.total-row{ font-weight:700; background:#f7f7f7; }
   .sdp-print-table .member-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
+  .sdp-print-table .new-customer-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   .sdp-print-table .branch-badge{ font-size:10px; padding:2px 7px; }
   .sdp-print-table .product-badge{ font-size:10px; padding:2px 7px; }
   /* 인쇄시 페이지가 넘어가도 표 헤더가 각 페이지 상단에 반복되도록 */
@@ -423,6 +425,14 @@
     if (productType !== '예금' && productType !== '적금') return productType || '-';
     const cls = productType === '예금' ? 'product-deposit' : 'product-savings';
     return `<span class="product-badge ${cls}">${productType === '예금' ? '🏦' : '🐷'} ${productType}</span>`;
+  }
+
+  const NEW_CUSTOMER_NO_THRESHOLD = 21833091; // 이 번호 이상이면 최초신규고객
+  function isNewCustomer(customerNo){
+    return !!customerNo && Number(customerNo) >= NEW_CUSTOMER_NO_THRESHOLD;
+  }
+  function newCustomerBadge(customerNo){
+    return isNewCustomer(customerNo) ? '<span class="new-customer-badge">🆕 최초신규</span>' : '';
   }
 
   const BRANCH_SORT_ORDER = { '본점': 0, '지점': 1 };
@@ -755,7 +765,7 @@
     for (const r of rows){
       const canDelete = isAdmin || r.created_by_email === currentUserEmail;
       const custLabel = r.customer_no
-        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${memberSet.has(r.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}`
+        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${memberSet.has(r.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}${newCustomerBadge(r.customer_no)}`
         : (r.customer_name || '-');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       html += `<tr data-id="${r.id}">
@@ -896,7 +906,7 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = (r.customer_name || '-') + (r.customer_no && memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '');
+      const custLabel = (r.customer_name || '-') + (r.customer_no && memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '') + ' ' + newCustomerBadge(r.customer_no);
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       return `<tr>
         <td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
