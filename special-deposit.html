@@ -427,7 +427,7 @@
     return `<span class="product-badge ${cls}">${productType === '예금' ? '🏦' : '🐷'} ${productType}</span>`;
   }
 
-  const NEW_CUSTOMER_NO_THRESHOLD = 21833091; // 이 번호 이상이면 최초신규고객
+  const NEW_CUSTOMER_NO_THRESHOLD = 21826111; // 이 번호 이상이면 최초신규고객
   function isNewCustomer(customerNo){
     return !!customerNo && Number(customerNo) >= NEW_CUSTOMER_NO_THRESHOLD;
   }
