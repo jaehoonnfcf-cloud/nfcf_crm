@@ -59,6 +59,7 @@
   .diff-down{ color:var(--danger); }
   .diff-flat{ color:var(--muted); }
   .member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
+  .non-member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#eceef0; color:var(--muted); padding:2px 7px; border-radius:999px; }
   .family-name-link{ color:var(--ink); font-weight:600; text-decoration:none; }
   .family-name-link:hover{ text-decoration:underline; }
 
@@ -190,6 +191,7 @@
       <div id="infoDisplayMode" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
         <span id="memberBadgeDisplay" class="member-badge" style="display:none;">🏅조합원</span>
+        <span id="nonMemberBadgeDisplay" class="non-member-badge" style="display:none;">비조합원</span>
         <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
         <button class="nav-btn" id="editInfoBtn" title="이름·특징·추천인 수정">✏️ 수정</button>
         <button class="nav-btn" id="openMembershipDocBtn" style="margin-left:auto; display:none;">📋 조합원 상담일지</button>
@@ -666,6 +668,7 @@
 
     const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', customerNo).maybeSingle();
     document.getElementById('memberBadgeDisplay').style.display = memberRow ? 'inline-block' : 'none';
+    document.getElementById('nonMemberBadgeDisplay').style.display = memberRow ? 'none' : 'inline-block';
 
     let assigneeLabel = '미배정';
     if (data.assigned_to){
