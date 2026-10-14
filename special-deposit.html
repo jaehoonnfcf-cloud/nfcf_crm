@@ -666,6 +666,21 @@
         <td class="num" data-label="합계 금액" style="font-weight:700;"><span class="v">${fmtNum(total)}</span></td>
       </tr>`;
     }
+    const hqAll = sumBy(rows, r => r.branch === '본점');
+    const brAll = sumBy(rows, r => r.branch === '지점');
+    const newTotalAll = hqAll.newAmount + brAll.newAmount;
+    const totalAll = hqAll.totalAmount + brAll.totalAmount;
+    html += `<tr style="font-weight:700; background:#fafafa;">
+        <td data-label="날짜"><span class="v">전체합계</span></td>
+        <td class="num" data-label="본점 건수"><span class="v">${hqAll.count}건</span></td>
+        <td class="num" data-label="본점 신규금액"><span class="v">${fmtNum(hqAll.newAmount)}</span></td>
+        <td class="num" data-label="본점 재예치금액"><span class="v">${fmtNum(hqAll.reAmount)}</span></td>
+        <td class="num" data-label="지점 건수"><span class="v">${brAll.count}건</span></td>
+        <td class="num" data-label="지점 신규금액"><span class="v">${fmtNum(brAll.newAmount)}</span></td>
+        <td class="num" data-label="지점 재예치금액"><span class="v">${fmtNum(brAll.reAmount)}</span></td>
+        <td class="num" data-label="신규금액 합계"><span class="v">${fmtNum(newTotalAll)}</span></td>
+        <td class="num" data-label="합계 금액"><span class="v">${fmtNum(totalAll)}</span></td>
+      </tr>`;
     html += `</tbody></table></div>`;
     document.getElementById('dailyTableDeposit').innerHTML = html;
   }
@@ -697,6 +712,19 @@
         <td class="num" data-label="합계 월납입액" style="font-weight:700;"><span class="v">${fmtNum(total)}</span></td>
       </tr>`;
     }
+    const hqAll = sumBy(rows, r => r.branch === '본점');
+    const brAll = sumBy(rows, r => r.branch === '지점');
+    const countAll = hqAll.count + brAll.count;
+    const totalAll = hqAll.totalAmount + brAll.totalAmount;
+    html += `<tr style="font-weight:700; background:#fafafa;">
+        <td data-label="날짜"><span class="v">전체합계</span></td>
+        <td class="num" data-label="본점 건수"><span class="v">${hqAll.count}건</span></td>
+        <td class="num" data-label="본점 월납입액"><span class="v">${fmtNum(hqAll.totalAmount)}</span></td>
+        <td class="num" data-label="지점 건수"><span class="v">${brAll.count}건</span></td>
+        <td class="num" data-label="지점 월납입액"><span class="v">${fmtNum(brAll.totalAmount)}</span></td>
+        <td class="num" data-label="합계 건수"><span class="v">${countAll}건</span></td>
+        <td class="num" data-label="합계 월납입액"><span class="v">${fmtNum(totalAll)}</span></td>
+      </tr>`;
     html += `</tbody></table></div>`;
     document.getElementById('dailyTableSavings').innerHTML = html;
   }
