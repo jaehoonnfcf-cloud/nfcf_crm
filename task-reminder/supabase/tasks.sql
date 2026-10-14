@@ -94,3 +94,7 @@ grant execute on function public.is_member() to authenticated;
 --     headers := jsonb_build_object('x-cron-secret', '<CRON_SECRET>', 'Content-Type', 'application/json'),
 --     body := '{}'::jsonb);
 -- $$);
+
+-- 로그인 전(anon) 호출 차단
+revoke execute on function public.is_member(), public.task_is_owner(bigint), public.task_is_member(bigint) from public, anon;
+grant execute on function public.is_member(), public.task_is_owner(bigint), public.task_is_member(bigint) to authenticated;
