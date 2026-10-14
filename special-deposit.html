@@ -211,6 +211,7 @@
   .sdp-print-table th{ background:#f0f0f0; font-weight:700; text-align:center; }
   .sdp-print-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   .sdp-print-table tr.total-row{ font-weight:700; background:#f7f7f7; }
+  .sdp-print-table td.sdp-print-subhead{ background:#e4e4e4; font-weight:700; text-align:left; }
   .sdp-print-table .member-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   .sdp-print-table .new-customer-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   .sdp-print-table .branch-badge{ font-size:10px; padding:2px 7px; }
@@ -892,10 +893,11 @@
   function renderPrintReport(){
     const date = printDateInput.value;
     const rows = entriesCache.filter(r => r.entry_date === date && (!productFilter || r.product_type === productFilter));
+    const allPeriodRows = entriesCache.filter(r => (!productFilter || r.product_type === productFilter));
 
     const branches = ['본점', '지점'];
 
-    function buildDepositSummaryHtml(depRows){
+    function depositRowsHtml(depRows){
       let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
       let html = '';
       for (const b of branches){
@@ -908,7 +910,7 @@
       return html;
     }
 
-    function buildSavingsSummaryHtml(savRows){
+    function savingsRowsHtml(savRows){
       let total = { count: 0, totalAmount: 0 };
       let html = '';
       for (const b of branches){
@@ -922,18 +924,32 @@
 
     let summarySectionsHtml = '';
     if (productFilter !== '적금'){
+      const depDayRows = rows.filter(r => r.product_type === '예금');
+      const depAllRows = allPeriodRows.filter(r => r.product_type === '예금');
       summarySectionsHtml += `
         <div class="sdp-print-section-title">본점·지점 집계 (예금)</div>
         <table class="sdp-print-table"><thead><tr>
           <th>구분</th><th>건수</th><th>신규금액</th><th>재예치금액</th><th>전체금액</th>
-        </tr></thead><tbody>${buildDepositSummaryHtml(rows.filter(r => r.product_type === '예금'))}</tbody></table>`;
+        </tr></thead><tbody>
+          <tr><td colspan="5" class="sdp-print-subhead">당일 (${date || '-'})</td></tr>
+          ${depositRowsHtml(depDayRows)}
+          <tr><td colspan="5" class="sdp-print-subhead">전체기간 누계</td></tr>
+          ${depositRowsHtml(depAllRows)}
+        </tbody></table>`;
     }
     if (productFilter !== '예금'){
+      const savDayRows = rows.filter(r => r.product_type === '적금');
+      const savAllRows = allPeriodRows.filter(r => r.product_type === '적금');
       summarySectionsHtml += `
         <div class="sdp-print-section-title">본점·지점 집계 (적금)</div>
         <table class="sdp-print-table"><thead><tr>
           <th>구분</th><th>건수</th><th>월납입액</th>
-        </tr></thead><tbody>${buildSavingsSummaryHtml(rows.filter(r => r.product_type === '적금'))}</tbody></table>`;
+        </tr></thead><tbody>
+          <tr><td colspan="3" class="sdp-print-subhead">당일 (${date || '-'})</td></tr>
+          ${savingsRowsHtml(savDayRows)}
+          <tr><td colspan="3" class="sdp-print-subhead">전체기간 누계</td></tr>
+          ${savingsRowsHtml(savAllRows)}
+        </tbody></table>`;
     }
 
     const sortedRows = sortByBranchThenAmount(rows);
