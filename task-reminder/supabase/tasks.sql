@@ -79,6 +79,12 @@ create policy tg_select on public.telegram_links for select to authenticated usi
 create policy tg_insert on public.telegram_links for insert to authenticated with check (email = auth.email());
 create policy tg_update on public.telegram_links for update to authenticated using (email = auth.email());
 
+-- API 접근 권한 (Automatically expose new tables 를 끈 경우 필요)
+grant select, insert, update, delete on public.work_tasks, public.work_task_assignees, public.telegram_links to authenticated;
+grant select on public.team_members to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+grant execute on function public.is_member() to authenticated;
+
 -- ===== 정기 독촉 알림 (Edge Function 배포 + 시크릿 설정 후 실행) =====
 -- create extension if not exists pg_cron; create extension if not exists pg_net;
 -- 평일 09:00, 15:00 (KST) = UTC 00:00, 06:00
