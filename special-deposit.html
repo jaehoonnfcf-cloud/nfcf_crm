@@ -6,6 +6,7 @@
 <title>특판 실적</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://developers.kakao.com/sdk/js/kakao.min.js"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
@@ -1057,16 +1058,47 @@
     return `📊 특판 실적 (${date || '-'})\n\n${blocks.join('\n\n')}`;
   }
 
-  document.getElementById('kakaoShareBtn').addEventListener('click', () => {
+  const kakaoShareBtn = document.getElementById('kakaoShareBtn');
+  kakaoShareBtn.addEventListener('click', async () => {
     if (!window.Kakao || !Kakao.isInitialized()){
       alert('카카오톡 공유 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
-    Kakao.Share.sendDefault({
-      objectType: 'text',
-      text: buildKakaoShareText(),
-      link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
-    });
+    const text = buildKakaoShareText();
+    const originalLabel = kakaoShareBtn.textContent;
+    kakaoShareBtn.disabled = true;
+    kakaoShareBtn.textContent = '⏳ 이미지 생성 중...';
+    try {
+      const goalBox = document.getElementById('goalProgressBox');
+      const canvas = await html2canvas(goalBox, { backgroundColor: '#ffffff', scale: 2 });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const path = 'goal-progress.png';
+      const { error: uploadError } = await sb.storage.from('kakao-share-images').upload(path, blob, { upsert: true, contentType: 'image/png' });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = sb.storage.from('kakao-share-images').getPublicUrl(path);
+      const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: `📊 특판 실적 목표 달성률`,
+          description: text,
+          imageUrl,
+          link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+        }
+      });
+    } catch (err){
+      console.error(err);
+      alert('목표 달성률 이미지를 만들지 못해 텍스트로만 공유합니다: ' + (err?.message || err));
+      Kakao.Share.sendDefault({
+        objectType: 'text',
+        text,
+        link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+      });
+    } finally {
+      kakaoShareBtn.disabled = false;
+      kakaoShareBtn.textContent = originalLabel;
+    }
   });
 
 </script>
