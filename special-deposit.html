@@ -270,10 +270,11 @@
         <span class="dashboard-controls">
           <input type="date" id="printDateInput" />
           <button class="nav-btn" id="dashboardPrintBtn">🖨️ 일별 보고서 인쇄</button>
+          <button class="nav-btn" id="newCustomerReportBtn">🆕 최초신규 고객 보고서</button>
           <button class="nav-btn" id="kakaoShareBtn" style="background:#FEE500; border-color:#FEE500; color:#3C1E1E;">💬 카톡 공유</button>
         </span>
       </h1>
-      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다. 인쇄 보고서는 위 날짜를 선택해 해당 일자의 집계와 개별 등록 내역을 출력합니다. 카톡 공유는 같은 날짜의 본점·지점 집계만 요약해서 보냅니다.</p>
+      <p class="desc">기간·상품을 선택하면 본점·지점별 최초신규/재예치 집계가 자동으로 바뀝니다. 실적 등록은 <b>관리자 페이지 → 🏦 특판 실적 업로드</b> 탭에서 CSV로 일괄 진행합니다. 인쇄 보고서는 위 날짜를 선택해 해당 일자의 집계와 개별 등록 내역을 출력합니다. <b>🆕 최초신규 고객 보고서</b>는 날짜 구분 없이 특판 전체기간 동안의 최초신규 고객(고객번호 기준) 실적만 모아 건수·금액·명단을 출력합니다. 카톡 공유는 같은 날짜의 본점·지점 집계만 요약해서 보냅니다.</p>
 
       <div class="toolbar">
         <button class="small-btn primary period-btn" data-period="today">오늘</button>
@@ -475,6 +476,33 @@
     const totalAmount = matched.reduce((s, r) => s + Number(r.total_amount), 0);
     const newAmount = matched.reduce((s, r) => s + Number(r.new_amount), 0);
     return { count: matched.length, totalAmount, newAmount, reAmount: totalAmount - newAmount };
+  }
+
+  const PRINT_BRANCHES = ['본점', '지점'];
+
+  function depositRowsHtml(depRows){
+    let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
+    let html = '';
+    for (const b of PRINT_BRANCHES){
+      const s = sumBy(depRows, r => r.branch === b);
+      total.count += s.count; total.totalAmount += s.totalAmount;
+      total.newAmount += s.newAmount; total.reAmount += s.reAmount;
+      html += `<tr><td>${branchBadge(b)}</td><td class="num">${s.count}건</td><td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td><td class="num"><b>${fmtNum(s.totalAmount)}</b></td></tr>`;
+    }
+    html += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
+    return html;
+  }
+
+  function savingsRowsHtml(savRows){
+    let total = { count: 0, totalAmount: 0 };
+    let html = '';
+    for (const b of PRINT_BRANCHES){
+      const s = sumBy(savRows, r => r.branch === b);
+      total.count += s.count; total.totalAmount += s.totalAmount;
+      html += `<tr><td>${branchBadge(b)}</td><td class="num">${s.count}건</td><td class="num"><b>${fmtNum(s.totalAmount)}</b></td></tr>`;
+    }
+    html += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
+    return html;
   }
 
   // ---- 데이터 로드 ----
@@ -924,33 +952,6 @@
     const rows = entriesCache.filter(r => r.entry_date === date && (!productFilter || r.product_type === productFilter));
     const allPeriodRows = entriesCache.filter(r => (!productFilter || r.product_type === productFilter));
 
-    const branches = ['본점', '지점'];
-
-    function depositRowsHtml(depRows){
-      let total = { count: 0, totalAmount: 0, newAmount: 0, reAmount: 0 };
-      let html = '';
-      for (const b of branches){
-        const s = sumBy(depRows, r => r.branch === b);
-        total.count += s.count; total.totalAmount += s.totalAmount;
-        total.newAmount += s.newAmount; total.reAmount += s.reAmount;
-        html += `<tr><td>${branchBadge(b)}</td><td class="num">${s.count}건</td><td class="num">${fmtNum(s.newAmount)}</td><td class="num">${fmtNum(s.reAmount)}</td><td class="num"><b>${fmtNum(s.totalAmount)}</b></td></tr>`;
-      }
-      html += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.newAmount)}</td><td class="num">${fmtNum(total.reAmount)}</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
-      return html;
-    }
-
-    function savingsRowsHtml(savRows){
-      let total = { count: 0, totalAmount: 0 };
-      let html = '';
-      for (const b of branches){
-        const s = sumBy(savRows, r => r.branch === b);
-        total.count += s.count; total.totalAmount += s.totalAmount;
-        html += `<tr><td>${branchBadge(b)}</td><td class="num">${s.count}건</td><td class="num"><b>${fmtNum(s.totalAmount)}</b></td></tr>`;
-      }
-      html += `<tr class="total-row"><td>합계</td><td class="num">${total.count}건</td><td class="num">${fmtNum(total.totalAmount)}</td></tr>`;
-      return html;
-    }
-
     let summarySectionsHtml = '';
     if (productFilter !== '적금'){
       const depDayRows = rows.filter(r => r.product_type === '예금');
@@ -1007,6 +1008,54 @@
 
   document.getElementById('dashboardPrintBtn').addEventListener('click', () => {
     renderPrintReport();
+    document.body.classList.add('printing-special-deposit-report');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-special-deposit-report'), 500);
+  });
+
+  // ---- 최초신규 고객 보고서 (전체기간, 날짜 구분 없음) ----
+  function renderNewCustomerReport(){
+    const rows = entriesCache.filter(r => isNewCustomer(r.customer_no));
+    const depRows = rows.filter(r => r.product_type === '예금');
+    const savRows = rows.filter(r => r.product_type === '적금');
+    const customerCount = new Set(rows.map(r => r.customer_no)).size;
+
+    let summarySectionsHtml = `
+      <div class="sdp-print-section-title">본점·지점 집계 (예금)</div>
+      <table class="sdp-print-table"><thead><tr>
+        <th>구분</th><th>건수</th><th>신규금액</th><th>재예치금액</th><th>전체금액</th>
+      </tr></thead><tbody>${depositRowsHtml(depRows)}</tbody></table>
+      <div class="sdp-print-section-title">본점·지점 집계 (적금)</div>
+      <table class="sdp-print-table"><thead><tr>
+        <th>구분</th><th>건수</th><th>월납입액</th>
+      </tr></thead><tbody>${savingsRowsHtml(savRows)}</tbody></table>`;
+
+    const sortedRows = rows.slice().sort((a, b) => b.entry_date.localeCompare(a.entry_date) || a.branch.localeCompare(b.branch));
+    let entryRowsHtml = sortedRows.map(r => {
+      const custLabel = (r.customer_name || '-') + ` (${r.customer_no})` + (memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '');
+      const note = customerInfoMap[r.customer_no] || '';
+      return `<tr>
+        <td>${r.entry_date}</td><td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
+        <td class="num">${fmtNum(r.total_amount)}</td><td class="num">${fmtNum(r.new_amount)}</td><td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
+        <td>${note}</td>
+      </tr>`;
+    }).join('');
+    if (!sortedRows.length) entryRowsHtml = `<tr><td colspan="8" style="text-align:center; color:#777;">데이터 없음</td></tr>`;
+
+    const html = `
+      <div class="sdp-print-title">최초신규 고객 실적 보고서</div>
+      <div class="sdp-print-sub">특판 전체기간 · 최초신규 고객 ${customerCount.toLocaleString('ko-KR')}명 · 등록 ${rows.length.toLocaleString('ko-KR')}건 · 출력일시: ${new Date().toLocaleString('ko-KR')}</div>
+      ${summarySectionsHtml}
+      <div class="sdp-print-section-title">개별 등록 내역</div>
+      <table class="sdp-print-table"><thead><tr>
+        <th>날짜</th><th>본/지점</th><th>고객명</th><th>예적금</th><th>전체금액</th><th>신규금액</th><th>재예치금액</th><th>비고</th>
+      </tr></thead><tbody>${entryRowsHtml}</tbody></table>
+    `;
+    document.getElementById('specialDepositPrintView').innerHTML = html;
+  }
+
+  document.getElementById('newCustomerReportBtn').addEventListener('click', () => {
+    renderNewCustomerReport();
     document.body.classList.add('printing-special-deposit-report');
     window.print();
     setTimeout(() => document.body.classList.remove('printing-special-deposit-report'), 500);
