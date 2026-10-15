@@ -1029,7 +1029,7 @@
         <th>구분</th><th>건수</th><th>월납입액</th>
       </tr></thead><tbody>${savingsRowsHtml(savRows)}</tbody></table>`;
 
-    const sortedRows = rows.slice().sort((a, b) => b.entry_date.localeCompare(a.entry_date) || a.branch.localeCompare(b.branch));
+    const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
       const custLabel = (r.customer_name || '-') + ` (${r.customer_no})` + (memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '');
       const note = customerInfoMap[r.customer_no] || '';
