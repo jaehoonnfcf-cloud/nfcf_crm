@@ -6,7 +6,6 @@
 <title>특판 실적</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://developers.kakao.com/sdk/js/kakao.min.js"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
@@ -1107,72 +1106,16 @@
     return `📊 특판 실적 (${date || '-'})\n\n${blocks.join('\n\n')}`;
   }
 
-  function withTimeout(promise, ms, message){
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error(message || '시간 초과')), ms))
-    ]);
-  }
-
-  // canvas.toBlob 콜백이 일부 모바일 브라우저(카카오톡 인앱 브라우저 등)에서
-  // 호출되지 않는 경우가 있어, 동기적으로 동작하는 toDataURL을 직접 디코딩합니다.
-  function dataUrlToBlob(dataUrl){
-    const [header, base64] = dataUrl.split(',');
-    const mime = header.match(/:(.*?);/)[1];
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  }
-
-  const kakaoShareBtn = document.getElementById('kakaoShareBtn');
-  kakaoShareBtn.addEventListener('click', async () => {
+  document.getElementById('kakaoShareBtn').addEventListener('click', () => {
     if (!window.Kakao || !Kakao.isInitialized()){
       alert('카카오톡 공유 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
-    const text = buildKakaoShareText();
-    const originalLabel = kakaoShareBtn.textContent;
-    kakaoShareBtn.disabled = true;
-    kakaoShareBtn.textContent = '⏳ 이미지 생성 중...';
-    try {
-      if (typeof html2canvas !== 'function') throw new Error('이미지 생성 라이브러리를 불러오지 못했습니다');
-      const goalBox = document.getElementById('goalProgressBox');
-      const canvas = await withTimeout(
-        html2canvas(goalBox, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false }),
-        8000, '이미지 캡처 시간 초과'
-      );
-      const blob = dataUrlToBlob(canvas.toDataURL('image/png'));
-      const path = 'goal-progress.png';
-      const { error: uploadError } = await withTimeout(
-        sb.storage.from('kakao-share-images').upload(path, blob, { upsert: true, contentType: 'image/png' }),
-        10000, '이미지 업로드 시간 초과'
-      );
-      if (uploadError) throw uploadError;
-      const { data: urlData } = sb.storage.from('kakao-share-images').getPublicUrl(path);
-      const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: {
-          title: `📊 특판 실적 목표 달성률`,
-          description: text,
-          imageUrl,
-          link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
-        }
-      });
-    } catch (err){
-      console.error(err);
-      alert('목표 달성률 이미지를 만들지 못해 텍스트로만 공유합니다: ' + (err?.message || err));
-      Kakao.Share.sendDefault({
-        objectType: 'text',
-        text,
-        link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
-      });
-    } finally {
-      kakaoShareBtn.disabled = false;
-      kakaoShareBtn.textContent = originalLabel;
-    }
+    Kakao.Share.sendDefault({
+      objectType: 'text',
+      text: buildKakaoShareText(),
+      link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+    });
   });
 
 </script>
