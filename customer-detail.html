@@ -60,6 +60,7 @@
   .diff-flat{ color:var(--muted); }
   .member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
   .non-member-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#eceef0; color:var(--muted); padding:2px 7px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px; }
   .family-name-link{ color:var(--ink); font-weight:600; text-decoration:none; }
   .family-name-link:hover{ text-decoration:underline; }
 
@@ -191,6 +192,7 @@
       <div id="infoDisplayMode" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <h1 id="nameDisplay" style="font-size:18px; margin:0;">-</h1>
         <span id="memberBadgeDisplay" class="member-badge" style="display:none;">🏅조합원</span>
+        <span id="pendingApplicationBadgeDisplay" class="pending-application-badge" style="display:none;">📝가입신청</span>
         <span id="nonMemberBadgeDisplay" class="non-member-badge" style="display:none;">비조합원</span>
         <span id="featureDisplay" style="font-size:14px; color:var(--muted);"></span>
         <button class="nav-btn" id="editInfoBtn" title="이름·특징·추천인 수정">✏️ 수정</button>
@@ -666,9 +668,15 @@
     document.getElementById('nameDisplay').textContent = data.name || '(이름 미등록)';
     document.getElementById('featureDisplay').textContent = data.customer_info || '(특징 없음)';
 
-    const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', customerNo).maybeSingle();
-    document.getElementById('memberBadgeDisplay').style.display = memberRow ? 'inline-block' : 'none';
-    document.getElementById('nonMemberBadgeDisplay').style.display = memberRow ? 'none' : 'inline-block';
+    const [{ data: memberRow }, { data: applicationRow }] = await Promise.all([
+      sb.from('members').select('customer_no').eq('customer_no', customerNo).maybeSingle(),
+      sb.from('membership_applications').select('id').eq('customer_no', customerNo).limit(1).maybeSingle()
+    ]);
+    const isMember = !!memberRow;
+    const isPendingApplication = !isMember && !!applicationRow;
+    document.getElementById('memberBadgeDisplay').style.display = isMember ? 'inline-block' : 'none';
+    document.getElementById('pendingApplicationBadgeDisplay').style.display = isPendingApplication ? 'inline-block' : 'none';
+    document.getElementById('nonMemberBadgeDisplay').style.display = (!isMember && !isPendingApplication) ? 'inline-block' : 'none';
 
     let assigneeLabel = '미배정';
     if (data.assigned_to){
@@ -1140,7 +1148,9 @@
       });
     }
 
-    await sb.from('members').upsert({ customer_no: customerNo, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
+    // 조합원 자격은 상담일지 작성만으로 확정되지 않고, 실제 가입 승인 후
+    // 조합원 명단(관리자 CSV 업로드)에 반영되어야 조합원으로 인정됩니다.
+    // 여기서는 members 테이블에 반영하지 않고, membership_applications 기록만 남깁니다.
 
     if (deposit || loan){
       // 수기 입력한 여수신잔액은 상담일(과거일 수 있음)이 아니라 입력 시점(오늘) 기준 최신값으로 저장합니다.
@@ -1308,24 +1318,29 @@
     });
 
     const otherNos = entries.map(e => e.otherNo);
-    const [{ data: otherRows }, { data: memberRows }] = await Promise.all([
+    const [{ data: otherRows }, { data: memberRows }, { data: applicationRows }] = await Promise.all([
       sb.from('customer_balance_diff')
         .select('customer_no, name, current_deposit_balance, current_loan_balance')
         .in('customer_no', otherNos),
-      sb.from('members').select('customer_no').in('customer_no', otherNos)
+      sb.from('members').select('customer_no').in('customer_no', otherNos),
+      sb.from('membership_applications').select('customer_no').in('customer_no', otherNos)
     ]);
     const rowMap = {};
     for (const r of (otherRows || [])) rowMap[r.customer_no] = r;
     const memberSet = new Set((memberRows || []).map(m => m.customer_no));
+    const pendingApplicationSet = new Set((applicationRows || []).map(a => a.customer_no).filter(no => !memberSet.has(no)));
 
     familyList.innerHTML = entries.map(e => {
       const r = rowMap[e.otherNo];
+      const badgeHtml = memberSet.has(e.otherNo)
+        ? '<span class="member-badge">🏅조합원</span>'
+        : (pendingApplicationSet.has(e.otherNo) ? '<span class="pending-application-badge">📝가입신청</span>' : '');
       return `
       <div style="padding:8px 0; border-bottom:1px solid var(--line);">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span style="flex:0 0 52px; color:var(--muted); font-size:12px; font-weight:600;">${e.relation}</span>
           <a href="customer-detail.html?customer_no=${e.otherNo}" class="family-name-link" style="flex:1; min-width:0;">${r?.name || '(이름없음)'} (${e.otherNo})</a>
-          ${memberSet.has(e.otherNo) ? '<span class="member-badge">🏅조합원</span>' : ''}
+          ${badgeHtml}
           <button class="nav-btn family-delete-btn" data-cno="${e.linkCustomerNo}" data-rno="${e.linkRelatedNo}">삭제</button>
         </div>
         <div style="display:flex; gap:20px; margin-top:5px; padding-left:60px;">

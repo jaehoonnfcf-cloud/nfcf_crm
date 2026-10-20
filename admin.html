@@ -557,6 +557,7 @@
         <div class="stat-grid" style="margin-bottom:20px;">
           <div class="stat-card"><div class="num" id="memberCount">-</div><div class="label">🏅 현재 등록된 조합원 수</div></div>
           <div class="stat-card"><div class="num" id="memberUpdatedAt" style="font-size:15px;">-</div><div class="label">🕘 마지막 업데이트</div></div>
+          <div class="stat-card"><div class="num" id="pendingApplicationCount">-</div><div class="label">📝 가입신청 대기 중 (조합원 명단 미반영)</div></div>
         </div>
         <div class="toolbar">
           <button class="btn" id="memberUploadBtn">📤 조합원 명단 CSV 업로드</button>
@@ -1831,12 +1832,14 @@
   }
 
   async function loadMemberCount(){
-    const [countRes, latestRes] = await Promise.all([
+    const [countRes, latestRes, pendingRes] = await Promise.all([
       sb.from('members').select('*', { count: 'exact', head: true }),
-      sb.from('members').select('updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle()
+      sb.from('members').select('updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+      sb.rpc('count_pending_membership_applications')
     ]);
     memberCount.textContent = countRes.error ? '오류' : (countRes.count ?? 0).toLocaleString();
     memberUpdatedAt.textContent = (latestRes.error || !latestRes.data) ? '기록 없음' : fmtDate(latestRes.data.updated_at);
+    document.getElementById('pendingApplicationCount').textContent = pendingRes.error ? '오류' : (pendingRes.data ?? 0).toLocaleString();
   }
 
   function findMemberNoColumn(headers){
@@ -2331,7 +2334,7 @@
       tr.innerHTML = `
         <td data-label="고객번호">🔢 ${r.customer_no}</td>
         <td data-label="성명">${escapeHtml(r.name)}</td>
-        <td data-label="조합원">${r.membership === '조합원' ? '🏅' : ''}</td>
+        <td data-label="조합원">${r.membership === '조합원' ? '🏅' : (r.membership === '가입신청' ? '📝' : '')}</td>
       `;
       body.appendChild(tr);
     });

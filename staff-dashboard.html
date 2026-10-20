@@ -75,6 +75,7 @@
   .badge.approved{ background:var(--green-soft); color:var(--green); }
   .badge.rejected{ background:#fbeceb; color:var(--danger); }
   .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px; }
   .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
   .small-btn:hover{ background:#f4f5f4; }
   .small-btn.primary{ border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(37,99,235,.28); }
@@ -440,23 +441,28 @@
 
     let unionMap = {};
     let memberSet = new Set();
+    let pendingApplicationSet = new Set();
     if (rows.length){
       const customerNos = rows.map(r => r.customer_no);
-      const [{ data: unionData }, { data: memberData }] = await Promise.all([
+      const [{ data: unionData }, { data: memberData }, { data: applicationData }] = await Promise.all([
         sb.from('customer_activities')
           .select('customer_no, content, activity_date')
           .in('customer_no', customerNos)
           .eq('activity_type', '조합활동')
           .order('activity_date', { ascending: false }),
-        sb.from('members').select('customer_no').in('customer_no', customerNos)
+        sb.from('members').select('customer_no').in('customer_no', customerNos),
+        sb.from('membership_applications').select('customer_no').in('customer_no', customerNos)
       ]);
       for (const a of (unionData || [])){
         if (!(a.customer_no in unionMap)) unionMap[a.customer_no] = a.content;
       }
       for (const m of (memberData || [])) memberSet.add(m.customer_no);
+      for (const a of (applicationData || [])){
+        if (!memberSet.has(a.customer_no)) pendingApplicationSet.add(a.customer_no);
+      }
     }
 
-    myCustomerRows = rows.map(r => ({ ...r, unionActivity: unionMap[r.customer_no] || '-', isMember: memberSet.has(r.customer_no) }));
+    myCustomerRows = rows.map(r => ({ ...r, unionActivity: unionMap[r.customer_no] || '-', isMember: memberSet.has(r.customer_no), isPendingApplication: pendingApplicationSet.has(r.customer_no) }));
     renderMyCustomerTable(myCustomerRows);
   }
 
@@ -474,7 +480,7 @@
     for (const c of rows){
       html += `<tr>
         <td class="clickable" data-customer="${c.customer_no}" data-label="고객번호"><span class="v">${c.customer_no}</span></td>
-        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}${c.isMember ? '<span class="member-badge">🏅조합원</span>' : ''}</span></td>
+        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}${c.isMember ? '<span class="member-badge">🏅조합원</span>' : (c.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</span></td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="특징" title="${(c.customer_info||'').replace(/"/g,'&quot;')}"><span class="v">${c.customer_info||''}</span></td>
         <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="조합활동" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}"><span class="v">${c.unionActivity}</span></td>
         <td class="clickable num" data-customer="${c.customer_no}" data-label="수신잔액"><span class="v">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</span></td>
@@ -871,7 +877,8 @@
       ...r,
       name: custMap[r.customer_no]?.name || '',
       assigned_to: custMap[r.customer_no]?.assigned_to || null,
-      isMember: memberSet.has(r.customer_no)
+      isMember: memberSet.has(r.customer_no),
+      isPendingApplication: !memberSet.has(r.customer_no)
     }));
     renderMembershipDocReportTable(membershipDocRowsCache);
   }
@@ -883,7 +890,7 @@
     for (const r of rows){
       html += `<tr class="clickable" data-customer="${r.customer_no}">
         <td>${r.customer_no}</td>
-        <td>${r.name || ''}${r.isMember ? '<span class="member-badge">🏅조합원</span>' : ''}</td>
+        <td>${r.name || ''}${r.isMember ? '<span class="member-badge">🏅조합원</span>' : (r.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</td>
         <td>${r.qualification_type || '-'}</td>
         <td>${r.assigned_to ? (staffNameMapCache?.[r.assigned_to] || r.assigned_to) : '미배정'}</td>
         <td>${(r.created_at || '').slice(0, 10)}</td>

@@ -182,6 +182,10 @@
     flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap;
     background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px;
   }
+  .pending-application-badge{
+    flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap;
+    background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px;
+  }
   td.assign-col{ width:130px; }
   .assign-select{
     width:100%; border:1px solid transparent; border-radius:6px; padding:5px 6px;
@@ -1249,6 +1253,7 @@
           <div class="name-cell-wrap">
             <input type="text" class="name-input" value="${escapeHtml(row.name)}" />
             ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
+            ${row.membership === '가입신청' ? '<span class="pending-application-badge">📝가입신청</span>' : ''}
           </div>
         </td>
         <td class="assign-col">
@@ -1966,7 +1971,9 @@
       });
     }
 
-    await sb.from('members').upsert({ customer_no: no, updated_at: new Date().toISOString() }, { onConflict: 'customer_no' });
+    // 조합원 자격은 상담일지 작성만으로 확정되지 않고, 실제 가입 승인 후
+    // 조합원 명단(관리자 CSV 업로드)에 반영되어야 조합원으로 인정됩니다.
+    // 여기서는 members 테이블에 반영하지 않고, membership_applications 기록만 남깁니다.
 
     if (deposit || loan){
       await sb.from('balance_snapshots').insert({

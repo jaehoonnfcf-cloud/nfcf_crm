@@ -77,6 +77,7 @@
   .badge.pending{ background:var(--warn-soft); color:var(--warn); }
   .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
   .new-customer-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#dcf3f1; color:#0d6e66; padding:2px 7px; border-radius:999px; }
   .branch-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 9px; border-radius:999px; }
   .branch-badge.branch-hq{ background:var(--accent-soft); color:var(--accent-hover); }
   .branch-badge.branch-br{ background:var(--mint); color:var(--green); }
@@ -214,6 +215,7 @@
   .sdp-print-table td.sdp-print-subhead{ background:#e4e4e4; font-weight:700; text-align:left; }
   .sdp-print-table .member-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   .sdp-print-table .new-customer-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
+  .sdp-print-table .pending-application-badge{ font-size:9px; padding:1px 6px; margin-left:4px; }
   .sdp-print-table .branch-badge{ font-size:10px; padding:2px 7px; }
   .sdp-print-table .product-badge{ font-size:10px; padding:2px 7px; }
   /* 인쇄시 페이지가 넘어가도 표 헤더가 각 페이지 상단에 반복되도록 */
@@ -508,6 +510,7 @@
   let entriesCache = [];
   let customerInfoMap = {};
   let memberSet = new Set();
+  let pendingApplicationSet = new Set();
   let currentPeriod = 'today';
   let productFilter = '';
   let entrySearchKeyword = '';
@@ -529,14 +532,23 @@
 
   async function loadCustomerInfoMap(rows){
     const nos = Array.from(new Set(rows.filter(r => r.customer_no).map(r => r.customer_no)));
-    if (!nos.length){ customerInfoMap = {}; memberSet = new Set(); return; }
-    const [{ data: custRows }, { data: memberRows }] = await Promise.all([
+    if (!nos.length){ customerInfoMap = {}; memberSet = new Set(); pendingApplicationSet = new Set(); return; }
+    const [{ data: custRows }, { data: memberRows }, { data: applicationRows }] = await Promise.all([
       sb.from('customers').select('customer_no, customer_info').in('customer_no', nos),
-      sb.from('members').select('customer_no').in('customer_no', nos)
+      sb.from('members').select('customer_no').in('customer_no', nos),
+      sb.from('membership_applications').select('customer_no').in('customer_no', nos)
     ]);
     customerInfoMap = {};
     (custRows || []).forEach(c => { customerInfoMap[c.customer_no] = c.customer_info || ''; });
     memberSet = new Set((memberRows || []).map(m => m.customer_no));
+    const appliedSet = new Set((applicationRows || []).map(a => a.customer_no));
+    pendingApplicationSet = new Set([...appliedSet].filter(no => !memberSet.has(no)));
+  }
+
+  function membershipBadgeHtml(customerNo){
+    if (memberSet.has(customerNo)) return '<span class="member-badge">🏅조합원</span>';
+    if (pendingApplicationSet.has(customerNo)) return '<span class="pending-application-badge">📝가입신청</span>';
+    return '';
   }
 
   async function loadEntries(){
@@ -822,7 +834,7 @@
     for (const r of rows){
       const canDelete = isAdmin || r.created_by_email === currentUserEmail;
       const custLabel = r.customer_no
-        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${memberSet.has(r.customer_no) ? '<span class="member-badge">🏅조합원</span>' : ''}${newCustomerBadge(r.customer_no)}`
+        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${membershipBadgeHtml(r.customer_no)}${newCustomerBadge(r.customer_no)}`
         : (r.customer_name || '-');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       html += `<tr data-id="${r.id}">
@@ -983,7 +995,7 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = (r.customer_name || '-') + (r.customer_no && memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '') + ' ' + newCustomerBadge(r.customer_no);
+      const custLabel = (r.customer_name || '-') + (r.customer_no ? ' ' + membershipBadgeHtml(r.customer_no) : '') + ' ' + newCustomerBadge(r.customer_no);
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       return `<tr>
         <td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
@@ -1031,7 +1043,7 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = (r.customer_name || '-') + ` (${r.customer_no})` + (memberSet.has(r.customer_no) ? ' <span class="member-badge">🏅조합원</span>' : '');
+      const custLabel = (r.customer_name || '-') + ` (${r.customer_no})` + ' ' + membershipBadgeHtml(r.customer_no);
       const note = customerInfoMap[r.customer_no] || '';
       return `<tr>
         <td>${r.entry_date}</td><td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
