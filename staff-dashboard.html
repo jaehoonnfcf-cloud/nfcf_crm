@@ -9,98 +9,107 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
   :root{
-    --ink:#252a34; --paper:#f7f8fa; --panel:#ffffff; --line:#e7e9ec; --line-strong:#d8dbe0;
-    --accent:#2e73fc; --accent-hover:#1a5ce0; --accent-soft:#e8f2fe; --danger:#a4443a; --muted:#767b85;
-    --green:#1a7a4c; --green-soft:#e3f5ea;
-    --warn:#b5601f; --warn-soft:#fdecd4;
+    --ink:#16181d; --paper:#eceef3; --panel:#ffffff; --line:#eceef3; --line-strong:#dfe2ea;
+    --accent:#5b4bff; --accent-hover:#4636e0; --accent-soft:#eceaff; --danger:#e5484d; --muted:#8a90a0;
+    --green:#12a150; --green-soft:#e6f7ee;
+    --warn:#c77700; --warn-soft:#fff3dc;
     --mint:#d1ede2; --peach:#fed2aa;
-    --shadow-sm:0 2px 10px rgba(16,24,20,.05);
-    --shadow-md:0 8px 28px rgba(16,24,20,.09);
+    --chipbg:#f1f3f7; --field:#f5f6fa;
+    --shadow-sm:0 1px 2px rgba(20,24,40,.04), 0 10px 28px rgba(20,24,40,.07), inset 0 1px 0 #fff;
+    --shadow-md:0 1px 2px rgba(20,24,40,.05), 0 16px 38px rgba(20,24,40,.11), inset 0 1px 0 #fff;
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--paper); color:var(--ink); zoom:1.2;
+  body{ margin:0; background:radial-gradient(1100px 480px at 50% -140px, #fff 0%, rgba(255,255,255,0) 70%), var(--paper); color:var(--ink);
     font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
-  button, select{ font-family:inherit; }
+  button, input, select, textarea{ font-family:inherit; font-size:16px; color:var(--ink); }
   .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .login-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:44px 40px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow-md); }
-  .login-mark{ width:48px;height:48px;border-radius:12px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:0 2px 6px rgba(46,115,252,.15); }
-  .login-card h1{ font-size:19px; margin:0 0 6px; }
+  .login-card{ background:var(--panel); border:none; border-radius:28px; padding:40px 34px; width:100%; max-width:360px; text-align:center; box-shadow:0 20px 60px rgba(20,24,40,.15); }
+  .login-mark{ width:48px;height:48px;border-radius:16px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:var(--shadow-sm); }
+  .login-card h1{ font-size:21px; margin:0 0 6px; letter-spacing:-.02em; }
   .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
-  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; color:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; }
-  .google-btn:hover{ border-color:#b9b7b0; background:#fafaf9; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:99px; border:none; background:var(--field); color:var(--ink); font-size:14.5px; font-weight:700; cursor:pointer; }
+  .google-btn:hover{ background:#eceef3; }
   .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
 
   #app{ display:none; }
-  header{ display:flex; align-items:center; justify-content:space-between; padding:18px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:0 1px 0 var(--line), 0 4px 12px rgba(16,24,40,.04); position:sticky; top:0; z-index:20; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:var(--shadow-sm); position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:12px; }
-  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:10px; box-shadow:0 2px 6px rgba(46,115,252,.25); }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:12px; box-shadow:none; }
   .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
-  .nav-toggle-btn{ display:none; margin-left:auto; border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); width:36px; height:36px; border-radius:8px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
-  .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .nav-btn{ border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none; transition:background .12s ease; }
-  .nav-btn:hover{ background:#f4f5f4; }
-  .nav-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .nav-btn.active:hover{ background:var(--accent-hover); }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:none; background:var(--chipbg); color:var(--ink); width:36px; height:36px; border-radius:99px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
+  .user-box{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:none; background:var(--chipbg); color:var(--muted); padding:8px 16px; border-radius:99px; font-size:13.5px; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .nav-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .nav-btn.active{ background:#16181d; color:#fff; }
+  .nav-btn.active:hover{ background:#000; }
 
-  main{ max-width:1440px; margin:0 auto; padding:40px 32px 72px; display:flex; flex-direction:column; gap:28px; }
-  section.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  main{ max-width:1440px; margin:0 auto; padding:32px 32px 72px; display:flex; flex-direction:column; gap:24px; }
+  section.card{ background:var(--panel); border:none; border-radius:22px; padding:26px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
   section.card:hover{ box-shadow:var(--shadow-md); }
-  section.card h1{ font-size:19px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card h1{ font-size:18px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
   section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
 
-  /* weseed 스타일 컬러 프레임 카드 (내 고객 / 미배정 고객) */
-  .card-frame{ padding:14px; border-radius:24px; }
+  /* 컬러 프레임 카드 (내 고객 / 미배정 고객) */
+  .card-frame{ padding:14px; border-radius:26px; }
   .card-frame.mint{ background:var(--mint); }
   .card-frame.peach{ background:var(--peach); }
   .card-frame > section.card{ box-shadow:none; }
   .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
 
-  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; margin-right:9px; font-size:15px; flex-shrink:0; }
   .section-icon.blue{ background:var(--accent-soft); }
   .section-icon.peach{ background:var(--peach); }
   .section-icon.green{ background:var(--green-soft); }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; padding:13px 14px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
-  tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:middle; }
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:none; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-sm); }
+  thead th{ text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); font-size:14.5px; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tr.clickable{ cursor:pointer; transition:background .12s ease; }
-  tr.clickable:hover{ background:#fafafa; }
+  tr.clickable:hover{ background:#f6f8fc; }
 
-  .diff-up{ color:var(--green); font-weight:600; }
-  .diff-down{ color:var(--danger); font-weight:600; }
+  .diff-up{ color:var(--green); font-weight:700; }
+  .diff-down{ color:var(--danger); font-weight:700; }
   .diff-flat{ color:var(--muted); }
   .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; }
   .badge.pending{ background:var(--warn-soft); color:var(--warn); }
   .badge.approved{ background:var(--green-soft); color:var(--green); }
   .badge.rejected{ background:#fbeceb; color:var(--danger); }
-  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 7px; border-radius:999px; }
-  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 7px; border-radius:999px; }
-  .small-btn{ border:1px solid var(--line-strong); background:var(--panel); border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ink); white-space:nowrap; transition:background .12s ease; }
-  .small-btn:hover{ background:#f4f5f4; }
-  .small-btn.primary{ border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(37,99,235,.28); }
-  .small-btn.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 8px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 8px; border-radius:999px; }
+  .readonly-note{ font-size:12px; color:var(--muted); }
+  .small-btn{ border:none; background:var(--chipbg); border-radius:99px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; color:var(--muted); white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .small-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .small-btn.primary{ background:#16181d; color:#fff; box-shadow:0 6px 16px rgba(20,24,40,.25); }
+  .small-btn.primary:hover{ background:#000; }
 
   .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
 
+  input[type=text], input[type=number], input[type=date], select{
+    font-family:inherit; font-size:15px; padding:10px 14px; border:1px solid transparent;
+    border-radius:14px; background:var(--field); color:var(--ink); width:100%;
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+
   .compact-table{ table-layout:fixed; width:100%; }
-  .compact-table th, .compact-table td{ padding:6px 6px; font-size:13.5px; }
-  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:6%; }
-  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:20%; }
-  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:30%; }
+  .compact-table th, .compact-table td{ padding:9px 6px; }
+  .compact-table td{ font-size:14.5px; }
+  .compact-table th:nth-child(1), .compact-table td:nth-child(1){ width:7%; }
+  .compact-table th:nth-child(2), .compact-table td:nth-child(2){ width:19%; }
+  .compact-table th:nth-child(3), .compact-table td:nth-child(3){ width:28%; }
   .compact-table th:nth-child(4), .compact-table td:nth-child(4){ width:16%; }
-  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:11%; padding-left:2px; padding-right:2px; }
-  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:11%; padding-left:2px; padding-right:2px; }
+  .compact-table th:nth-child(5), .compact-table td:nth-child(5){ width:12%; padding-left:4px; padding-right:4px; }
+  .compact-table th:nth-child(6), .compact-table td:nth-child(6){ width:12%; padding-left:4px; padding-right:4px; }
   .compact-table th:nth-child(7), .compact-table td:nth-child(7){ width:6%; }
   .compact-table td.ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .compact-table td.num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.4; }
   .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .compact-table td.num .sub-line{ font-size:11px; color:var(--muted); }
+  .compact-table td.num .sub-line{ font-size:11.5px; color:var(--muted); }
   .compact-table th:nth-child(5), .compact-table th:nth-child(6){ text-align:right; }
-  .compact-table .unassign-btn{ padding:6px 8px; }
+  .compact-table .unassign-btn{ padding:7px 11px; }
 
   @media (max-width:680px){
-    header{ padding:12px 16px; gap:8px; }
+    header{ padding:14px 16px; gap:8px; }
     .brand{ flex:1; }
     .brand h2{ font-size:15px; }
     .nav-toggle-btn{ display:flex; }
@@ -108,23 +117,22 @@
       display:none; width:100%; position:absolute; left:0; right:0; top:100%;
       flex-direction:column; align-items:stretch; gap:8px;
       background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line);
-      box-shadow:0 8px 20px rgba(16,24,40,.12); z-index:30;
+      box-shadow:0 8px 20px rgba(20,24,40,.12); z-index:30;
     }
     header.nav-open .user-box{ display:flex; }
     .user-box span#userEmail{ font-weight:700; color:var(--ink); margin-bottom:2px; }
     .user-box .nav-btn{ width:100%; box-sizing:border-box; text-align:left; }
-    .nav-btn{ padding:6px 10px; font-size:12px; }
-    main{ padding:16px 12px 40px; gap:20px; }
-    section.card{ padding:16px; }
+    main{ padding:18px 14px 40px; gap:20px; }
+    section.card{ padding:18px; }
     section.card h1{ font-size:16px; }
-    #myCustomerSearchBox, #unassignedSearchBox, #familyReportSearchBox{ width:100% !important; }
+    #myCustomerSearchBox, #unassignedSearchBox, #familyReportSearchBox, #membershipDocSearchBox{ width:100% !important; }
 
     /* 내 고객: 표 대신 카드 형태로 표시 */
     .compact-table thead{ display:none; }
     .compact-table, .compact-table tbody{ display:block; width:100%; }
     .compact-table tr{
-      display:block; border:1px solid var(--line); border-radius:12px;
-      padding:10px 12px; margin-bottom:10px; background:var(--panel); box-shadow:var(--shadow-sm);
+      display:block; border:none; border-radius:18px;
+      padding:12px 14px; margin-bottom:10px; background:var(--panel); box-shadow:var(--shadow-sm);
     }
     .compact-table td{
       display:flex; align-items:baseline; gap:10px; width:auto !important;
@@ -136,7 +144,7 @@
     }
     .compact-table td .v{ flex:1; text-align:right; }
     .compact-table td[data-label="고객번호"] .v,
-    .compact-table td[data-label="성명"] .v{ text-align:left; font-weight:600; }
+    .compact-table td[data-label="성명"] .v{ text-align:left; font-weight:700; }
     .compact-table td.ellipsis{ white-space:normal; }
     .compact-table td.ellipsis .v{ text-align:left; white-space:normal; }
     .compact-table td.unassign-cell{ justify-content:flex-end; padding-top:8px; }
@@ -259,7 +267,7 @@
         <button class="nav-btn" id="printBtn">🖨️ 인쇄</button>
       </h1>
       <p class="desc">배정된 고객 목록입니다. 행을 클릭하면 활동 이력과 월별 잔액 이력을 볼 수 있습니다.</p>
-      <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
+      <input type="text" id="myCustomerSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; margin-bottom:6px;" />
       <div id="myCustomerTable"></div>
     </section>
     </div>
@@ -268,10 +276,10 @@
       <h1><span class="section-icon blue">📊</span> 조합활동별 고객 보고서</h1>
       <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다. 증감은 "기준월" 대비 최근월 잔액 기준입니다.</p>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
-        <select id="unionReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+        <select id="unionReportSelect" style="min-width:220px;">
           <option value="">조합활동 선택...</option>
         </select>
-        <select id="unionReportBaselineSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+        <select id="unionReportBaselineSelect" style="min-width:220px;">
           <option value="">기준월: 자동 (참여일 기준 직전월)</option>
         </select>
         <button class="nav-btn" id="unionReportPrintBtn">🖨️ 인쇄</button>
@@ -283,7 +291,7 @@
       <h1><span class="section-icon peach">🎁</span> 사은품 지급 이력 조회</h1>
       <p class="desc">사은품명을 선택하면 지급받은 고객 목록과 담당자·지급일을 확인할 수 있습니다.</p>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
-        <select id="giftReportSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; min-width:220px;">
+        <select id="giftReportSelect" style="min-width:220px;">
           <option value="">사은품명 선택...</option>
         </select>
       </div>
@@ -293,7 +301,7 @@
     <section class="card" id="membershipDocReportSection">
       <h1><span class="section-icon blue">📋</span> 조합원 상담일지 작성 고객</h1>
       <p class="desc">「조합원 가입 사유 및 상담일지」를 작성한 고객 목록입니다. 행을 클릭하면 고객 상세 화면에서 상담일지를 확인·인쇄할 수 있습니다.</p>
-      <input type="text" id="membershipDocSearchBox" placeholder="🔍 고객번호 · 성명 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <input type="text" id="membershipDocSearchBox" placeholder="🔍 고객번호 · 성명 검색" style="width:280px; margin-bottom:10px;" />
       <div id="membershipDocReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
 
@@ -301,7 +309,7 @@
       <h1><span class="section-icon green">👪</span> 가족단위 합계 보고서</h1>
       <p class="desc">가족관계로 서로 연결된 고객들을 하나의 그룹으로 묶어 잔액을 합산합니다. 대표로 지정된 사람이 있으면 그 사람을, 없으면 고객번호가 가장 작은 사람을 대표로 표시합니다.</p>
       <div style="max-width:900px; margin-bottom:20px; position:relative; height:520px;"><canvas id="familyChart"></canvas></div>
-      <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:10px;" />
+      <input type="text" id="familyReportSearchBox" placeholder="🔍 대표자·구성원 이름/고객번호 검색" style="width:280px; margin-bottom:10px;" />
       <div id="familyReportTable"><p class="empty">불러오는 중...</p></div>
     </section>
 
@@ -313,7 +321,7 @@
       </div>
       <div id="unassignedBody" style="display:none; margin-top:14px;">
         <p class="desc">담당자가 없는 고객입니다. 최근 등록된 고객이 위로 정렬되며, 버튼을 누르면 승인 없이 바로 내 담당으로 지정됩니다. (한시적 운영)</p>
-        <input type="text" id="unassignedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; margin-bottom:6px;" />
+        <input type="text" id="unassignedSearchBox" placeholder="🔍 고객번호 · 성명 · 특징 검색" style="width:280px; margin-bottom:6px;" />
         <div id="unassignedTable"></div>
       </div>
     </section>
