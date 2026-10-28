@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c6fff"/>
+      <stop offset="100%" stop-color="#4636e0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- stylized fir tree, three tiers -->
+  <g fill="#ffffff">
+    <path d="M256 96 L336 220 L298 220 L360 310 L320 310 L384 398 L128 398 L192 310 L152 310 L214 220 L176 220 Z"/>
+  </g>
+  <rect x="236" y="398" width="40" height="34" rx="8" fill="#ffffff"/>
+
+  <!-- sparkle accent -->
+  <path d="M392 118 L404 150 L436 162 L404 174 L392 206 L380 174 L348 162 L380 150 Z" fill="#ffd166"/>
+  <path d="M128 150 L136 170 L156 178 L136 186 L128 206 L120 186 L100 178 L120 170 Z" fill="#e9f2ff"/>
+</svg>

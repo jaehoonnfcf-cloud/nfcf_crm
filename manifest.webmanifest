@@ -1,0 +1,15 @@
+{
+  "name": "고객정보 관리",
+  "short_name": "고객정보",
+  "description": "산림조합 고객 상담 및 실적 관리",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eceef3",
+  "theme_color": "#eceef3",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
