@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>내 고객 현황판</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="고객정보 관리" />
+<meta name="theme-color" content="#0f2f23" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --ink:#16181d; --paper:#eceef3; --panel:#ffffff; --line:#eceef3; --line-strong:#dfe2ea;
+    --accent:#5b4bff; --accent-hover:#4636e0; --accent-soft:#eceaff; --danger:#e5484d; --muted:#8a90a0;
+    --green:#12a150; --green-soft:#e6f7ee;
+    --warn:#c77700; --warn-soft:#fff3dc;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --chipbg:#f1f3f7; --field:#f5f6fa;
+    --shadow-sm:0 1px 2px rgba(20,24,40,.04), 0 10px 28px rgba(20,24,40,.07), inset 0 1px 0 #fff;
+    --shadow-md:0 1px 2px rgba(20,24,40,.05), 0 16px 38px rgba(20,24,40,.11), inset 0 1px 0 #fff;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1100px 480px at 50% -140px, #fff 0%, rgba(255,255,255,0) 70%), var(--paper); color:var(--ink);
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
+  button, input, select, textarea{ font-family:inherit; font-size:16px; color:var(--ink); }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:none; border-radius:28px; padding:40px 34px; width:100%; max-width:360px; text-align:center; box-shadow:0 20px 60px rgba(20,24,40,.15); }
+  .login-mark{ width:48px;height:48px;border-radius:16px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:var(--shadow-sm); }
+  .login-card h1{ font-size:21px; margin:0 0 6px; letter-spacing:-.02em; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:99px; border:none; background:var(--field); color:var(--ink); font-size:14.5px; font-weight:700; cursor:pointer; }
+  .google-btn:hover{ background:#eceef3; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:var(--shadow-sm); position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:12px; box-shadow:none; }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:none; background:var(--chipbg); color:var(--ink); width:36px; height:36px; border-radius:99px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
+  .user-box{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:none; background:var(--chipbg); color:var(--muted); padding:8px 16px; border-radius:99px; font-size:13.5px; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .nav-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .nav-btn.active{ background:#16181d; color:#fff; }
+  .nav-btn.active:hover{ background:#000; }
+
+  main{ max-width:1320px; margin:0 auto; padding:32px 32px 72px; display:flex; flex-direction:column; gap:24px; }
+  section.card{ background:var(--panel); border:none; border-radius:22px; padding:26px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
+  section.card h1{ font-size:18px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .dashboard-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .dashboard-controls > input[type=date],
+  .dashboard-controls > button{ flex:0 0 auto; width:auto; }
+
+  .card-frame{ padding:14px; border-radius:26px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > section.card{ box-shadow:none; }
+  .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:none; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-sm); }
+  thead th{ text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:12px 13px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:12px 13px; border-bottom:1px solid var(--line); font-size:14.5px; vertical-align:middle; white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#f6f8fc; }
+  td.ellipsis{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .badge.approved{ background:var(--accent-soft); color:var(--accent-hover); }
+  .badge.pending{ background:var(--warn-soft); color:var(--warn); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 8px; border-radius:999px; }
+  .new-customer-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 8px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#dcf3f1; color:#0d6e66; padding:2px 8px; border-radius:999px; }
+  .branch-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:999px; }
+  .branch-badge.branch-hq{ background:var(--accent-soft); color:var(--accent-hover); }
+  .branch-badge.branch-br{ background:var(--mint); color:var(--green); }
+
+  .product-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:999px; }
+  .product-badge.product-deposit{ background:var(--peach); color:#8a4416; }
+  .product-badge.product-savings{ background:#ece1fa; color:#7c3fbd; }
+
+  .goal-progress-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .goal-progress-box{ border:none; background:var(--chipbg); border-radius:18px; padding:16px 18px; }
+  .goal-progress-header{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
+  .goal-progress-title{ font-size:14px; font-weight:700; }
+  .goal-progress-note{ font-weight:400; color:var(--muted); font-size:11.5px; margin-left:4px; }
+  .goal-progress-pct{ font-size:22px; font-weight:800; color:var(--green); white-space:nowrap; }
+  .goal-progress-track{ background:#e3e6ee; border-radius:999px; height:14px; overflow:hidden; }
+  .goal-progress-fill{ height:100%; background:linear-gradient(90deg,#4fc583,var(--green)); border-radius:999px; transition:width .4s ease; }
+  .goal-progress-detail{ margin-top:7px; font-size:12.5px; color:var(--muted); }
+
+  .small-btn{ border:none; background:var(--chipbg); border-radius:99px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; color:var(--muted); white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .small-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .small-btn.primary{ background:#16181d; color:#fff; }
+  .small-btn.primary:hover{ background:#000; }
+
+  .primary-btn{ padding:10px 22px; border-radius:99px; border:none; background:#16181d; color:#fff; font-size:14.5px; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(20,24,40,.25); transition:background .15s ease; }
+  .primary-btn:hover{ background:#000; }
+  .primary-btn:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=date], select{
+    font-family:inherit; font-size:15px; padding:10px 14px; border:1px solid transparent;
+    border-radius:14px; background:var(--field); color:var(--ink); width:100%;
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+  .form-row{ display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .form-row > div{ flex:1; min-width:140px; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.success{ color:var(--green); }
+  .readonly-note{ font-size:12px; color:var(--muted); }
+
+  .summary-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:22px; }
+  .summary-item{ border:none; border-radius:16px; padding:14px; background:var(--panel); box-shadow:var(--shadow-sm); }
+  .summary-item .label{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .summary-item .value{ font-size:17px; font-weight:700; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .toolbar .sep{ width:1px; align-self:stretch; background:var(--line); margin:0 4px; }
+
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(22,24,29,.55); align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-overlay.open{ display:flex; }
+  .modal{ background:#fff; border-radius:26px; padding:26px; max-width:360px; width:92%; box-shadow:0 24px 70px rgba(20,24,40,.28); }
+  .modal h2{ margin:0 0 4px; font-size:17px; font-weight:800; letter-spacing:-.01em; }
+  .modal .desc{ font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.5; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+  
+  main{ max-width:1280px; }
+  .hello{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:2px; }
+  .hello h1{ margin:0; font-size:26px; letter-spacing:-.03em; }
+  .hello .sub{ color:var(--muted); font-size:13.5px; margin-top:4px; }
+  .who-pick{ display:flex; gap:8px; align-items:center; }
+  .who-pick select{ width:auto; min-width:150px; padding:8px 12px; font-size:13.5px; font-weight:700; }
+
+  .focus{ background:linear-gradient(135deg,#0f2f23 0%,#17573e 100%); color:#fff; border-radius:18px; padding:22px 26px; display:flex; flex-wrap:wrap; gap:18px 34px; align-items:center; box-shadow:var(--shadow-md); }
+  .focus .big{ font-size:15px; opacity:.85; font-weight:600; }
+  .focus .big b{ display:block; font-size:34px; letter-spacing:-.03em; margin-top:2px; }
+  .focus .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
+  .focus .fchip{ background:rgba(255,255,255,.12); border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; border:0; color:#fff; font-family:inherit; }
+  .focus .fchip b{ font-size:18px; margin-right:4px; color:var(--gold); }
+  .focus .fchip:hover{ background:rgba(255,255,255,.22); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; }
+  .kpi{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow-sm); min-width:0; }
+  .kpi .k{ font-size:12.5px; color:var(--muted); font-weight:700; }
+  .kpi .v{ font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:6px; white-space:nowrap; }
+  .kpi .d{ margin-top:6px; font-size:12.5px; font-weight:700; color:var(--muted); }
+  .up{ color:#c2410c; } .down{ color:#1d4ed8; } .good{ color:var(--green); } .bad{ color:var(--danger); }
+  .tag{ display:inline-block; font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:7px; white-space:nowrap; }
+  .tag.drop{ background:#fde4e4; color:#b42323; } .tag.mat{ background:#fff0d2; color:#9a5a00; } .tag.touch{ background:#e7eefc; color:#2447a8; }
+  .tag.rise{ background:#e1f1e8; color:#14613f; } .tag.mem{ background:#efe7fb; color:#6b35b5; } .tag.newc{ background:#e0f4f2; color:#0d6e66; }
+
+  .sec-title{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
+  .sec-title h2{ margin:0; font-size:17px; letter-spacing:-.02em; display:flex; align-items:center; gap:8px; }
+  .sec-desc{ font-size:12.5px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
+
+  .queue{ display:flex; flex-direction:column; gap:10px; }
+  .qitem{ display:grid; grid-template-columns:44px minmax(0,1.1fr) minmax(0,1.6fr) auto; gap:14px; align-items:center; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:#fff; }
+  .qitem:hover{ border-color:#b8d8c6; background:#f8fcf9; }
+  .qrank{ width:36px; height:36px; border-radius:11px; background:var(--accent-soft); color:var(--accent); font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .qitem.hot .qrank{ background:#fde4e4; color:#b42323; }
+  .qname{ font-weight:800; font-size:15.5px; }
+  .qname small{ color:var(--muted); font-weight:600; margin-left:6px; font-size:12px; }
+  .qmeta{ color:var(--muted); font-size:12.5px; margin-top:3px; }
+  .qwhy{ display:flex; flex-wrap:wrap; gap:6px; }
+  .qdo{ font-size:13px; font-weight:700; margin-top:7px; color:var(--ink); }
+  .qdo::before{ content:'👉 '; }
+  .qgo{ white-space:nowrap; }
+  .qlink{ border:0; background:var(--accent); color:#fff; border-radius:10px; padding:9px 16px; font-weight:800; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
+  .qlink:hover{ background:var(--accent-hover); }
+
+  .grid3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+  .grid2{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:16px; }
+  .panel-list{ display:flex; flex-direction:column; }
+  .prow{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
+  .prow:last-child{ border-bottom:0; }
+  .prow:hover .pn{ color:var(--accent); }
+  .pn{ font-weight:700; font-size:14.5px; } .pn small{ display:block; color:var(--muted); font-weight:500; font-size:12px; margin-top:1px; }
+  .pv{ text-align:right; font-weight:800; font-size:14.5px; white-space:nowrap; } .pv small{ display:block; font-weight:600; font-size:12px; color:var(--muted); }
+
+  .seg-bar{ display:flex; height:16px; border-radius:99px; overflow:hidden; background:var(--chipbg); margin:6px 0 12px; }
+  .seg-bar i{ display:block; height:100%; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13px; font-weight:700; }
+  .legend span::before{ content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; background:var(--c); }
+
+  .wk{ display:flex; align-items:flex-end; gap:10px; height:150px; padding-top:8px; }
+  .wk .col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:5px; }
+  .wk .bar{ width:100%; max-width:38px; background:linear-gradient(180deg,#3fae7c,#1b7a52); border-radius:7px 7px 3px 3px; min-height:3px; }
+  .wk .col.cur .bar{ background:linear-gradient(180deg,#f0c866,#d9a62f); }
+  .wk .n{ font-size:12px; font-weight:800; } .wk .l{ font-size:11px; color:var(--muted); }
+
+  .tl{ display:flex; flex-direction:column; gap:0; }
+  .tli{ display:grid; grid-template-columns:70px minmax(0,1fr); gap:12px; padding:10px 0; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
+  .tli:last-child{ border-bottom:0; }
+  .tli .dt{ font-size:12px; color:var(--muted); font-weight:700; padding-top:2px; }
+  .tli .tt{ font-weight:700; font-size:14px; } .tli .tc{ color:var(--muted); font-size:12.5px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .empty{ color:var(--muted); font-size:13px; padding:18px 0; text-align:center; }
+  .note-foot{ font-size:12px; color:var(--muted); line-height:1.6; }
+
+  @media (max-width:1100px){ .kpis{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid3{ grid-template-columns:1fr; } .grid2{ grid-template-columns:1fr; } }
+  @media (max-width:720px){
+    header{ padding:14px 16px; gap:8px; } .brand{ flex:1; } .nav-toggle-btn{ display:flex; }
+    .user-box{ display:none; width:100%; position:absolute; left:0; right:0; top:100%; flex-direction:column; align-items:stretch; gap:8px; background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line); box-shadow:0 8px 20px rgba(20,24,40,.12); z-index:30; }
+    header.nav-open .user-box{ display:flex; } .user-box .nav-btn{ width:100%; text-align:left; }
+    main{ padding:18px 14px 48px; gap:18px; } section.card{ padding:16px; }
+    .hello h1{ font-size:22px; }
+    .focus{ padding:18px; } .focus .chips{ margin-left:0; } .focus .big b{ font-size:30px; }
+    .kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .kpi{ padding:14px; } .kpi .v{ font-size:20px; }
+    .qitem{ grid-template-columns:34px minmax(0,1fr); gap:10px; padding:12px; }
+    .qitem .qwhy-wrap{ grid-column:1 / -1; } .qitem .qgo{ grid-column:1 / -1; } .qlink{ display:block; text-align:center; }
+  }
+</style>
+<link rel="stylesheet" href="theme.css?v=1" />
+</head>
+<body>
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">📊</div>
+    <h1>내 고객 현황판</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">📊</div>
+      <h2>내 고객 현황판</h2>
+      <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="home.html" class="nav-btn active">📊 내 고객 현황판</a>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="staff-dashboard.html" class="nav-btn">🙋 전담고객 관리</a>
+      <a href="managed-customers.html" class="nav-btn">👥 전체 관리 고객</a>
+      <a href="customer-assignment.html" class="nav-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
+      <a href="vip.html" class="nav-btn">🏛️ 법인단체등 만기관리</a>
+      <a href="special-deposit.html" class="nav-btn">🏦 특판 실적</a>
+      <a href="rates.html" class="nav-btn">📈 타행금리조회</a>
+      <a href="admin.html" class="nav-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="hello">
+      <div>
+        <h1 id="helloTitle">안녕하세요 👋</h1>
+        <div class="sub" id="helloSub">내 고객 현황을 불러오는 중…</div>
+      </div>
+      <div class="who-pick" id="whoPick" style="display:none">
+        <label for="whoSelect" style="margin:0">담당자</label>
+        <select id="whoSelect"></select>
+      </div>
+    </div>
+
+    <div class="focus" id="focusBox"></div>
+    <div class="kpis" id="kpiBox"></div>
+
+    <section class="card">
+      <div class="sec-title"><h2><span class="section-icon green">🎯</span> 오늘 먼저 챙길 고객</h2><span class="readonly-note" id="queueNote"></span></div>
+      <p class="sec-desc">수신 감소·만기 임박·장기 미접촉 등을 점수로 합산해 우선순위를 매겼습니다. 이유와 권장 액션을 보고 바로 상세 화면으로 이동하세요.</p>
+      <div class="queue" id="queueBox"><p class="empty">불러오는 중...</p></div>
+    </section>
+
+    <div class="grid3">
+      <section class="card"><div class="sec-title"><h2><span class="section-icon peach">📉</span> 수신 감소 고객</h2></div><p class="sec-desc">직전 기준월 대비 잔액이 줄어든 순</p><div class="panel-list" id="dropBox"></div></section>
+      <section class="card"><div class="sec-title"><h2><span class="section-icon green">📈</span> 수신 증가 고객</h2></div><p class="sec-desc">직전 기준월 대비 잔액이 늘어난 순 · 감사·추가 제안 기회</p><div class="panel-list" id="riseBox"></div></section>
+      <section class="card"><div class="sec-title"><h2><span class="section-icon blue">⏰</span> 만기 임박 (30일 내)</h2></div><p class="sec-desc">법인단체 만기관리에 등록된 내 고객 예치금</p><div class="panel-list" id="matBox"></div></section>
+    </div>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="sec-title"><h2><span class="section-icon blue">🩺</span> 고객 관계 건강도</h2></div>
+        <p class="sec-desc">접촉 간격과 수신 추이로 나눈 담당 고객 분포입니다.</p>
+        <div class="seg-bar" id="healthBar"></div><div class="legend" id="healthLegend"></div>
+        <div style="height:18px"></div>
+        <div class="sec-title"><h2><span class="section-icon peach">🔕</span> 오래 연락 못 한 고객</h2></div>
+        <p class="sec-desc">마지막 접점(마케팅활동·가입상담·사은품) 기준 오래된 순</p>
+        <div class="panel-list" id="staleBox"></div>
+      </section>
+      <section class="card">
+        <div class="sec-title"><h2><span class="section-icon green">🗓️</span> 최근 8주 접점 활동</h2><span class="readonly-note" id="wkNote"></span></div>
+        <p class="sec-desc">내가 기록한 마케팅활동·가입상담·사은품 건수입니다.</p>
+        <div class="wk" id="wkBox"></div>
+        <div style="height:18px"></div>
+        <div class="sec-title"><h2><span class="section-icon blue">🕘</span> 최근 활동 이력</h2></div>
+        <div class="tl" id="tlBox"></div>
+      </section>
+    </div>
+
+    <p class="note-foot" id="ruleNote"></p>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  navToggleBtn.addEventListener('click', () => {
+    const isOpen = navToggleBtn.closest('header').classList.toggle('nav-open');
+    navToggleBtn.textContent = isOpen ? '✕' : '☰';
+  });
+
+  let currentUserEmail = '';
+  let currentUserName = '';
+  let isAdmin = false;
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    currentUserName = name || currentUserEmail;
+    userEmail.textContent = currentUserName;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    isAdmin = !!admin;
+    document.getElementById('navAssignLink').style.display = isAdmin ? 'inline-flex' : 'none';
+    document.getElementById('navAdminLink').style.display = isAdmin ? 'inline-flex' : 'none';
+
+
+    await loadAll();
+  }
+
+  // ===== 기준값 (필요하면 여기 숫자만 바꾸면 됩니다) =====
+  const CFG = {
+    dropPct: -10, dropAmt: -10000000,      // 수신 감소: -10% 이하 또는 -1천만원 이하
+    risePct: 10, riseAmt: 10000000,        // 수신 증가: +10% 이상 또는 +1천만원 이상
+    matSoon: 7, matWindow: 30,             // 만기 임박: 7일 이내(긴급) / 30일 이내
+    stale1: 30, stale2: 60, stale3: 90,    // 미접촉 단계(일)
+    newGrace: 14,                          // 배정 후 첫 접촉 유예(일)
+    memberBal: 10000000,                   // 비조합원 수신 1천만원 이상이면 가입 권유 후보
+  };
+  const TOUCH_TYPES = ['마케팅활동', '가입상담', '사은품'];
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const TODAY = ymd(new Date());
+  const dayNum = (s) => Math.floor(Date.parse(s.slice(0, 10) + 'T00:00:00Z') / 864e5);
+  const diffDays = (a, b) => dayNum(a) - dayNum(b);
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  function won(n){
+    if (n === null || n === undefined || isNaN(n)) return '-';
+    const a = Math.abs(n), sg = n < 0 ? '-' : '';
+    if (a >= 1e8) return sg + (a / 1e8).toFixed(a >= 1e9 ? 1 : 2).replace(/\.?0+$/, '') + '억';
+    if (a >= 1e4) return sg + Math.round(a / 1e4).toLocaleString('ko-KR') + '만';
+    return sg + a.toLocaleString('ko-KR') + '원';
+  }
+  const signedWon = (n) => (n > 0 ? '+' : n < 0 ? '' : '') + won(n);
+  const detailHref = (no) => `customer-detail.html?customer_no=${no}`;
+
+  async function fetchIn(table, cols, nos, build){
+    const out = [];
+    for (let i = 0; i < nos.length; i += 120){
+      let q = sb.from(table).select(cols).in('customer_no', nos.slice(i, i + 120));
+      if (build) q = build(q);
+      const { data, error } = await q;
+      if (error){ console.warn(table, error.message); continue; }
+      out.push(...(data || []));
+    }
+    return out;
+  }
+
+  let targetEmail = '';
+  async function loadAll(){
+    targetEmail = targetEmail || currentUserEmail;
+    if (isAdmin && !$('whoSelect').dataset.ready){
+      const { data: staff } = await sb.from('allowed_emails').select('email, name').order('name');
+      $('whoSelect').innerHTML = (staff || []).map(s => `<option value="${esc(s.email)}">${esc(s.name || s.email)}${s.email === currentUserEmail ? ' (나)' : ''}</option>`).join('');
+      $('whoSelect').value = targetEmail; $('whoSelect').dataset.ready = '1'; $('whoPick').style.display = 'flex';
+      $('whoSelect').addEventListener('change', () => { targetEmail = $('whoSelect').value; loadAll(); });
+    }
+    $('helloSub').textContent = '내 고객 현황을 불러오는 중…';
+    const { data: custs, error } = await sb.from('customers')
+      .select('customer_no, name, customer_info, initial_deposit_balance, initial_loan_balance, initial_balance_date, created_at')
+      .eq('assigned_to', targetEmail).eq('is_deleted', false);
+    if (error){ $('helloSub').textContent = '불러오기 실패: ' + error.message; return; }
+    const list = custs || [], nos = list.map(c => c.customer_no);
+    if (!nos.length){ renderEmpty(); return; }
+    const [acts, snaps, vips, members] = await Promise.all([
+      fetchIn('customer_activities', 'customer_no, activity_type, activity_date, content', nos),
+      fetchIn('balance_snapshots', 'customer_no, snapshot_date, deposit_balance, loan_balance', nos),
+      fetchIn('vip_deposits', 'customer_no, name, maturity_date, amount', nos, q => q.gte('maturity_date', TODAY)),
+      fetchIn('members', 'customer_no', nos),
+    ]);
+    render(analyze(list, acts, snaps, vips, members));
+  }
+
+  // ===== 분석 =====
+  function analyze(list, acts, snaps, vips, members){
+    const memberSet = new Set(members.map(m => m.customer_no));
+    const actBy = {}, snapBy = {}, vipBy = {};
+    acts.forEach(a => (actBy[a.customer_no] ||= []).push(a));
+    snaps.forEach(s => (snapBy[s.customer_no] ||= []).push(s));
+    vips.forEach(v => (vipBy[v.customer_no] ||= []).push(v));
+    const rows = list.map(c => {
+      const A = (actBy[c.customer_no] || []).slice().sort((a, b) => b.activity_date.localeCompare(a.activity_date));
+      const touches = A.filter(a => TOUCH_TYPES.includes(a.activity_type));
+      const last = touches[0] || null;
+      const lastDays = last ? diffDays(TODAY, last.activity_date) : null;
+      const ser = (snapBy[c.customer_no] || []).slice().sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
+        .map(s => ({ d: s.snapshot_date, dep: num(s.deposit_balance), loan: num(s.loan_balance) }));
+      if (c.initial_deposit_balance != null && c.initial_balance_date && !ser.some(s => s.d <= c.initial_balance_date))
+        ser.unshift({ d: c.initial_balance_date, dep: num(c.initial_deposit_balance), loan: num(c.initial_loan_balance) });
+      const cur = ser[ser.length - 1] || null, prev = ser.length > 1 ? ser[ser.length - 2] : null;
+      const dep = cur ? cur.dep : null, loan = cur ? cur.loan : null;
+      const dDelta = cur && prev && cur.dep != null && prev.dep != null ? cur.dep - prev.dep : null;
+      const dPct = dDelta !== null && prev.dep > 0 ? dDelta / prev.dep * 100 : null;
+      const mats = (vipBy[c.customer_no] || []).map(v => ({ ...v, left: diffDays(v.maturity_date, TODAY) })).filter(v => v.left <= CFG.matWindow).sort((a, b) => a.left - b.left);
+      const isMember = memberSet.has(c.customer_no);
+      const sinceAssign = diffDays(TODAY, c.created_at);
+      const why = [];   // {k:종류, t:문구, s:점수, do:권장액션}
+      if (dDelta !== null && (dPct <= CFG.dropPct || dDelta <= CFG.dropAmt))
+        why.push({ k: 'drop', t: `수신 ${won(dDelta)}${dPct !== null ? ` (${dPct.toFixed(1)}%)` : ''}`, s: 55 + Math.min(25, Math.abs(dPct || 0) / 2), do: '감소 사유 확인 전화 · 타행 이동 여부 점검, 금리 우대 제안' });
+      if (mats.length){ const m = mats[0]; why.push({ k: 'mat', t: m.left <= 0 ? '오늘 만기' : `만기 D-${m.left} (${won(num(m.amount))})`, s: m.left <= CFG.matSoon ? 75 : 50, do: '재예치·연장 상담 연락 (특판·우대금리 안내)' }); }
+      if (!last){ if (sinceAssign >= CFG.newGrace) why.push({ k: 'touch', t: `접점 기록 없음 (배정 ${sinceAssign}일)`, s: 38, do: '첫 인사 연락 후 마케팅활동 이력 남기기' }); }
+      else if (lastDays >= CFG.stale3) why.push({ k: 'touch', t: `${lastDays}일째 미접촉`, s: 46, do: '안부 연락 · 신상품/특판 소식 전달' });
+      else if (lastDays >= CFG.stale2) why.push({ k: 'touch', t: `${lastDays}일째 미접촉`, s: 30, do: '안부 연락 · 신상품/특판 소식 전달' });
+      else if (lastDays >= CFG.stale1) why.push({ k: 'touch', t: `${lastDays}일째 미접촉`, s: 16, do: '가벼운 안부 문자 · 소식 전달' });
+      if (dDelta !== null && (dPct >= CFG.risePct || dDelta >= CFG.riseAmt))
+        why.push({ k: 'rise', t: `수신 +${won(dDelta)}${dPct !== null ? ` (+${dPct.toFixed(1)}%)` : ''}`, s: 20, do: '감사 인사 · 적금/펀드 등 추가 상품 제안' });
+      if (!isMember && dep !== null && dep >= CFG.memberBal)
+        why.push({ k: 'mem', t: `비조합원 · 수신 ${won(dep)}`, s: 18, do: '조합원 가입 권유 (출자·비과세 혜택 안내)' });
+      why.sort((a, b) => b.s - a.s);
+      const score = why.reduce((t, w, i) => t + (i === 0 ? w.s : w.s * 0.3), 0);
+      const health = (why.some(w => w.k === 'drop') || (lastDays !== null && lastDays >= CFG.stale3)) ? 'risk'
+        : (why.some(w => w.k === 'mat') || (lastDays !== null && lastDays >= CFG.stale1) || (!last && sinceAssign >= CFG.newGrace)) ? 'watch' : 'good';
+      return { c, A, touches, last, lastDays, dep, loan, dDelta, dPct, mats, isMember, why, score, health };
+    });
+    return { rows, acts, snaps };
+  }
+
+  // ===== 렌더 =====
+  function renderEmpty(){
+    $('helloSub').textContent = '담당 고객이 아직 없습니다.';
+    $('focusBox').innerHTML = `<div class="big">배정된 고객이 없어요<b>0명</b></div><div class="chips"><a class="fchip" href="staff-dashboard.html" style="text-decoration:none">🙋 전담고객 관리에서 미배정 고객 받기</a></div>`;
+    ['kpiBox', 'queueBox', 'dropBox', 'riseBox', 'matBox', 'staleBox', 'tlBox', 'wkBox'].forEach(id => $(id).innerHTML = '<p class="empty">표시할 데이터가 없습니다.</p>');
+    $('healthBar').innerHTML = ''; $('healthLegend').innerHTML = ''; $('ruleNote').textContent = '';
+  }
+
+  const TAGCLS = { drop: 'drop', mat: 'mat', touch: 'touch', rise: 'rise', mem: 'mem' };
+  const whyTags = (r, n) => r.why.slice(0, n || 3).map(w => `<span class="tag ${TAGCLS[w.k]}">${esc(w.t)}</span>`).join('');
+
+  function render({ rows, acts, snaps }){
+    const other = isAdmin && targetEmail !== currentUserEmail;
+    $('helloTitle').textContent = other ? `${($('whoSelect').selectedOptions[0]?.textContent || '').replace(' (나)', '')} 담당 고객 현황` : `${currentUserName}님, 안녕하세요 👋`;
+    $('helloSub').textContent = `${TODAY} 기준 · 담당 고객 ${rows.length}명`;
+
+    const need = rows.filter(r => r.score >= 30).sort((a, b) => b.score - a.score);
+    const nDrop = rows.filter(r => r.why.some(w => w.k === 'drop')).length;
+    const nMat = rows.filter(r => r.why.some(w => w.k === 'mat')).length;
+    const nStale = rows.filter(r => r.why.some(w => w.k === 'touch')).length;
+    const nRise = rows.filter(r => r.why.some(w => w.k === 'rise')).length;
+    $('focusBox').innerHTML = `<div class="big">오늘 먼저 연락할 고객<b>${need.length}명</b></div>
+      <div class="chips">
+        <button class="fchip" data-go="dropBox"><b>${nDrop}</b>수신 감소</button>
+        <button class="fchip" data-go="matBox"><b>${nMat}</b>만기 임박</button>
+        <button class="fchip" data-go="staleBox"><b>${nStale}</b>미접촉</button>
+        <button class="fchip" data-go="riseBox"><b>${nRise}</b>수신 증가</button>
+      </div>`;
+    $('focusBox').querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => $(b.dataset.go).closest('section').scrollIntoView({ behavior: 'smooth', block: 'center' })));
+
+    // KPI
+    const withBal = rows.filter(r => r.dep !== null);
+    const totDep = withBal.reduce((t, r) => t + r.dep, 0), totLoan = rows.reduce((t, r) => t + (r.loan || 0), 0);
+    const cmp = rows.filter(r => r.dDelta !== null), totDelta = cmp.reduce((t, r) => t + r.dDelta, 0);
+    const prevBase = cmp.reduce((t, r) => t + (r.dep - r.dDelta), 0);
+    const ym = TODAY.slice(0, 7), lm = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return ymd(d).slice(0, 7); })();
+    const touchAll = acts.filter(a => TOUCH_TYPES.includes(a.activity_type));
+    const tThis = touchAll.filter(a => a.activity_date.startsWith(ym)).length, tLast = touchAll.filter(a => a.activity_date.startsWith(lm)).length;
+    const reached30 = rows.filter(r => r.lastDays !== null && r.lastDays < 30).length;
+    const dcls = (v) => v > 0 ? 'up' : v < 0 ? 'down' : '';
+    $('kpiBox').innerHTML = [
+      ['담당 고객', `${rows.length}명`, `조합원 ${rows.filter(r => r.isMember).length}명`],
+      ['수신 잔액 합계', withBal.length ? won(totDep) : '-', cmp.length ? `<span class="${dcls(totDelta)}">${totDelta > 0 ? '▲' : totDelta < 0 ? '▼' : '–'} ${won(Math.abs(totDelta))}${prevBase > 0 ? ` (${(totDelta / prevBase * 100).toFixed(1)}%)` : ''}</span> 직전 기준월 대비` : '잔액 이력 1건 이하'],
+      ['여신 잔액 합계', won(totLoan), `대출 보유 ${rows.filter(r => (r.loan || 0) > 0).length}명`],
+      ['이번 달 접점 활동', `${tThis}건`, `<span class="${tThis >= tLast ? 'good' : 'bad'}">${tThis >= tLast ? '▲' : '▼'} ${Math.abs(tThis - tLast)}건</span> 지난달 ${tLast}건`],
+      ['30일 내 접촉률', `${Math.round(reached30 / rows.length * 100)}%`, `${reached30}/${rows.length}명 접촉함`],
+    ].map(([k, v, d]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+
+    // 우선순위 큐
+    const top = need.slice(0, 10);
+    $('queueNote').textContent = need.length > 10 ? `상위 10명 / 전체 ${need.length}명` : '';
+    $('queueBox').innerHTML = top.length ? top.map((r, i) => `<div class="qitem ${r.score >= 60 ? 'hot' : ''}">
+        <div class="qrank">${i + 1}</div>
+        <div><div class="qname">${esc(r.c.name)}<small>${r.c.customer_no}</small>${r.isMember ? '<span class="tag mem" style="margin-left:6px">조합원</span>' : ''}</div>
+          <div class="qmeta">수신 ${won(r.dep)} · 마지막 접점 ${r.last ? `${r.last.activity_date} (${r.lastDays}일 전)` : '없음'}</div></div>
+        <div class="qwhy-wrap"><div class="qwhy">${whyTags(r, 3)}</div><div class="qdo">${esc(r.why[0].do)}</div></div>
+        <div class="qgo"><a class="qlink" href="${detailHref(r.c.customer_no)}">상세 보기 →</a></div></div>`).join('')
+      : '<p class="empty">🎉 지금 급하게 챙길 고객이 없어요. 아래 증가 고객에게 감사 인사를 전해보세요.</p>';
+
+    // 패널들
+    const prow = (r, right, sub) => `<a class="prow" href="${detailHref(r.c.customer_no)}"><div class="pn">${esc(r.c.name)}<small>${esc(sub)}</small></div><div class="pv">${right}</div></a>`;
+    const drops = rows.filter(r => r.dDelta !== null && r.dDelta < 0).sort((a, b) => a.dDelta - b.dDelta).slice(0, 6);
+    const rises = rows.filter(r => r.dDelta !== null && r.dDelta > 0).sort((a, b) => b.dDelta - a.dDelta).slice(0, 6);
+    $('dropBox').innerHTML = drops.length ? drops.map(r => prow(r, `<span class="down">${won(r.dDelta)}</span><small>${r.dPct !== null ? r.dPct.toFixed(1) + '%' : ''} · 현재 ${won(r.dep)}</small>`, `${r.c.customer_no}`)).join('') : '<p class="empty">수신이 줄어든 고객이 없습니다.</p>';
+    $('riseBox').innerHTML = rises.length ? rises.map(r => prow(r, `<span class="up">+${won(r.dDelta)}</span><small>${r.dPct !== null ? '+' + r.dPct.toFixed(1) + '%' : ''} · 현재 ${won(r.dep)}</small>`, `${r.c.customer_no}`)).join('') : '<p class="empty">수신이 늘어난 고객이 없습니다.</p>';
+    const mats = rows.filter(r => r.mats.length).sort((a, b) => a.mats[0].left - b.mats[0].left).slice(0, 6);
+    $('matBox').innerHTML = mats.length ? mats.map(r => prow(r, `<span class="${r.mats[0].left <= CFG.matSoon ? 'bad' : ''}">D-${r.mats[0].left}</span><small>${won(num(r.mats[0].amount))}</small>`, `${r.mats[0].maturity_date} 만기`)).join('') : '<p class="empty">30일 내 만기 예정이 없습니다.</p>';
+
+    // 건강도
+    const H = { good: rows.filter(r => r.health === 'good').length, watch: rows.filter(r => r.health === 'watch').length, risk: rows.filter(r => r.health === 'risk').length };
+    const HC = { good: ['양호', '#1b8a58'], watch: ['주의', '#e2b653'], risk: ['위험', '#d64545'] };
+    $('healthBar').innerHTML = ['good', 'watch', 'risk'].map(k => H[k] ? `<i style="width:${H[k] / rows.length * 100}%;background:${HC[k][1]}" title="${HC[k][0]} ${H[k]}명"></i>` : '').join('');
+    $('healthLegend').innerHTML = ['good', 'watch', 'risk'].map(k => `<span style="--c:${HC[k][1]}">${HC[k][0]} ${H[k]}명 (${Math.round(H[k] / rows.length * 100)}%)</span>`).join('');
+
+    const stale = rows.slice().sort((a, b) => (b.lastDays ?? 9999) - (a.lastDays ?? 9999)).filter(r => r.lastDays === null || r.lastDays >= CFG.stale1).slice(0, 6);
+    $('staleBox').innerHTML = stale.length ? stale.map(r => prow(r, r.last ? `<span class="${r.lastDays >= CFG.stale3 ? 'bad' : ''}">${r.lastDays}일</span><small>${r.last.activity_date}</small>` : '<span class="bad">기록 없음</span>', `${r.c.customer_no} · 수신 ${won(r.dep)}`)).join('') : '<p class="empty">모든 고객과 최근 30일 내 접점이 있습니다 👍</p>';
+
+    // 주간 활동 (최근 8주, 월요일 시작)
+    const mon = (d) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+    const thisMon = mon(new Date()), weeks = [];
+    for (let i = 7; i >= 0; i--){ const s = new Date(thisMon); s.setDate(s.getDate() - i * 7); const e = new Date(s); e.setDate(e.getDate() + 6); weeks.push({ s: ymd(s), e: ymd(e), n: 0, l: `${s.getMonth() + 1}/${s.getDate()}` }); }
+    touchAll.forEach(a => { const w = weeks.find(w => a.activity_date >= w.s && a.activity_date <= w.e); if (w) w.n++; });
+    const mx = Math.max(1, ...weeks.map(w => w.n));
+    $('wkBox').innerHTML = weeks.map((w, i) => `<div class="col ${i === 7 ? 'cur' : ''}"><div class="n">${w.n}</div><div class="bar" style="height:${Math.max(3, w.n / mx * 100)}px"></div><div class="l">${w.l}</div></div>`).join('');
+    $('wkNote').textContent = `8주 합계 ${weeks.reduce((t, w) => t + w.n, 0)}건`;
+
+    const nameOf = Object.fromEntries(rows.map(r => [r.c.customer_no, r.c.name]));
+    const recent = acts.slice().sort((a, b) => b.activity_date.localeCompare(a.activity_date)).slice(0, 8);
+    $('tlBox').innerHTML = recent.length ? recent.map(a => `<a class="tli" href="${detailHref(a.customer_no)}"><div class="dt">${a.activity_date.slice(5)}</div><div><div class="tt">${esc(nameOf[a.customer_no] || a.customer_no)} · ${esc(a.activity_type)}</div><div class="tc">${esc(a.content || '')}</div></div></a>`).join('') : '<p class="empty">아직 기록된 활동이 없습니다.</p>';
+
+    $('ruleNote').innerHTML = `※ 우선순위 기준: 수신 ${CFG.dropPct}% 이하 또는 ${won(CFG.dropAmt)} 이하 감소 · 만기 ${CFG.matWindow}일 이내(${CFG.matSoon}일 이내는 긴급) · 미접촉 ${CFG.stale1}/${CFG.stale2}/${CFG.stale3}일 단계 · 비조합원 수신 ${won(CFG.memberBal)} 이상. 증감은 월별 잔액 이력의 직전 기준월 대비이며, 접점 활동은 마케팅활동·가입상담·사은품 기록입니다.`;
+  }
+</script>
+</body>
+</html>
