@@ -4,16 +4,16 @@
 @media screen{
   :root{
     --ink:#151a18; --paper:#ebedec; --panel:#ffffff; --line:#eceeed; --line-strong:#dde1df;
-    --accent:#157a4f; --accent-hover:#0f6440; --accent-soft:#e3f3ea; --muted:#7a827f;
-    --danger:#d9482f; --danger-soft:#fdeeea; --green:#1b8a58; --green-soft:#e3f3ea;
+    --accent:#e04e18; --accent-hover:#c7410f; --accent-soft:#fdece4; --muted:#7a827f;
+    --danger:#d63a3a; --danger-soft:#fdeaea; --green:#1b8a58; --green-soft:#e3f3ea;
     --warn:#a8630a; --warn-soft:#fff2d8;
-    --mint:#d3ebde; --peach:#f6e3c2; --chipbg:#f2f4f3; --field:#f4f5f5;
-    --gold:#e2b653; --stripe:#2f9a69;
+    --mint:#fadfd2; --peach:#f8e8c8; --chipbg:#f2f4f3; --field:#f4f5f5;
+    --gold:#e2b653; --stripe:#f0794c;
     --shadow-sm:0 1px 2px rgba(20,30,25,.03); --shadow-md:0 2px 10px rgba(20,30,25,.06);
     --r-card:24px;
   }
   body{ background:var(--paper) !important; color:var(--ink); }
-  ::selection{ background:#c6e6d5; }
+  ::selection{ background:#f9d3c3; }
 
   /* ---------- 공통 모양 ---------- */
   .nav-btn, .small-btn, .primary-btn, .signout-btn, .link-btn, .google-btn{ border-radius:12px; }
@@ -36,7 +36,7 @@
   .login-mark{ border-radius:16px; }
   .google-btn{ background:var(--field); }
   .google-btn:hover{ background:#e9ecea; }
-  .goal-progress-fill{ background:linear-gradient(90deg,#3fae7c,var(--accent)); }
+  .goal-progress-fill{ background:linear-gradient(90deg,#f4875f,var(--accent)); }
 
   /* 하드코딩된 검정 활성/기본 버튼 → 그린 */
   .btn-primary, .day-toggle-btn.active, .member-filter-btn.active, .tab-btn.active, .link-btn.active, .signout-btn.active{ background:var(--accent); color:#fff; }

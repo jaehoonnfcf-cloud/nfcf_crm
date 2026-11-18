@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2a9d6b"/>
-      <stop offset="100%" stop-color="#0f4a33"/>
+      <stop offset="0%" stop-color="#ff8a5b"/>
+      <stop offset="100%" stop-color="#d9431a"/>
     </linearGradient>
   </defs>
   <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
@@ -15,5 +15,5 @@
 
   <!-- sparkle accent -->
   <path d="M392 118 L404 150 L436 162 L404 174 L392 206 L380 174 L348 162 L380 150 Z" fill="#f2c14e"/>
-  <path d="M128 150 L136 170 L156 178 L136 186 L128 206 L120 186 L100 178 L120 170 Z" fill="#d7f0e2"/>
+  <path d="M128 150 L136 170 L156 178 L136 186 L128 206 L120 186 L100 178 L120 170 Z" fill="#ffe1d3"/>
 </svg>

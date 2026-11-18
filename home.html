@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="고객정보 관리" />
-<meta name="theme-color" content="#0f2f23" />
+<meta name="theme-color" content="#e04e18" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
@@ -167,10 +167,10 @@
   .kpi .v{ font-size:40px; font-weight:800; letter-spacing:-.04em; margin-top:8px; white-space:nowrap; line-height:1.1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .kpi .v small{ font-size:20px; font-weight:700; letter-spacing:-.02em; }
   .dpill{ font-size:12.5px; font-weight:800; padding:4px 10px; border-radius:999px; letter-spacing:0; }
-  .dpill.up{ background:#e3f3ea; color:#14804f; } .dpill.dn{ background:#fdeeea; color:#d9482f; } .dpill.eq{ background:#f2f4f3; color:#7a827f; }
+  .dpill.up{ background:#e3f3ea; color:#14804f; } .dpill.dn{ background:#fdeaea; color:#d63a3a; } .dpill.eq{ background:#f2f4f3; color:#7a827f; }
   .kpi .d{ margin-top:14px; font-size:13px; color:#6b726f; font-weight:600; }
   .kpi .d b{ color:var(--ink); margin-left:4px; }
-  .up{ color:#14804f; } .down{ color:#d9482f; } .good{ color:var(--green); } .bad{ color:var(--danger); }
+  .up{ color:#14804f; } .down{ color:#d63a3a; } .good{ color:var(--green); } .bad{ color:var(--danger); }
   .tag{ display:inline-block; font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:7px; white-space:nowrap; }
   .tag.drop{ background:#fde4e4; color:#b42323; } .tag.mat{ background:#fff0d2; color:#9a5a00; } .tag.touch{ background:#e7eefc; color:#2447a8; }
   .tag.rise{ background:#e1f1e8; color:#14613f; } .tag.mem{ background:#efe7fb; color:#6b35b5; } .tag.newc{ background:#e0f4f2; color:#0d6e66; }
@@ -185,7 +185,7 @@
   .qitem:last-child{ border-bottom:0; }
   .qitem:hover{ background:#fafbfb; border-radius:14px; }
   .qrank{ width:34px; height:34px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:800; display:flex; align-items:center; justify-content:center; font-size:14px; }
-  .qitem.hot .qrank{ background:#fdeeea; color:#d9482f; }
+  .qitem.hot .qrank{ background:#fdeaea; color:#d63a3a; }
   .qname{ font-weight:800; font-size:15.5px; }
   .qname small{ color:var(--muted); font-weight:600; margin-left:6px; font-size:12px; }
   .qmeta{ color:var(--muted); font-size:12.5px; margin-top:3px; }
@@ -219,11 +219,11 @@
   .chart .col{ flex:1; max-width:62px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; position:relative; }
   .chart .stack{ width:70%; max-width:44px; display:flex; flex-direction:column-reverse; margin-bottom:26px; }
   .chart .l{ position:absolute; bottom:4px; font-size:12px; color:var(--muted); font-weight:600; }
-  .hatch{ background:repeating-linear-gradient(135deg, #1d8a5a 0 2.5px, #3fae7c 2.5px 5px); }
+  .hatch{ background:repeating-linear-gradient(135deg, #e04e18 0 2.5px, #f4875f 2.5px 5px); }
   .pill{ border-radius:999px; width:100%; min-height:6px; }
   .pill.hatch{ } .pill.dark{ background:#1c211f; }
-  .col.hl .pill.hatch{ background:#157a4f; }
-  .bub{ position:absolute; transform:translate(-50%,-100%); left:50%; background:#157a4f; color:#fff; font-size:12px; font-weight:800; padding:5px 10px; border-radius:9px; white-space:nowrap; display:none; z-index:3; }
+  .col.hl .pill.hatch{ background:#e04e18; }
+  .bub{ position:absolute; transform:translate(-50%,-100%); left:50%; background:#e04e18; color:#fff; font-size:12px; font-weight:800; padding:5px 10px; border-radius:9px; white-space:nowrap; display:none; z-index:3; }
   .bub::after{ content:''; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; background:inherit; transform:translateX(-50%) rotate(45deg); }
   .col.hl .bub, .col:hover .bub{ display:block; }
   .legend2{ display:flex; gap:14px; font-size:12.5px; font-weight:700; }
@@ -250,7 +250,7 @@
   }
 </style>
 <script src="preauth.js?v=2"></script>
-<link rel="stylesheet" href="theme.css?v=2" />
+<link rel="stylesheet" href="theme.css?v=3" />
 </head>
 <body>
 <div class="login-wrap" id="loginScreen">
@@ -319,7 +319,7 @@
         <div class="chart" id="wkChart"></div>
       </section>
       <section class="card">
-        <div class="sec-title"><h2>월별 수신 증감</h2><div class="legend2"><span style="--c:#2f9a69">증가</span><span style="--c:#1c211f">감소</span></div></div>
+        <div class="sec-title"><h2>월별 수신 증감</h2><div class="legend2"><span style="--c:#e8693a">증가</span><span style="--c:#1c211f">감소</span></div></div>
         <p class="sec-desc">월별 잔액 이력 기준, 고객별 증가분과 감소분의 합</p>
         <div class="chart" id="flowChart"></div>
       </section>
