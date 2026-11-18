@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="고객정보 관리" />
-<meta name="theme-color" content="#0f2f23" />
+<meta name="theme-color" content="#e04e18" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <style>
@@ -143,26 +143,34 @@
 
   
   main{ max-width:1280px; }
-  .hello{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:2px; }
-  .hello h1{ margin:0; font-size:26px; letter-spacing:-.03em; }
+  .hello{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:2px; }
+  .hello h1{ margin:0; font-size:30px; letter-spacing:-.035em; }
   .hello .sub{ color:var(--muted); font-size:13.5px; margin-top:4px; }
-  .who-pick{ display:flex; gap:8px; align-items:center; }
-  .who-pick select{ width:auto; min-width:150px; padding:8px 12px; font-size:13.5px; font-weight:700; }
+  .hello .right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .datepill{ display:flex; align-items:center; gap:8px; background:#fff; border-radius:999px; padding:11px 18px; font-weight:700; font-size:14px; }
+  .who-pick{ display:flex; gap:8px; align-items:center; background:#fff; border-radius:999px; padding:4px 6px 4px 16px; }
+  .who-pick select{ width:auto; min-width:140px; padding:8px 12px; font-size:13.5px; font-weight:700; border-radius:999px; }
 
-  .focus{ background:linear-gradient(135deg,#0f2f23 0%,#17573e 100%); color:#fff; border-radius:18px; padding:22px 26px; display:flex; flex-wrap:wrap; gap:18px 34px; align-items:center; box-shadow:var(--shadow-md); }
-  .focus .big{ font-size:15px; opacity:.85; font-weight:600; }
-  .focus .big b{ display:block; font-size:34px; letter-spacing:-.03em; margin-top:2px; }
+  .focus{ background:var(--accent); color:#fff; border-radius:var(--r-card,24px); padding:22px 28px; display:flex; flex-wrap:wrap; gap:16px 34px; align-items:center; }
+  .focus .big{ font-size:15px; opacity:.88; font-weight:600; }
+  .focus .big b{ display:block; font-size:36px; letter-spacing:-.03em; margin-top:2px; }
   .focus .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
-  .focus .fchip{ background:rgba(255,255,255,.12); border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; border:0; color:#fff; font-family:inherit; }
-  .focus .fchip b{ font-size:18px; margin-right:4px; color:var(--gold); }
-  .focus .fchip:hover{ background:rgba(255,255,255,.22); }
+  .focus .fchip{ background:rgba(255,255,255,.16); border-radius:999px; padding:10px 18px; font-size:13.5px; font-weight:700; cursor:pointer; border:0; color:#fff; font-family:inherit; }
+  .focus .fchip b{ font-size:18px; margin-right:6px; color:#fff; }
+  .focus .fchip:hover{ background:rgba(255,255,255,.28); }
 
-  .kpis{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; }
-  .kpi{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow-sm); min-width:0; }
-  .kpi .k{ font-size:12.5px; color:var(--muted); font-weight:700; }
-  .kpi .v{ font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:6px; white-space:nowrap; }
-  .kpi .d{ margin-top:6px; font-size:12.5px; font-weight:700; color:var(--muted); }
-  .up{ color:#c2410c; } .down{ color:#1d4ed8; } .good{ color:var(--green); } .bad{ color:var(--danger); }
+  .kpis{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+  .kpi{ background:var(--panel); border-radius:var(--r-card,24px); padding:20px 22px 18px; min-width:0; }
+  .kpi .top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .kpi .k{ font-size:14px; color:#3a403d; font-weight:600; }
+  .kpi .ico{ width:44px; height:44px; border-radius:50%; background:var(--field); display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+  .kpi .v{ font-size:40px; font-weight:800; letter-spacing:-.04em; margin-top:8px; white-space:nowrap; line-height:1.1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .kpi .v small{ font-size:20px; font-weight:700; letter-spacing:-.02em; }
+  .dpill{ font-size:12.5px; font-weight:800; padding:4px 10px; border-radius:999px; letter-spacing:0; }
+  .dpill.up{ background:#e3f3ea; color:#14804f; } .dpill.dn{ background:#fdeaea; color:#d63a3a; } .dpill.eq{ background:#f2f4f3; color:#7a827f; }
+  .kpi .d{ margin-top:14px; font-size:13px; color:#6b726f; font-weight:600; }
+  .kpi .d b{ color:var(--ink); margin-left:4px; }
+  .up{ color:#14804f; } .down{ color:#d63a3a; } .good{ color:var(--green); } .bad{ color:var(--danger); }
   .tag{ display:inline-block; font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:7px; white-space:nowrap; }
   .tag.drop{ background:#fde4e4; color:#b42323; } .tag.mat{ background:#fff0d2; color:#9a5a00; } .tag.touch{ background:#e7eefc; color:#2447a8; }
   .tag.rise{ background:#e1f1e8; color:#14613f; } .tag.mem{ background:#efe7fb; color:#6b35b5; } .tag.newc{ background:#e0f4f2; color:#0d6e66; }
@@ -171,19 +179,21 @@
   .sec-title h2{ margin:0; font-size:17px; letter-spacing:-.02em; display:flex; align-items:center; gap:8px; }
   .sec-desc{ font-size:12.5px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
 
-  .queue{ display:flex; flex-direction:column; gap:10px; }
-  .qitem{ display:grid; grid-template-columns:44px minmax(0,1.1fr) minmax(0,1.6fr) auto; gap:14px; align-items:center; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:#fff; }
-  .qitem:hover{ border-color:#b8d8c6; background:#f8fcf9; }
-  .qrank{ width:36px; height:36px; border-radius:11px; background:var(--accent-soft); color:var(--accent); font-weight:800; display:flex; align-items:center; justify-content:center; }
-  .qitem.hot .qrank{ background:#fde4e4; color:#b42323; }
+  .queue{ display:flex; flex-direction:column; }
+  .qhead{ display:grid; grid-template-columns:44px minmax(0,1.05fr) minmax(0,1.7fr) 110px; gap:14px; background:#f4f5f5; border-radius:14px; padding:12px 16px; font-size:13px; font-weight:700; color:#6b726f; margin-bottom:4px; }
+  .qitem{ display:grid; grid-template-columns:44px minmax(0,1.05fr) minmax(0,1.7fr) 110px; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .qitem:last-child{ border-bottom:0; }
+  .qitem:hover{ background:#fafbfb; border-radius:14px; }
+  .qrank{ width:34px; height:34px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:800; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .qitem.hot .qrank{ background:#fdeaea; color:#d63a3a; }
   .qname{ font-weight:800; font-size:15.5px; }
   .qname small{ color:var(--muted); font-weight:600; margin-left:6px; font-size:12px; }
   .qmeta{ color:var(--muted); font-size:12.5px; margin-top:3px; }
   .qwhy{ display:flex; flex-wrap:wrap; gap:6px; }
-  .qdo{ font-size:13px; font-weight:700; margin-top:7px; color:var(--ink); }
-  .qdo::before{ content:'👉 '; }
-  .qgo{ white-space:nowrap; }
-  .qlink{ border:0; background:var(--accent); color:#fff; border-radius:10px; padding:9px 16px; font-weight:800; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
+  .qdo{ font-size:13px; font-weight:600; margin-top:7px; color:#3a403d; }
+  .qdo::before{ content:'→ '; color:var(--accent); font-weight:800; }
+  .qgo{ text-align:right; }
+  .qlink{ display:inline-block; border:0; background:var(--accent); color:#fff; border-radius:999px; padding:9px 18px; font-weight:800; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
   .qlink:hover{ background:var(--accent-hover); }
 
   .grid3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
@@ -200,12 +210,24 @@
   .legend{ display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13px; font-weight:700; }
   .legend span::before{ content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; background:var(--c); }
 
-  .wk{ display:flex; align-items:flex-end; gap:10px; height:150px; padding-top:8px; }
-  .wk .col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:5px; }
-  .wk .bar{ width:100%; max-width:38px; background:linear-gradient(180deg,#3fae7c,#1b7a52); border-radius:7px 7px 3px 3px; min-height:3px; }
-  .wk .col.cur .bar{ background:linear-gradient(180deg,#f0c866,#d9a62f); }
-  .wk .n{ font-size:12px; font-weight:800; } .wk .l{ font-size:11px; color:var(--muted); }
-
+  .charts{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; }
+  .chart{ position:relative; height:250px; margin-top:6px; display:grid; grid-template-columns:48px minmax(0,1fr); }
+  .chart .ylab{ display:flex; flex-direction:column; justify-content:space-between; padding-bottom:26px; font-size:11.5px; color:var(--muted); text-align:right; padding-right:8px; white-space:nowrap; }
+  .chart .plot{ position:relative; border-bottom:0; }
+  .chart .grid{ position:absolute; left:0; right:0; top:0; bottom:26px; background:repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 1px), #e6e9e8 calc(25% - 1px), #e6e9e8 25%); border-top:1px dashed #e6e9e8; }
+  .chart .cols{ position:absolute; inset:0 0 0 0; display:flex; align-items:flex-end; justify-content:space-around; gap:6px; }
+  .chart .col{ flex:1; max-width:62px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; position:relative; }
+  .chart .stack{ width:70%; max-width:44px; display:flex; flex-direction:column-reverse; margin-bottom:26px; }
+  .chart .l{ position:absolute; bottom:4px; font-size:12px; color:var(--muted); font-weight:600; }
+  .hatch{ background:repeating-linear-gradient(135deg, #e04e18 0 2.5px, #f4875f 2.5px 5px); }
+  .pill{ border-radius:999px; width:100%; min-height:6px; }
+  .pill.hatch{ } .pill.dark{ background:#1c211f; }
+  .col.hl .pill.hatch{ background:#e04e18; }
+  .bub{ position:absolute; transform:translate(-50%,-100%); left:50%; background:#e04e18; color:#fff; font-size:12px; font-weight:800; padding:5px 10px; border-radius:9px; white-space:nowrap; display:none; z-index:3; }
+  .bub::after{ content:''; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; background:inherit; transform:translateX(-50%) rotate(45deg); }
+  .col.hl .bub, .col:hover .bub{ display:block; }
+  .legend2{ display:flex; gap:14px; font-size:12.5px; font-weight:700; }
+  .legend2 span::before{ content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; background:var(--c); }
   .tl{ display:flex; flex-direction:column; gap:0; }
   .tli{ display:grid; grid-template-columns:70px minmax(0,1fr); gap:12px; padding:10px 0; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
   .tli:last-child{ border-bottom:0; }
@@ -214,7 +236,7 @@
   .empty{ color:var(--muted); font-size:13px; padding:18px 0; text-align:center; }
   .note-foot{ font-size:12px; color:var(--muted); line-height:1.6; }
 
-  @media (max-width:1100px){ .kpis{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid3{ grid-template-columns:1fr; } .grid2{ grid-template-columns:1fr; } }
+  @media (max-width:1280px){ .kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); } .grid3{ grid-template-columns:1fr; } .grid2, .charts{ grid-template-columns:1fr; } }
   @media (max-width:720px){
     header{ padding:14px 16px; gap:8px; } .brand{ flex:1; } .nav-toggle-btn{ display:flex; }
     .user-box{ display:none; width:100%; position:absolute; left:0; right:0; top:100%; flex-direction:column; align-items:stretch; gap:8px; background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line); box-shadow:0 8px 20px rgba(20,24,40,.12); z-index:30; }
@@ -222,13 +244,13 @@
     main{ padding:18px 14px 48px; gap:18px; } section.card{ padding:16px; }
     .hello h1{ font-size:22px; }
     .focus{ padding:18px; } .focus .chips{ margin-left:0; } .focus .big b{ font-size:30px; }
-    .kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .kpi{ padding:14px; } .kpi .v{ font-size:20px; }
-    .qitem{ grid-template-columns:34px minmax(0,1fr); gap:10px; padding:12px; }
-    .qitem .qwhy-wrap{ grid-column:1 / -1; } .qitem .qgo{ grid-column:1 / -1; } .qlink{ display:block; text-align:center; }
+    .kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .kpi{ padding:14px; } .kpi .v{ font-size:26px; } .kpi .v small{ font-size:15px; } .kpi .ico{ width:34px; height:34px; font-size:15px; } .qhead{ display:none; }
+    .qitem{ grid-template-columns:34px minmax(0,1fr); gap:10px; padding:12px 4px; }
+    .qitem .qwhy-wrap{ grid-column:1 / -1; } .qitem .qgo{ grid-column:1 / -1; text-align:left; } .qlink{ display:block; text-align:center; } .chart{ height:210px; grid-template-columns:30px minmax(0,1fr); }
   }
 </style>
-<script src="preauth.js?v=1"></script>
-<link rel="stylesheet" href="theme.css?v=1" />
+<script src="preauth.js?v=2"></script>
+<link rel="stylesheet" href="theme.css?v=3" />
 </head>
 <body>
 <div class="login-wrap" id="loginScreen">
@@ -266,12 +288,12 @@
   <main>
     <div class="hello">
       <div>
-        <h1 id="helloTitle">안녕하세요 👋</h1>
+        <h1 id="helloTitle">고객 현황</h1>
         <div class="sub" id="helloSub">내 고객 현황을 불러오는 중…</div>
       </div>
-      <div class="who-pick" id="whoPick" style="display:none">
-        <label for="whoSelect" style="margin:0">담당자</label>
-        <select id="whoSelect"></select>
+      <div class="right">
+        <div class="who-pick" id="whoPick" style="display:none"><label for="whoSelect" style="margin:0">담당자</label><select id="whoSelect"></select></div>
+        <div class="datepill"><span>📅</span><span id="datePill"></span></div>
       </div>
     </div>
 
@@ -281,13 +303,26 @@
     <section class="card">
       <div class="sec-title"><h2><span class="section-icon green">🎯</span> 오늘 먼저 챙길 고객</h2><span class="readonly-note" id="queueNote"></span></div>
       <p class="sec-desc">수신 감소·만기 임박·장기 미접촉 등을 점수로 합산해 우선순위를 매겼습니다. 이유와 권장 액션을 보고 바로 상세 화면으로 이동하세요.</p>
-      <div class="queue" id="queueBox"><p class="empty">불러오는 중...</p></div>
+      <div class="queue"><div class="qhead"><span>#</span><span>고객</span><span>이유 · 권장 액션</span><span style="text-align:right">바로가기</span></div><div id="queueBox"><p class="empty">불러오는 중...</p></div></div>
     </section>
 
     <div class="grid3">
       <section class="card"><div class="sec-title"><h2><span class="section-icon peach">📉</span> 수신 감소 고객</h2></div><p class="sec-desc">직전 기준월 대비 잔액이 줄어든 순</p><div class="panel-list" id="dropBox"></div></section>
       <section class="card"><div class="sec-title"><h2><span class="section-icon green">📈</span> 수신 증가 고객</h2></div><p class="sec-desc">직전 기준월 대비 잔액이 늘어난 순 · 감사·추가 제안 기회</p><div class="panel-list" id="riseBox"></div></section>
       <section class="card"><div class="sec-title"><h2><span class="section-icon blue">⏰</span> 만기 임박 (30일 내)</h2></div><p class="sec-desc">법인단체 만기관리에 등록된 내 고객 예치금</p><div class="panel-list" id="matBox"></div></section>
+    </div>
+
+    <div class="charts">
+      <section class="card">
+        <div class="sec-title"><h2>주간 접점 활동</h2><span class="readonly-note" id="wkNote"></span></div>
+        <p class="sec-desc">최근 8주 동안 내가 기록한 마케팅활동·가입상담·사은품 건수</p>
+        <div class="chart" id="wkChart"></div>
+      </section>
+      <section class="card">
+        <div class="sec-title"><h2>월별 수신 증감</h2><div class="legend2"><span style="--c:#e8693a">증가</span><span style="--c:#1c211f">감소</span></div></div>
+        <p class="sec-desc">월별 잔액 이력 기준, 고객별 증가분과 감소분의 합</p>
+        <div class="chart" id="flowChart"></div>
+      </section>
     </div>
 
     <div class="grid2">
@@ -301,11 +336,8 @@
         <div class="panel-list" id="staleBox"></div>
       </section>
       <section class="card">
-        <div class="sec-title"><h2><span class="section-icon green">🗓️</span> 최근 8주 접점 활동</h2><span class="readonly-note" id="wkNote"></span></div>
-        <p class="sec-desc">내가 기록한 마케팅활동·가입상담·사은품 건수입니다.</p>
-        <div class="wk" id="wkBox"></div>
-        <div style="height:18px"></div>
         <div class="sec-title"><h2><span class="section-icon blue">🕘</span> 최근 활동 이력</h2></div>
+        <p class="sec-desc">내 고객에게 기록된 최근 활동</p>
         <div class="tl" id="tlBox"></div>
       </section>
     </div>
@@ -510,7 +542,7 @@
   function renderEmpty(){
     $('helloSub').textContent = '담당 고객이 아직 없습니다.';
     $('focusBox').innerHTML = `<div class="big">배정된 고객이 없어요<b>0명</b></div><div class="chips"><a class="fchip" href="staff-dashboard.html" style="text-decoration:none">🙋 전담고객 관리에서 미배정 고객 받기</a></div>`;
-    ['kpiBox', 'queueBox', 'dropBox', 'riseBox', 'matBox', 'staleBox', 'tlBox', 'wkBox'].forEach(id => $(id).innerHTML = '<p class="empty">표시할 데이터가 없습니다.</p>');
+    ['kpiBox', 'queueBox', 'dropBox', 'riseBox', 'matBox', 'staleBox', 'tlBox', 'wkChart', 'flowChart'].forEach(id => $(id).innerHTML = '<p class="empty">표시할 데이터가 없습니다.</p>');
     $('healthBar').innerHTML = ''; $('healthLegend').innerHTML = ''; $('ruleNote').textContent = '';
   }
 
@@ -519,8 +551,8 @@
 
   function render({ rows, acts, snaps }){
     const other = isAdmin && targetEmail !== currentUserEmail;
-    $('helloTitle').textContent = other ? `${($('whoSelect').selectedOptions[0]?.textContent || '').replace(' (나)', '')} 담당 고객 현황` : `${currentUserName}님, 안녕하세요 👋`;
-    $('helloSub').textContent = `${TODAY} 기준 · 담당 고객 ${rows.length}명`;
+    $('helloTitle').textContent = other ? `${($('whoSelect').selectedOptions[0]?.textContent || '').replace(' (나)', '')} 담당 고객 현황` : `${currentUserName}님의 고객 현황`;
+    $('helloSub').textContent = `담당 고객 ${rows.length}명의 오늘 할 일과 변화`; $('datePill').textContent = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 
     const need = rows.filter(r => r.score >= 30).sort((a, b) => b.score - a.score);
     const nDrop = rows.filter(r => r.why.some(w => w.k === 'drop')).length;
@@ -546,13 +578,14 @@
     const tThis = touchAll.filter(a => a.activity_date.startsWith(ym)).length, tLast = touchAll.filter(a => a.activity_date.startsWith(lm)).length;
     const reached30 = rows.filter(r => r.lastDays !== null && r.lastDays < 30).length;
     const dcls = (v) => v > 0 ? 'up' : v < 0 ? 'down' : '';
+    const pill = (v, txt) => `<span class="dpill ${v > 0 ? 'up' : v < 0 ? 'dn' : 'eq'}">${v > 0 ? '↑' : v < 0 ? '↓' : '–'} ${txt}</span>`;
+    const loanN = rows.filter(r => (r.loan || 0) > 0).length;
     $('kpiBox').innerHTML = [
-      ['담당 고객', `${rows.length}명`, `조합원 ${rows.filter(r => r.isMember).length}명`],
-      ['수신 잔액 합계', withBal.length ? won(totDep) : '-', cmp.length ? `<span class="${dcls(totDelta)}">${totDelta > 0 ? '▲' : totDelta < 0 ? '▼' : '–'} ${won(Math.abs(totDelta))}${prevBase > 0 ? ` (${(totDelta / prevBase * 100).toFixed(1)}%)` : ''}</span> 직전 기준월 대비` : '잔액 이력 1건 이하'],
-      ['여신 잔액 합계', won(totLoan), `대출 보유 ${rows.filter(r => (r.loan || 0) > 0).length}명`],
-      ['이번 달 접점 활동', `${tThis}건`, `<span class="${tThis >= tLast ? 'good' : 'bad'}">${tThis >= tLast ? '▲' : '▼'} ${Math.abs(tThis - tLast)}건</span> 지난달 ${tLast}건`],
-      ['30일 내 접촉률', `${Math.round(reached30 / rows.length * 100)}%`, `${reached30}/${rows.length}명 접촉함`],
-    ].map(([k, v, d]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+      ['담당 고객', '👥', `${rows.length}<small>명</small>`, '', `조합원 <b>${rows.filter(r => r.isMember).length}명</b> · 대출 ${loanN}명 <b>${won(totLoan)}</b>`],
+      ['수신 잔액 합계', '💰', withBal.length ? won(totDep) : '-', cmp.length ? pill(totDelta, `${prevBase > 0 ? Math.abs(totDelta / prevBase * 100).toFixed(1) + '%' : won(Math.abs(totDelta))}`) : '', cmp.length ? `직전 기준월 <b>${won(totDep - totDelta)}</b>` : '잔액 이력이 2건 이상 필요해요'],
+      ['이번 달 접점 활동', '📞', `${tThis}<small>건</small>`, tLast ? pill(tThis - tLast, `${Math.abs(tThis - tLast)}건`) : '', `지난달 <b>${tLast}건</b>`],
+      ['30일 내 접촉률', '🤝', `${Math.round(reached30 / rows.length * 100)}<small>%</small>`, '', `<b>${reached30}/${rows.length}명</b> 접촉함 · 미접촉 ${rows.length - reached30}명`],
+    ].map(([k, ic, v, p, d]) => `<div class="kpi"><div class="top"><div class="k">${k}</div><div class="ico">${ic}</div></div><div class="v">${v}${p}</div><div class="d">${d}</div></div>`).join('');
 
     // 우선순위 큐
     const top = need.slice(0, 10);
@@ -583,14 +616,29 @@
     const stale = rows.slice().sort((a, b) => (b.lastDays ?? 9999) - (a.lastDays ?? 9999)).filter(r => r.lastDays === null || r.lastDays >= CFG.stale1).slice(0, 6);
     $('staleBox').innerHTML = stale.length ? stale.map(r => prow(r, r.last ? `<span class="${r.lastDays >= CFG.stale3 ? 'bad' : ''}">${r.lastDays}일</span><small>${r.last.activity_date}</small>` : '<span class="bad">기록 없음</span>', `${r.c.customer_no} · 수신 ${won(r.dep)}`)).join('') : '<p class="empty">모든 고객과 최근 30일 내 접점이 있습니다 👍</p>';
 
-    // 주간 활동 (최근 8주, 월요일 시작)
+    // 차트 공통: 눈금 + 알약 막대
+    const niceMax = (m0) => { const m = m0 * 1.18; const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, m)))); return Math.ceil(m / p * 2) / 2 * p || 1; };
+    const frame = (el, maxV, fmt, colsHtml) => {
+      const t = [4, 3, 2, 1, 0].map(i => fmt(maxV * i / 4));
+      el.innerHTML = `<div class="ylab">${t.map(x => `<span>${x}</span>`).join('')}</div><div class="plot"><div class="grid"></div><div class="cols">${colsHtml}</div></div>`;
+    };
+    // 주간 접점 활동 (최근 8주, 월요일 시작)
     const mon = (d) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
     const thisMon = mon(new Date()), weeks = [];
     for (let i = 7; i >= 0; i--){ const s = new Date(thisMon); s.setDate(s.getDate() - i * 7); const e = new Date(s); e.setDate(e.getDate() + 6); weeks.push({ s: ymd(s), e: ymd(e), n: 0, l: `${s.getMonth() + 1}/${s.getDate()}` }); }
     touchAll.forEach(a => { const w = weeks.find(w => a.activity_date >= w.s && a.activity_date <= w.e); if (w) w.n++; });
-    const mx = Math.max(1, ...weeks.map(w => w.n));
-    $('wkBox').innerHTML = weeks.map((w, i) => `<div class="col ${i === 7 ? 'cur' : ''}"><div class="n">${w.n}</div><div class="bar" style="height:${Math.max(3, w.n / mx * 100)}px"></div><div class="l">${w.l}</div></div>`).join('');
+    const wmax = niceMax(Math.max(...weeks.map(w => w.n))), wpeak = weeks.reduce((b, w, i) => (w.n > weeks[b].n ? i : b), 0), plotH = 250 - 26;
+    frame($('wkChart'), wmax, (v) => Math.round(v), weeks.map((w, i) => `<div class="col ${i === wpeak && w.n ? 'hl' : ''}"><div class="bub" style="bottom:${26 + Math.max(6, w.n / wmax * plotH) + 8}px">${w.n}건</div><div class="stack"><div class="pill hatch" style="height:${Math.max(6, w.n / wmax * plotH)}px"></div></div><span class="l">${w.l}</span></div>`).join(''));
     $('wkNote').textContent = `8주 합계 ${weeks.reduce((t, w) => t + w.n, 0)}건`;
+
+    // 월별 수신 증감: 고객별로 월말(마지막) 잔액을 구해 이전 달 대비 증가분·감소분을 합산
+    const perCust = {};
+    snaps.forEach(s => { if (s.deposit_balance == null) return; const m = s.snapshot_date.slice(0, 7); ((perCust[s.customer_no] ||= {})[m] = perCust[s.customer_no][m] && perCust[s.customer_no][m].d > s.snapshot_date ? perCust[s.customer_no][m] : { d: s.snapshot_date, v: Number(s.deposit_balance) }); });
+    const flow = {};
+    Object.values(perCust).forEach(mm => { const ks = Object.keys(mm).sort(); for (let i = 1; i < ks.length; i++){ const dv = mm[ks[i]].v - mm[ks[i - 1]].v, f = (flow[ks[i]] ||= { up: 0, dn: 0 }); if (dv > 0) f.up += dv; else f.dn += -dv; } });
+    const fm = Object.keys(flow).sort().slice(-8), fmax = niceMax(Math.max(1, ...fm.map(m => flow[m].up + flow[m].dn))), fpeak = fm.reduce((b, m, i) => (flow[m].up + flow[m].dn > flow[fm[b]].up + flow[fm[b]].dn ? i : b), 0);
+    if (!fm.length) $('flowChart').innerHTML = '<p class="empty" style="grid-column:1/-1">월별 잔액 이력이 2개월 이상 쌓이면 표시됩니다.</p>';
+    else frame($('flowChart'), fmax, (v) => won(Math.round(v)), fm.map((m, i) => { const f = flow[m], hu = f.up / fmax * plotH, hd = f.dn / fmax * plotH; return `<div class="col ${i === fpeak ? 'hl' : ''}"><div class="bub" style="bottom:${26 + hu + hd + 8}px">+${won(f.up)} / -${won(f.dn)}</div><div class="stack">${f.up ? `<div class="pill hatch" style="height:${Math.max(6, hu)}px"></div>` : ''}${f.dn ? `<div class="pill dark" style="height:${Math.max(6, hd)}px;margin-bottom:-6px"></div>` : ''}</div><span class="l">${+m.slice(5)}월</span></div>`; }).join(''));
 
     const nameOf = Object.fromEntries(rows.map(r => [r.c.customer_no, r.c.name]));
     const recent = acts.slice().sort((a, b) => b.activity_date.localeCompare(a.activity_date)).slice(0, 8);
