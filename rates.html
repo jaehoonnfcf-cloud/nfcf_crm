@@ -181,7 +181,24 @@
     header.nav-open .user-box{ display:flex; }
     .user-box .nav-btn{ width:100%; text-align:left; }
     main{ padding:18px 14px 48px; } section.card{ padding:18px; }
-    .table-scroll{ overflow-x:auto; } .rate-table{ min-width:640px; }
+    .table-scroll{ overflow-x:visible; }
+    .rate-table, .rate-table tbody{ display:block; width:100%; box-shadow:none; background:transparent; }
+    .rate-table thead{ display:none; }
+    .rate-table tr{ display:grid; grid-template-columns:repeat(var(--n,4), minmax(0,1fr)); gap:6px 8px; padding:12px; margin-bottom:10px; border-radius:16px; background:var(--field); }
+    .rate-table tr.own{ background:#eef1ff; }
+    .rate-table tr.own td{ background:transparent; }
+    .rate-table td{ display:block; padding:0; min-width:0; border:0; }
+    .rate-table td.inst{ grid-column:1 / -1; } .rate-table td.acts{ grid-column:1 / -1; text-align:right; white-space:nowrap; }
+    .rate-table td.note{ grid-column:1 / -1; min-width:0; }
+    .rate-table td.rc::before, .rate-table td.note::before{ content:attr(data-label); display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:2px; text-align:center; }
+    .rate-table td.note::before{ text-align:left; }
+    .rate-table td.rc12::before{ color:var(--green); }
+    .rate-table td input{ background:#fff; width:100%; min-width:0; }
+    .icon-btn{ width:28px; height:28px; }
+    .rate-table td.acts .icon-btn{ margin-left:2px; }
+    header{ flex-wrap:nowrap; } .brand h2{ font-size:15px; }
+    .toolbar{ width:100%; } .toolbar input[type=date], .toolbar select, .toolbar .small-btn{ flex:1 1 auto; width:auto !important; }
+    section.card h1{ flex-wrap:wrap; }
   }
   @media print{
     @page{ size:A4 portrait; margin:10mm; }
@@ -427,10 +444,10 @@
       + cols.map(c => `<th class="${c === 'm12' ? 'hl12' : ''}">${COL_LABEL[c]}</th>`).join('')
       + '<th>비고</th><th style="width:96px">자사/삭제</th></tr></thead><tbody>';
     state[key].forEach((r, i) => {
-      h += `<tr class="${r.is_own ? 'own' : ''}"><td class="inst"><input type="text" data-k="${key}" data-i="${i}" data-f="institution" value="${esc(r.institution)}" /></td>`
-        + cols.map(c => `<td><input type="text" class="rate-in" inputmode="decimal" data-k="${key}" data-i="${i}" data-f="${c}" value="${r[c] == null ? '' : Number(r[c]).toFixed(2)}" /></td>`).join('')
-        + `<td class="note"><input type="text" data-k="${key}" data-i="${i}" data-f="note" value="${esc(r.note)}" /></td>`
-        + `<td><button class="icon-btn ${r.is_own ? 'on' : ''}" data-act="own" data-k="${key}" data-i="${i}" title="자사 표시">★</button> <button class="icon-btn" data-act="up" data-k="${key}" data-i="${i}" title="위로">↑</button> <button class="icon-btn" data-act="del" data-k="${key}" data-i="${i}" title="삭제">✕</button></td></tr>`;
+      h += `<tr class="${r.is_own ? 'own' : ''}" style="--n:${cols.length}"><td class="inst" data-label="금융기관"><input type="text" data-k="${key}" data-i="${i}" data-f="institution" value="${esc(r.institution)}" /></td>`
+        + cols.map(c => `<td data-label="${COL_LABEL[c]}" class="rc ${c === 'm12' ? 'rc12' : ''}"><input type="text" class="rate-in" inputmode="decimal" data-k="${key}" data-i="${i}" data-f="${c}" value="${r[c] == null ? '' : Number(r[c]).toFixed(2)}" /></td>`).join('')
+        + `<td class="note" data-label="비고"><input type="text" data-k="${key}" data-i="${i}" data-f="note" value="${esc(r.note)}" /></td>`
+        + `<td class="acts"><button class="icon-btn ${r.is_own ? 'on' : ''}" data-act="own" data-k="${key}" data-i="${i}" title="자사 표시">★</button> <button class="icon-btn" data-act="up" data-k="${key}" data-i="${i}" title="위로">↑</button> <button class="icon-btn" data-act="del" data-k="${key}" data-i="${i}" title="삭제">✕</button></td></tr>`;
     });
     h += '</tbody></table><div style="margin-top:10px;"><button class="small-btn" data-act="add" data-k="' + key + '">＋ 금융기관 추가</button></div>';
     const el = document.getElementById('tbl_' + key);
