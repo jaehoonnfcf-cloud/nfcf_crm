@@ -69,8 +69,20 @@
   html.embedded #signOutBtn, html.embedded #userEmail{ display:none !important; }
   html.embedded header h2{ color:var(--ink); }
 }
-@media screen and (min-width:961px){
-  html.embedded #app > main{ padding-top:2px; padding-left:4px; padding-right:12px; padding-bottom:56px; }
+/* ---------- 화면 크기·여백 통일 (모든 화면 공통) ----------
+   폭: 영역을 꽉 채우되 아주 넓은 모니터에서는 1600px 로 제한 / 좌우 여백·카드 간격·카드 안 여백·제목 크기를 한 규칙으로 */
+@media screen{
+  html.embedded #app > main{
+    width:100%; max-width:1600px !important; margin:0 auto !important; padding:2px 12px 56px 4px !important;
+    display:flex !important; flex-direction:column; gap:20px !important;
+  }
+  html.embedded section.card{ padding:26px; border-radius:var(--r-card); }
+  html.embedded section.card > h1, html.embedded section.card h1:first-child{ font-size:18px; }
+  html.embedded #app > main > *{ min-width:0; margin-top:0 !important; margin-bottom:0 !important; }   /* 블록 간격은 gap 하나로만 */
+}
+@media screen and (max-width:720px){
+  html.embedded #app > main{ padding:10px 10px 48px !important; gap:16px !important; }
+  html.embedded section.card{ padding:18px; border-radius:20px; }
 }
 @media screen and (max-width:960px){
   html.embedded #app > header:not(:has(.brand)){ margin:10px 10px 0; }
