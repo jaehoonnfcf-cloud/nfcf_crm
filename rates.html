@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>타행금리조회</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="고객정보 관리" />
+<meta name="theme-color" content="#eceef3" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --ink:#16181d; --paper:#eceef3; --panel:#ffffff; --line:#eceef3; --line-strong:#dfe2ea;
+    --accent:#5b4bff; --accent-hover:#4636e0; --accent-soft:#eceaff; --danger:#e5484d; --muted:#8a90a0;
+    --green:#12a150; --green-soft:#e6f7ee;
+    --warn:#c77700; --warn-soft:#fff3dc;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --chipbg:#f1f3f7; --field:#f5f6fa;
+    --shadow-sm:0 1px 2px rgba(20,24,40,.04), 0 10px 28px rgba(20,24,40,.07), inset 0 1px 0 #fff;
+    --shadow-md:0 1px 2px rgba(20,24,40,.05), 0 16px 38px rgba(20,24,40,.11), inset 0 1px 0 #fff;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1100px 480px at 50% -140px, #fff 0%, rgba(255,255,255,0) 70%), var(--paper); color:var(--ink);
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; min-height:100vh; letter-spacing:-0.01em; }
+  button, input, select, textarea{ font-family:inherit; font-size:16px; color:var(--ink); }
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ background:var(--panel); border:none; border-radius:28px; padding:40px 34px; width:100%; max-width:360px; text-align:center; box-shadow:0 20px 60px rgba(20,24,40,.15); }
+  .login-mark{ width:48px;height:48px;border-radius:16px; background:var(--accent-soft); margin:0 auto 20px; display:flex;align-items:center;justify-content:center; font-size:24px; box-shadow:var(--shadow-sm); }
+  .login-card h1{ font-size:21px; margin:0 0 6px; letter-spacing:-.02em; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  .google-btn{ display:flex;align-items:center;justify-content:center;gap:10px; width:100%; padding:11px 16px; border-radius:99px; border:none; background:var(--field); color:var(--ink); font-size:14.5px; font-weight:700; cursor:pointer; }
+  .google-btn:hover{ background:#eceef3; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  #app{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 36px; background:var(--panel); flex-wrap:wrap; gap:10px; box-shadow:var(--shadow-sm); position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:12px; box-shadow:none; }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:none; background:var(--chipbg); color:var(--ink); width:36px; height:36px; border-radius:99px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
+  .user-box{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .nav-btn{ border:none; background:var(--chipbg); color:var(--muted); padding:8px 16px; border-radius:99px; font-size:13.5px; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .nav-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .nav-btn.active{ background:#16181d; color:#fff; }
+  .nav-btn.active:hover{ background:#000; }
+
+  main{ max-width:1320px; margin:0 auto; padding:32px 32px 72px; display:flex; flex-direction:column; gap:24px; }
+  section.card{ background:var(--panel); border:none; border-radius:22px; padding:26px; box-shadow:var(--shadow-sm); transition:box-shadow .18s ease; }
+  section.card:hover{ box-shadow:var(--shadow-md); }
+  section.card h1{ font-size:18px; margin:0 0 6px; letter-spacing:-0.02em; font-weight:800; display:flex; align-items:center; }
+  section.card p.desc{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .dashboard-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .dashboard-controls > input[type=date],
+  .dashboard-controls > button{ flex:0 0 auto; width:auto; }
+
+  .card-frame{ padding:14px; border-radius:26px; }
+  .card-frame.mint{ background:var(--mint); }
+  .card-frame.peach{ background:var(--peach); }
+  .card-frame > section.card{ box-shadow:none; }
+  .card-frame > section.card:hover{ box-shadow:var(--shadow-sm); }
+
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; margin-right:9px; font-size:15px; flex-shrink:0; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:none; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-sm); }
+  thead th{ text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; padding:12px 13px; border-bottom:1px solid var(--line); background:transparent; white-space:nowrap; }
+  tbody td{ padding:12px 13px; border-bottom:1px solid var(--line); font-size:14.5px; vertical-align:middle; white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#f6f8fc; }
+  td.ellipsis{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .num{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  .badge{ display:inline-block; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .badge.approved{ background:var(--accent-soft); color:var(--accent-hover); }
+  .badge.pending{ background:var(--warn-soft); color:var(--warn); }
+  .member-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--accent-soft); color:var(--accent-hover); padding:2px 8px; border-radius:999px; }
+  .new-customer-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:var(--warn-soft); color:var(--warn); padding:2px 8px; border-radius:999px; }
+  .pending-application-badge{ display:inline-block; margin-left:6px; flex-shrink:0; font-size:10.5px; font-weight:700; white-space:nowrap; background:#dcf3f1; color:#0d6e66; padding:2px 8px; border-radius:999px; }
+  .branch-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:999px; }
+  .branch-badge.branch-hq{ background:var(--accent-soft); color:var(--accent-hover); }
+  .branch-badge.branch-br{ background:var(--mint); color:var(--green); }
+
+  .product-badge{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:999px; }
+  .product-badge.product-deposit{ background:var(--peach); color:#8a4416; }
+  .product-badge.product-savings{ background:#ece1fa; color:#7c3fbd; }
+
+  .goal-progress-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .goal-progress-box{ border:none; background:var(--chipbg); border-radius:18px; padding:16px 18px; }
+  .goal-progress-header{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
+  .goal-progress-title{ font-size:14px; font-weight:700; }
+  .goal-progress-note{ font-weight:400; color:var(--muted); font-size:11.5px; margin-left:4px; }
+  .goal-progress-pct{ font-size:22px; font-weight:800; color:var(--green); white-space:nowrap; }
+  .goal-progress-track{ background:#e3e6ee; border-radius:999px; height:14px; overflow:hidden; }
+  .goal-progress-fill{ height:100%; background:linear-gradient(90deg,#4fc583,var(--green)); border-radius:999px; transition:width .4s ease; }
+  .goal-progress-detail{ margin-top:7px; font-size:12.5px; color:var(--muted); }
+
+  .small-btn{ border:none; background:var(--chipbg); border-radius:99px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; color:var(--muted); white-space:nowrap; transition:background .12s ease, color .12s ease; }
+  .small-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .small-btn.primary{ background:#16181d; color:#fff; }
+  .small-btn.primary:hover{ background:#000; }
+
+  .primary-btn{ padding:10px 22px; border-radius:99px; border:none; background:#16181d; color:#fff; font-size:14.5px; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(20,24,40,.25); transition:background .15s ease; }
+  .primary-btn:hover{ background:#000; }
+  .primary-btn:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=date], select{
+    font-family:inherit; font-size:15px; padding:10px 14px; border:1px solid transparent;
+    border-radius:14px; background:var(--field); color:var(--ink); width:100%;
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+  .form-row{ display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .form-row > div{ flex:1; min-width:140px; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.success{ color:var(--green); }
+  .readonly-note{ font-size:12px; color:var(--muted); }
+
+  .summary-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:22px; }
+  .summary-item{ border:none; border-radius:16px; padding:14px; background:var(--panel); box-shadow:var(--shadow-sm); }
+  .summary-item .label{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .summary-item .value{ font-size:17px; font-weight:700; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .toolbar .sep{ width:1px; align-self:stretch; background:var(--line); margin:0 4px; }
+
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(22,24,29,.55); align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-overlay.open{ display:flex; }
+  .modal{ background:#fff; border-radius:26px; padding:26px; max-width:360px; width:92%; box-shadow:0 24px 70px rgba(20,24,40,.28); }
+  .modal h2{ margin:0 0 4px; font-size:17px; font-weight:800; letter-spacing:-.01em; }
+  .modal .desc{ font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.5; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+  
+  .rate-table{ table-layout:auto; }
+  .rate-table thead th{ text-transform:none; text-align:center; font-size:13px; }
+  .rate-table td{ padding:6px 8px; text-align:center; }
+  .rate-table td input{ text-align:center; padding:8px 6px; font-size:14.5px; }
+  .rate-table td.inst input{ text-align:left; font-weight:700; }
+  .rate-table td.note{ min-width:170px; }
+  .rate-table td.note input{ text-align:left; }
+  .rate-table tr.own td{ background:#eef1ff; }
+  .rate-table tr.own td input{ color:#2438d8; font-weight:800; }
+  .rate-table col.c12{ background:transparent; }
+  .rate-table th.hl12{ box-shadow:inset 0 -3px 0 var(--green); color:var(--green); }
+  .icon-btn{ border:none; background:var(--chipbg); border-radius:99px; width:30px; height:30px; cursor:pointer; color:var(--muted); font-size:14px; }
+  .icon-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .icon-btn.on{ background:#ffe9a8; color:#8a6000; }
+  .date-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  #ratesPrintView{ display:none; }
+  .rp-box{ border:1px solid #333; background:#d4ecf1; text-align:center; padding:12px 0 8px; margin-bottom:14px; }
+  .rp-box h1{ margin:0; font-size:26px; font-weight:800; letter-spacing:.02em; }
+  .rp-box p{ margin:4px 0 0; font-size:13px; font-weight:700; }
+  .rp-sec{ font-size:16px; font-weight:800; margin:14px 0 2px; }
+  .rp-sub{ font-size:12.5px; font-weight:700; margin:6px 0 3px; }
+  .rp-unit{ text-align:right; font-size:11px; margin:0 0 2px; }
+  .rp-table{ width:100%; border-collapse:collapse; font-size:13px; box-shadow:none; border-radius:0; }
+  .rp-table th, .rp-table td{ border:1px solid #999; padding:4px 6px; text-align:center; text-transform:none; letter-spacing:0; }
+  .rp-table th{ background:#d4ecf1; font-weight:700; color:#111; font-size:13px; }
+  .rp-table td.inst{ font-weight:700; }
+  .rp-table tr.own td{ color:#1a2ee0; font-weight:800; }
+  .rp-table td.note{ font-size:10.5px; }
+  .rp-table td.note.red{ color:#e00; font-weight:700; }
+  .rp-table .hl{ border-left:2.5px solid #1f9a6b; border-right:2.5px solid #1f9a6b; }
+  .rp-table th.hl.top{ border-top:2.5px solid #1f9a6b; }
+  .rp-table tr:last-child td.hl{ border-bottom:2.5px solid #1f9a6b; }
+  @media (max-width:720px){
+    header{ padding:14px 16px; gap:8px; }
+    .brand{ flex:1; } .nav-toggle-btn{ display:flex; }
+    .user-box{ display:none; width:100%; position:absolute; left:0; right:0; top:100%; flex-direction:column; align-items:stretch; gap:8px; background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line); box-shadow:0 8px 20px rgba(20,24,40,.12); z-index:30; }
+    header.nav-open .user-box{ display:flex; }
+    .user-box .nav-btn{ width:100%; text-align:left; }
+    main{ padding:18px 14px 48px; } section.card{ padding:18px; }
+    .table-scroll{ overflow-x:auto; } .rate-table{ min-width:640px; }
+  }
+  @media print{
+    @page{ size:A4 portrait; margin:12mm; }
+    body.printing-rates > *:not(#ratesPrintView){ display:none !important; }
+    body.printing-rates #ratesPrintView{ display:block !important; }
+    body.printing-rates{ background:#fff; }
+    #ratesPrintView{ font-family:'Pretendard Variable', Pretendard, sans-serif; color:#111; }
+    .rp-table tr{ page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">📈</div>
+    <h1>타행금리조회</h1>
+    <p>승인된 Google 계정으로 로그인해주세요.</p>
+    <button class="google-btn" id="googleLoginBtn">Google 계정으로 로그인</button>
+    <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="login-mark">📈</div>
+      <h2>인근 경쟁금융기관 수신금리 현황</h2>
+      <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
+    </div>
+    <div class="user-box">
+      <span id="userEmail"></span>
+      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="staff-dashboard.html" class="nav-btn">🙋 전담고객 관리</a>
+      <a href="managed-customers.html" class="nav-btn">👥 전체 관리 고객</a>
+      <a href="customer-assignment.html" class="nav-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
+      <a href="vip.html" class="nav-btn">🏛️ 법인단체등 만기관리</a>
+      <a href="special-deposit.html" class="nav-btn">🏦 특판 실적</a>
+      <a href="rates.html" class="nav-btn active">📈 타행금리조회</a>
+      <a href="admin.html" class="nav-btn" id="navAdminLink" style="display:none">⚙️ 관리자</a>
+      <button class="nav-btn" id="signOutBtn">🚪 로그아웃</button>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <h1 style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span style="display:flex; align-items:center;"><span class="section-icon blue">📅</span> 기준일자</span>
+        <span class="toolbar" style="margin:0;">
+          <input type="date" id="rateDate" style="width:170px;" />
+          <button class="small-btn" id="copyPrevBtn">📋 직전 일자 금리 불러오기</button>
+          <button class="small-btn primary" id="saveBtn">💾 저장</button>
+          <button class="small-btn" id="printBtn">🖨️ 보고서 출력</button>
+          <button class="small-btn" id="deleteDayBtn" style="color:var(--danger);">🗑️ 이 일자 삭제</button>
+        </span>
+      </h1>
+      <p class="desc">기준일자를 선택해 금리를 입력하고 저장하면 일자별로 기록됩니다. 별(★) 표시한 행은 자사(파란색 강조)입니다. 비고에 입력한 내용은 보고서에 빨간 글씨로 표시됩니다. 금리는 % 단위(예: 3.60)로 입력하세요.</p>
+      <div class="status-msg" id="statusMsg"></div>
+      <div class="readonly-note">기록된 일자 (클릭하면 불러옵니다)</div>
+      <div class="date-chips" id="dateChips"></div>
+    </section>
+
+    <section class="card"><h1><span class="section-icon peach">1</span> 정기예탁금 · 새마을금고 및 신협</h1><div class="table-scroll" id="tbl_dep_mg"></div></section>
+    <section class="card"><h1><span class="section-icon peach">2</span> 정기예탁금 · 농협 및 1금융권</h1><div class="table-scroll" id="tbl_dep_nh"></div></section>
+    <section class="card"><h1><span class="section-icon green">3</span> 정기적금</h1><div class="table-scroll" id="tbl_sav"></div></section>
+  </main>
+</div>
+<div id="ratesPrintView"></div>
+
+<script>
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userEmail = document.getElementById('userEmail');
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  navToggleBtn.addEventListener('click', () => {
+    const isOpen = navToggleBtn.closest('header').classList.toggle('nav-open');
+    navToggleBtn.textContent = isOpen ? '✕' : '☰';
+  });
+
+  let currentUserEmail = '';
+  let currentUserName = '';
+  let isAdmin = false;
+
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  async function handleSession(session, shouldLog){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog) await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' });
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog) await sb.rpc('log_login', { p_success: true });
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    const { data: name } = await sb.rpc('current_user_name');
+    currentUserName = name || currentUserEmail;
+    userEmail.textContent = currentUserName;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    isAdmin = !!admin;
+    document.getElementById('navAssignLink').style.display = isAdmin ? 'inline-flex' : 'none';
+    document.getElementById('navAdminLink').style.display = isAdmin ? 'inline-flex' : 'none';
+
+    await loadDates();
+    await loadDate(rateDateEl.value);
+  }
+
+  // ---- 금리 데이터 ----
+  const SECTIONS = {
+    dep_mg: { title:'(1) 새마을금고 및 신협', cols:['m6','m12','m24','m36'] },
+    dep_nh: { title:'(2) 농협 및 1금융권',   cols:['m6','m12','m24','m36'] },
+    sav:    { title:'', cols:['m12','m24','m36'] }
+  };
+  const COL_LABEL = { m6:'6개월', m12:'12개월', m24:'24개월', m36:'36개월' };
+  const OWN = '춘천시산림조합';
+  const mk = (n, own, v, note) => ({ institution:n, is_own:!!own, m6:v[0], m12:v[1], m24:v[2], m36:v[3], note:note||'' });
+  const DEFAULTS = {
+    dep_mg: [
+      mk(OWN,1,[3.20,3.60,3.00,2.80]), mk('동부새마을금고',0,[2.50,4.01,2.70,2.60]), mk('남부새마을금고',0,[2.50,3.90,2.70,2.60]),
+      mk('북춘천새마을금고',0,[2.50,4.00,2.70,2.60]), mk('중부새마을금고',0,[4.00,3.80,2.70,2.60]), mk('소양강새마을금고',0,[2.50,4.00,2.50,2.40]),
+      mk('춘천신협',0,[3.70,4.02,3.05,2.85],'비대면 1년 4.15%'), mk('봄내신협',0,[3.00,4.10,3.90,null]), mk('와이신협',0,[3.60,4.00,2.70,2.50])
+    ],
+    dep_nh: [
+      mk(OWN,1,[3.20,3.60,3.00,2.80]), mk('원예농협',0,[2.90,3.20,2.30,2.20]), mk('춘천농협',0,[2.00,2.70,2.20,2.00]),
+      mk('춘천축협',0,[1.80,2.50,2.40,2.40],'1억원 이상 1년 3.6%'), mk('하나은행',0,[3.40,3.60,3.00,2.70],'비대면우대'),
+      mk('신한은행',0,[3.40,3.60,3.00,2.60],'비대면우대'), mk('국민은행',0,[3.25,3.60,3.00,2.60],'비대면우대'),
+      mk('수협은행',0,[3.75,3.91,2.20,2.00]), mk('농협은행',0,[3.45,3.65,3.00,2.70],'비대면우대')
+    ],
+    sav: [
+      mk(OWN,1,[null,4.00,3.50,3.00]), mk('춘천신협',0,[null,4.00,3.70,3.40],'6개월 3.00'), mk('봄내신협',0,[null,3.80,3.70,3.50],'6개월 3.00'),
+      mk('와이신협',0,[null,4.00,3.30,3.00],'6개월 2.00'), mk('원예농협',0,[null,2.80,2.60,2.40]), mk('춘천농협',0,[null,3.10,2.70,2.60]),
+      mk('춘천축협',0,[null,3.00,2.80,2.80],'6개월 1.80'), mk('중부새마을',0,[null,3.80,3.90,4.00],'6개월 3.20'),
+      mk('북춘천새마을',0,[null,3.80,3.70,3.70]), mk('소양강새마을',0,[null,3.80,3.60,3.60],'6개월 2.90'), mk('농협은행',0,[null,3.55,2.95,3.00],'6개월 2.70')
+    ]
+  };
+
+  const rateDateEl = document.getElementById('rateDate');
+  const statusMsg = document.getElementById('statusMsg');
+  rateDateEl.value = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  let state = { dep_mg:[], dep_nh:[], sav:[] };
+  let savedDates = [];
+
+  function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function cloneDefaults(){ return JSON.parse(JSON.stringify(DEFAULTS)); }
+  function msg(text, kind){ statusMsg.textContent = text || ''; statusMsg.className = 'status-msg ' + (kind || ''); }
+  function fmtRate(v){ return (v === null || v === undefined || v === '') ? '-' : Number(v).toFixed(2); }
+  function kdate(d){ return d ? `'${d.slice(2,4)}.${d.slice(5,7)}.${d.slice(8,10)}.` : ''; }
+
+  async function loadDates(){
+    const { data } = await sb.from('competitor_rates').select('rate_date').order('rate_date', { ascending:false }).limit(5000);
+    savedDates = Array.from(new Set((data || []).map(r => r.rate_date)));
+    const box = document.getElementById('dateChips');
+    box.innerHTML = savedDates.length
+      ? savedDates.slice(0, 60).map(d => `<button class="small-btn ${d === rateDateEl.value ? 'primary' : ''}" data-d="${d}">${d}</button>`).join('')
+      : '<span class="readonly-note">아직 저장된 일자가 없습니다.</span>';
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { rateDateEl.value = b.dataset.d; loadDate(b.dataset.d); }));
+  }
+
+  async function fetchDate(d){
+    const { data, error } = await sb.from('competitor_rates').select('*').eq('rate_date', d).order('sort_order');
+    if (error){ msg('불러오기 실패: ' + error.message, 'error'); return null; }
+    const out = { dep_mg:[], dep_nh:[], sav:[] };
+    (data || []).forEach(r => out[r.section]?.push({ institution:r.institution, is_own:r.is_own, m6:r.m6, m12:r.m12, m24:r.m24, m36:r.m36, note:r.note || '' }));
+    return (data || []).length ? out : null;
+  }
+
+  async function loadDate(d){
+    if (!d) return;
+    const found = await fetchDate(d);
+    if (found){ state = found; msg(`${d} 저장된 금리를 불러왔습니다.`); }
+    else {
+      // 저장 기록이 없으면 가장 가까운 이전 일자를 기본값으로, 없으면 샘플 기본값
+      const prev = savedDates.find(x => x < d);
+      const prevData = prev ? await fetchDate(prev) : null;
+      state = prevData || cloneDefaults();
+      msg(prevData ? `${d} 기록이 없어 직전 일자(${prev}) 금리로 채웠습니다. 수정 후 저장하세요.` : `${d} 기록이 없습니다. 기본 항목으로 채웠습니다. 금리를 입력하고 저장하세요.`);
+    }
+    renderAll();
+    loadDates();
+  }
+
+  rateDateEl.addEventListener('change', () => loadDate(rateDateEl.value));
+
+  document.getElementById('copyPrevBtn').addEventListener('click', async () => {
+    const prev = savedDates.find(x => x < rateDateEl.value);
+    if (!prev){ msg('불러올 직전 일자 기록이 없습니다.', 'error'); return; }
+    if (!confirm(`현재 입력 내용을 ${prev} 일자 금리로 덮어쓸까요? (저장 전까지는 반영되지 않습니다)`)) return;
+    const d = await fetchDate(prev);
+    if (d){ state = d; renderAll(); msg(`${prev} 금리를 불러왔습니다. 수정 후 저장하세요.`); }
+  });
+
+  function renderTable(key){
+    const cols = SECTIONS[key].cols;
+    let h = '<table class="rate-table"><thead><tr><th style="width:24%">금융기관</th>'
+      + cols.map(c => `<th class="${c === 'm12' ? 'hl12' : ''}">${COL_LABEL[c]}</th>`).join('')
+      + '<th>비고</th><th style="width:96px">자사/삭제</th></tr></thead><tbody>';
+    state[key].forEach((r, i) => {
+      h += `<tr class="${r.is_own ? 'own' : ''}"><td class="inst"><input type="text" data-k="${key}" data-i="${i}" data-f="institution" value="${esc(r.institution)}" /></td>`
+        + cols.map(c => `<td><input type="number" step="0.01" inputmode="decimal" data-k="${key}" data-i="${i}" data-f="${c}" value="${r[c] ?? ''}" /></td>`).join('')
+        + `<td class="note"><input type="text" data-k="${key}" data-i="${i}" data-f="note" value="${esc(r.note)}" /></td>`
+        + `<td><button class="icon-btn ${r.is_own ? 'on' : ''}" data-act="own" data-k="${key}" data-i="${i}" title="자사 표시">★</button> <button class="icon-btn" data-act="up" data-k="${key}" data-i="${i}" title="위로">↑</button> <button class="icon-btn" data-act="del" data-k="${key}" data-i="${i}" title="삭제">✕</button></td></tr>`;
+    });
+    h += '</tbody></table><div style="margin-top:10px;"><button class="small-btn" data-act="add" data-k="' + key + '">＋ 금융기관 추가</button></div>';
+    const el = document.getElementById('tbl_' + key);
+    el.innerHTML = h;
+    el.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+      const row = state[inp.dataset.k][+inp.dataset.i], f = inp.dataset.f;
+      row[f] = (f === 'institution' || f === 'note') ? inp.value : (inp.value === '' ? null : Number(inp.value));
+    }));
+    el.querySelectorAll('button[data-act]').forEach(b => b.addEventListener('click', () => {
+      const arr = state[b.dataset.k], i = +b.dataset.i;
+      if (b.dataset.act === 'add') arr.push({ institution:'', is_own:false, m6:null, m12:null, m24:null, m36:null, note:'' });
+      else if (b.dataset.act === 'own') arr[i].is_own = !arr[i].is_own;
+      else if (b.dataset.act === 'del'){ if (!confirm(`"${arr[i].institution || '(이름없음)'}" 행을 삭제할까요?`)) return; arr.splice(i, 1); }
+      else if (b.dataset.act === 'up' && i > 0) [arr[i-1], arr[i]] = [arr[i], arr[i-1]];
+      renderTable(b.dataset.k);
+    }));
+  }
+  function renderAll(){ Object.keys(SECTIONS).forEach(renderTable); }
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const d = rateDateEl.value;
+    if (!d){ msg('기준일자를 선택해주세요.', 'error'); return; }
+    const rows = [];
+    for (const key of Object.keys(SECTIONS)){
+      const seen = new Set();
+      for (const [i, r] of state[key].entries()){
+        const name = (r.institution || '').trim();
+        if (!name) continue;
+        if (seen.has(name)){ msg(`"${name}" 금융기관이 같은 표에 중복되었습니다.`, 'error'); return; }
+        seen.add(name);
+        rows.push({ rate_date:d, section:key, institution:name, sort_order:i, is_own:!!r.is_own,
+          m6:r.m6, m12:r.m12, m24:r.m24, m36:r.m36, note:(r.note || '').trim() || null,
+          updated_by:currentUserName, updated_at:new Date().toISOString() });
+      }
+    }
+    if (!rows.length){ msg('저장할 금융기관이 없습니다.', 'error'); return; }
+    const { error: delErr } = await sb.from('competitor_rates').delete().eq('rate_date', d);
+    if (delErr){ msg('저장 실패: ' + delErr.message, 'error'); return; }
+    const { error } = await sb.from('competitor_rates').insert(rows);
+    if (error){ msg('저장 실패(다시 저장해주세요): ' + error.message, 'error'); return; }
+    msg(`${d} 금리를 저장했습니다.`, 'success');
+    await loadDates();
+  });
+
+  document.getElementById('deleteDayBtn').addEventListener('click', async () => {
+    const d = rateDateEl.value;
+    if (!savedDates.includes(d)){ msg('저장된 기록이 없는 일자입니다.', 'error'); return; }
+    if (!confirm(`${d} 일자의 금리 기록을 모두 삭제할까요?`)) return;
+    const { error } = await sb.from('competitor_rates').delete().eq('rate_date', d);
+    if (error){ msg('삭제 실패: ' + error.message, 'error'); return; }
+    await loadDates(); await loadDate(d);
+    msg(`${d} 기록을 삭제했습니다.`, 'success');
+  });
+
+  // ---- 보고서 출력 ----
+  function reportTable(key){
+    const cols = SECTIONS[key].cols, rows = state[key].filter(r => (r.institution || '').trim());
+    let h = '<table class="rp-table"><thead><tr><th>금융기관</th>'
+      + cols.map(c => `<th class="${c === 'm12' ? 'hl top' : ''}">${COL_LABEL[c]}</th>`).join('') + '<th>비고</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      const red = key === 'dep_mg' || key === 'dep_nh' ? /%/.test(r.note || '') : false;
+      h += `<tr class="${r.is_own ? 'own' : ''}"><td class="inst">${esc(r.institution)}</td>`
+        + cols.map(c => `<td class="${c === 'm12' ? 'hl' : ''}">${fmtRate(r[c])}</td>`).join('')
+        + `<td class="note ${red ? 'red' : ''}">${esc(r.note)}</td></tr>`;
+    });
+    return h + '</tbody></table>';
+  }
+
+  document.getElementById('printBtn').addEventListener('click', () => {
+    const d = rateDateEl.value;
+    document.getElementById('ratesPrintView').innerHTML =
+      `<div class="rp-box"><h1>인근 경쟁금융기관 수신금리 현황</h1><p>(기준일자 ${kdate(d)})</p></div>`
+      + `<div class="rp-sec">1) 정기예탁금</div><div class="rp-unit">(단위 : %)</div>`
+      + `<div class="rp-sub">${SECTIONS.dep_mg.title}</div>${reportTable('dep_mg')}`
+      + `<div class="rp-sub" style="margin-top:14px;">${SECTIONS.dep_nh.title}</div>${reportTable('dep_nh')}`
+      + `<div class="rp-sec" style="page-break-before:always;">2) 정기적금</div><div class="rp-unit">(단위 : %)</div>${reportTable('sav')}`;
+    document.body.classList.add('printing-rates');
+    const done = () => { document.body.classList.remove('printing-rates'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+  });
+</script>
+</body>
+</html>
