@@ -211,20 +211,21 @@
   .legend span::before{ content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; background:var(--c); }
 
   .charts{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; }
-  .chart{ position:relative; height:250px; margin-top:6px; display:grid; grid-template-columns:48px minmax(0,1fr); }
-  .chart .ylab{ display:flex; flex-direction:column; justify-content:space-between; padding-bottom:26px; font-size:11.5px; color:var(--muted); text-align:right; padding-right:8px; white-space:nowrap; }
-  .chart .plot{ position:relative; border-bottom:0; }
-  .chart .grid{ position:absolute; left:0; right:0; top:0; bottom:26px; background:repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 1px), #e6e9e8 calc(25% - 1px), #e6e9e8 25%); border-top:1px dashed #e6e9e8; }
-  .chart .cols{ position:absolute; inset:0 0 0 0; display:flex; align-items:flex-end; justify-content:space-around; gap:6px; }
-  .chart .col{ flex:1; max-width:62px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; position:relative; }
-  .chart .stack{ width:70%; max-width:44px; display:flex; flex-direction:column-reverse; margin-bottom:26px; }
-  .chart .l{ position:absolute; bottom:4px; font-size:12px; color:var(--muted); font-weight:600; }
-  .hatch{ background:repeating-linear-gradient(135deg, #e04e18 0 2.5px, #f4875f 2.5px 5px); }
-  .pill{ border-radius:999px; width:100%; min-height:6px; }
-  .pill.hatch{ } .pill.dark{ background:#1c211f; }
-  .col.hl .pill.hatch{ background:#e04e18; }
-  .bub{ position:absolute; transform:translate(-50%,-100%); left:50%; background:#e04e18; color:#fff; font-size:12px; font-weight:800; padding:5px 10px; border-radius:9px; white-space:nowrap; display:none; z-index:3; }
-  .bub::after{ content:''; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; background:inherit; transform:translateX(-50%) rotate(45deg); }
+  .chart{ position:relative; height:200px; margin-top:8px; display:grid; grid-template-columns:44px minmax(0,1fr); }
+  .chart .ylab{ display:flex; flex-direction:column; justify-content:space-between; padding-bottom:26px; font-size:11px; color:#9aa19e; text-align:right; padding-right:10px; white-space:nowrap; }
+  .chart .plot{ position:relative; }
+  .chart .grid{ position:absolute; left:0; right:0; top:0; bottom:26px; background:repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 1px), #eef0ef calc(25% - 1px), #eef0ef 25%); border-top:1px solid #eef0ef; }
+  .chart .cols{ position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:space-around; }
+  .chart .col{ flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; position:relative; }
+  .chart .stack{ width:12px; display:flex; flex-direction:column-reverse; gap:2px; margin-bottom:26px; }
+  .chart .l{ position:absolute; bottom:5px; font-size:11.5px; color:#9aa19e; font-weight:600; }
+  .chart .col:hover::before{ content:''; position:absolute; left:50%; transform:translateX(-50%); top:0; bottom:26px; width:30px; background:#f6f7f7; border-radius:8px; z-index:0; }
+  .chart .stack, .chart .bub{ z-index:1; }
+  .pill{ width:100%; min-height:4px; border-radius:6px 6px 2px 2px; }
+  .pill.hatch{ background:#f5b8a0; } .pill.dark{ background:#2c3331; border-radius:2px 2px 6px 6px; }
+  .col.hl .pill.hatch, .col:hover .pill.hatch{ background:#e04e18; }
+  .bub{ position:absolute; transform:translate(-50%,-100%); left:50%; background:#2c3331; color:#fff; font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:8px; white-space:nowrap; display:none; }
+  .bub::after{ content:''; position:absolute; left:50%; bottom:-3px; width:7px; height:7px; background:inherit; transform:translateX(-50%) rotate(45deg); }
   .col.hl .bub, .col:hover .bub{ display:block; }
   .legend2{ display:flex; gap:14px; font-size:12.5px; font-weight:700; }
   .legend2 span::before{ content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; background:var(--c); }
@@ -246,11 +247,11 @@
     .focus{ padding:18px; } .focus .chips{ margin-left:0; } .focus .big b{ font-size:30px; }
     .kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .kpi{ padding:14px; } .kpi .v{ font-size:26px; } .kpi .v small{ font-size:15px; } .kpi .ico{ width:34px; height:34px; font-size:15px; } .qhead{ display:none; }
     .qitem{ grid-template-columns:34px minmax(0,1fr); gap:10px; padding:12px 4px; }
-    .qitem .qwhy-wrap{ grid-column:1 / -1; } .qitem .qgo{ grid-column:1 / -1; text-align:left; } .qlink{ display:block; text-align:center; } .chart{ height:210px; grid-template-columns:30px minmax(0,1fr); }
+    .qitem .qwhy-wrap{ grid-column:1 / -1; } .qitem .qgo{ grid-column:1 / -1; text-align:left; } .qlink{ display:block; text-align:center; } .chart{ height:180px; grid-template-columns:36px minmax(0,1fr); }
   }
 </style>
-<script src="preauth.js?v=2"></script>
-<link rel="stylesheet" href="theme.css?v=3" />
+<script src="preauth.js?v=3"></script>
+<link rel="stylesheet" href="theme.css?v=4" />
 </head>
 <body>
 <div class="login-wrap" id="loginScreen">
@@ -273,7 +274,7 @@
     <div class="user-box">
       <span id="userEmail"></span>
       <a href="home.html" class="nav-btn active">📊 내 고객 현황판</a>
-      <a href="index.html" class="nav-btn">🗂️ 고객정보 관리</a>
+      <a href="customers.html" class="nav-btn">🗂️ 고객정보 관리</a>
       <a href="staff-dashboard.html" class="nav-btn">🙋 전담고객 관리</a>
       <a href="managed-customers.html" class="nav-btn">👥 전체 관리 고객</a>
       <a href="customer-assignment.html" class="nav-btn" id="navAssignLink" style="display:none">🗂️ 배정관리</a>
@@ -319,7 +320,7 @@
         <div class="chart" id="wkChart"></div>
       </section>
       <section class="card">
-        <div class="sec-title"><h2>월별 수신 증감</h2><div class="legend2"><span style="--c:#e8693a">증가</span><span style="--c:#1c211f">감소</span></div></div>
+        <div class="sec-title"><h2>월별 수신 증감</h2><div class="legend2"><span style="--c:#e04e18">증가</span><span style="--c:#2c3331">감소</span></div></div>
         <p class="sec-desc">월별 잔액 이력 기준, 고객별 증가분과 감소분의 합</p>
         <div class="chart" id="flowChart"></div>
       </section>
@@ -627,7 +628,7 @@
     const thisMon = mon(new Date()), weeks = [];
     for (let i = 7; i >= 0; i--){ const s = new Date(thisMon); s.setDate(s.getDate() - i * 7); const e = new Date(s); e.setDate(e.getDate() + 6); weeks.push({ s: ymd(s), e: ymd(e), n: 0, l: `${s.getMonth() + 1}/${s.getDate()}` }); }
     touchAll.forEach(a => { const w = weeks.find(w => a.activity_date >= w.s && a.activity_date <= w.e); if (w) w.n++; });
-    const wmax = niceMax(Math.max(...weeks.map(w => w.n))), wpeak = weeks.reduce((b, w, i) => (w.n > weeks[b].n ? i : b), 0), plotH = 250 - 26;
+    const wmax = Math.max(4, Math.ceil(Math.max(...weeks.map(w => w.n)) * 1.18 / 4) * 4), wpeak = weeks.reduce((b, w, i) => (w.n > weeks[b].n ? i : b), 0), plotH = Math.max(120, $('wkChart').clientHeight - 26);
     frame($('wkChart'), wmax, (v) => Math.round(v), weeks.map((w, i) => `<div class="col ${i === wpeak && w.n ? 'hl' : ''}"><div class="bub" style="bottom:${26 + Math.max(6, w.n / wmax * plotH) + 8}px">${w.n}건</div><div class="stack"><div class="pill hatch" style="height:${Math.max(6, w.n / wmax * plotH)}px"></div></div><span class="l">${w.l}</span></div>`).join(''));
     $('wkNote').textContent = `8주 합계 ${weeks.reduce((t, w) => t + w.n, 0)}건`;
 
@@ -638,7 +639,7 @@
     Object.values(perCust).forEach(mm => { const ks = Object.keys(mm).sort(); for (let i = 1; i < ks.length; i++){ const dv = mm[ks[i]].v - mm[ks[i - 1]].v, f = (flow[ks[i]] ||= { up: 0, dn: 0 }); if (dv > 0) f.up += dv; else f.dn += -dv; } });
     const fm = Object.keys(flow).sort().slice(-8), fmax = niceMax(Math.max(1, ...fm.map(m => flow[m].up + flow[m].dn))), fpeak = fm.reduce((b, m, i) => (flow[m].up + flow[m].dn > flow[fm[b]].up + flow[fm[b]].dn ? i : b), 0);
     if (!fm.length) $('flowChart').innerHTML = '<p class="empty" style="grid-column:1/-1">월별 잔액 이력이 2개월 이상 쌓이면 표시됩니다.</p>';
-    else frame($('flowChart'), fmax, (v) => won(Math.round(v)), fm.map((m, i) => { const f = flow[m], hu = f.up / fmax * plotH, hd = f.dn / fmax * plotH; return `<div class="col ${i === fpeak ? 'hl' : ''}"><div class="bub" style="bottom:${26 + hu + hd + 8}px">+${won(f.up)} / -${won(f.dn)}</div><div class="stack">${f.up ? `<div class="pill hatch" style="height:${Math.max(6, hu)}px"></div>` : ''}${f.dn ? `<div class="pill dark" style="height:${Math.max(6, hd)}px;margin-bottom:-6px"></div>` : ''}</div><span class="l">${+m.slice(5)}월</span></div>`; }).join(''));
+    else frame($('flowChart'), fmax, (v) => won(Math.round(v)), fm.map((m, i) => { const f = flow[m], hu = f.up / fmax * plotH, hd = f.dn / fmax * plotH; return `<div class="col ${i === fpeak ? 'hl' : ''}"><div class="bub" style="bottom:${26 + hu + hd + 8}px">+${won(f.up)} / -${won(f.dn)}</div><div class="stack">${f.up ? `<div class="pill hatch" style="height:${Math.max(6, hu)}px"></div>` : ''}${f.dn ? `<div class="pill dark" style="height:${Math.max(6, hd)}px"></div>` : ''}</div><span class="l">${+m.slice(5)}월</span></div>`; }).join(''));
 
     const nameOf = Object.fromEntries(rows.map(r => [r.c.customer_no, r.c.name]));
     const recent = acts.slice().sort((a, b) => b.activity_date.localeCompare(a.activity_date)).slice(0, 8);
