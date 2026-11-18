@@ -396,8 +396,8 @@
 #membershipPrintView .mp-note-body{ min-height:130px; white-space:pre-wrap; padding:12px; border:1px solid #333; font-size:13px; line-height:1.6; }
 #membershipPrintView .mp-signature{ text-align:right; margin-top:18px; font-size:13.5px; }
 </style>
-<script src="preauth.js?v=1"></script>
-<link rel="stylesheet" href="theme.css?v=1" />
+<script src="preauth.js?v=2"></script>
+<link rel="stylesheet" href="theme.css?v=2" />
 </head>
 <body>
 
@@ -914,6 +914,8 @@
     loadDirectory();
     showIdle();
     loadPersonalStats();
+    // 상단 검색(다른 화면)에서 넘어온 검색어 처리
+    try { const q = new URLSearchParams(location.search).get('q'); if (q){ searchBox.value = q; runSearch(); history.replaceState(null, '', location.pathname); } } catch (e) {}
   }
 
   function setStatus(text, cls){
