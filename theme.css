@@ -108,3 +108,13 @@
   main button:not(.icon-btn):not(.nav-toggle-btn):not([class*="round"]){ border-radius:10px; }
   main input[type=text], main input[type=search], main input[type=number], main input[type=date], main select{ border-radius:10px; }
 }
+
+@media screen{
+  /* 로그인 화면은 필요할 때만(각 화면 JS가 inline 으로 flex 지정) 보이게 — 페이지 이동마다 깜빡이던 원인 */
+  #loginScreen{ display:none; }
+  /* 같은 탭에서 이미 로그인했다면 인증 확인 전에도 앱 화면을 바로 표시 (preauth.js) */
+  .pre-auth #app{ display:block !important; }
+}
+@media screen and (min-width:961px){
+  .pre-auth #app:has(> header .brand){ display:grid !important; grid-template-columns:252px minmax(0,1fr); align-items:start; }
+}
