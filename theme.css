@@ -58,74 +58,20 @@
   .topbar{ display:none; }
 }
 
-/* ---------- 태블릿·모바일(~960px): 흰색 상단바 + ☰ 메뉴 (각 화면 기존 동작 유지) ---------- */
-@media screen and (max-width:960px){
-  header{ border-radius:0 0 22px 22px; }
-  .nav-label{ display:none; }
-}
-@media screen and (min-width:721px) and (max-width:960px){
-  header .user-box .nav-btn, header .user-box .signout-btn, header .user-box .link-btn{ background:var(--chipbg); color:var(--muted); }
-  header .user-box .active{ background:var(--accent) !important; color:#fff !important; }
-}
-
-/* ---------- PC(961px~): 상단 바 + 떠 있는 흰색 사이드바 ---------- */
-@media screen and (min-width:961px){
-  #app[style*="block"]:has(> header .brand){ display:grid !important; }
-  #app:has(> header .brand){
-    grid-template-columns:268px minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); gap:18px 22px;
-    padding:18px 22px 36px; max-width:1760px; margin:0 auto; align-items:start;
-  }
-  #app:has(> header .brand) > header{ display:contents; }
-
-  /* 상단 바: 로고(.brand)가 바 왼쪽에 겹쳐 놓이고, 검색·프로필이 오른쪽에 */
-  #app:has(> header .brand) > .topbar{
-    grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:16px; min-height:68px;
-    background:#fff; border-radius:26px; padding:10px 14px 10px 306px;
-  }
-  #app:has(> header .brand) .brand{ grid-column:1; grid-row:1; z-index:2; align-self:center; justify-self:start; margin-left:14px; padding:0; gap:12px; }
-  #app:has(> header .brand) .brand h2{ font-size:16px; font-weight:800; white-space:nowrap; }
-  #app:has(> header .brand) .brand .login-mark{ width:42px; height:42px; border-radius:14px; font-size:20px; }
-  #app:has(> header .brand) .nav-toggle-btn{ display:none; }
-  .topbar .gsearch{ flex:1; max-width:560px; margin:0 auto; display:flex; align-items:center; gap:10px; background:var(--field); border-radius:999px; padding:0 18px; height:46px; }
-  .topbar .gsearch input{ flex:1; border:0; background:transparent; outline:none; font-size:14.5px; padding:0; height:100%; min-width:0; }
-  .topbar .gsearch input:focus{ outline:none; background:transparent; }
-  .topbar .gsearch .ic{ opacity:.55; }
-  .topbar .gsearch kbd{ font-family:inherit; font-size:11px; font-weight:700; color:var(--muted); background:#fff; border-radius:7px; padding:3px 7px; }
-  .topbar .profile{ display:flex; align-items:center; gap:11px; padding:5px 16px 5px 6px; border-radius:999px; background:var(--field); }
-  .topbar .profile .av{ width:36px; height:36px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:15px; }
-  .topbar .profile .pn{ line-height:1.2; font-weight:800; font-size:14px; } .topbar .profile .pn small{ display:block; color:var(--muted); font-weight:600; font-size:11.5px; }
-
-  /* 사이드바: 흰색 둥근 카드 */
-  #app:has(> header .brand) .user-box{
-    grid-column:1; grid-row:2; position:sticky; top:18px; align-self:start;
-    height:calc(100vh - 36px - 68px - 18px); min-height:520px; overflow-y:auto;
-    display:flex; flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:3px;
-    background:#fff; border-radius:26px; padding:18px 14px 14px;
-  }
-  #app:has(> header .brand) .user-box #userEmail{ display:none; }
-  #app:has(> header .brand) .user-box .nav-label{ font-size:12px; font-weight:700; color:#9aa19e; padding:12px 12px 6px; }
-  #app:has(> header .brand) .user-box .nav-label:first-child{ padding-top:2px; }
-  #app:has(> header .brand) .user-box .nav-btn,
-  #app:has(> header .brand) .user-box .signout-btn,
-  #app:has(> header .brand) .user-box .link-btn{
-    display:flex; align-items:center; gap:10px; width:100%; text-align:left; justify-content:flex-start;
-    padding:11px 14px; border-radius:14px; background:transparent; color:#2a302d; font-size:14.5px; font-weight:600; border:none;
-  }
-  #app:has(> header .brand) .user-box .nav-btn:hover,
-  #app:has(> header .brand) .user-box .signout-btn:hover,
-  #app:has(> header .brand) .user-box .link-btn:hover{ background:#f3f5f4; color:var(--ink); }
-  #app:has(> header .brand) .user-box .active{ background:var(--accent) !important; color:#fff !important; font-weight:700; }
-  #app:has(> header .brand) .user-box #signOutBtn{ margin-top:auto; background:var(--danger-soft); color:var(--danger); font-weight:700; }
-  #app:has(> header .brand) .user-box #signOutBtn:hover{ background:#fbe1da; color:var(--danger); }
-
-  #app:has(> header .brand) > main{ grid-column:2; grid-row:2; width:100%; max-width:none; margin:0; padding:0; min-width:0; }
-
-  /* 같은 탭에서 이미 로그인했다면 인증 확인 전에도 앱 화면을 바로 표시 (preauth.js) */
-  .pre-auth #app:has(> header .brand){ display:grid !important; }
-}
-
-/* 로그인 화면은 필요할 때만(각 화면 JS가 inline 으로 flex 지정) 보이게 — 페이지 이동마다 깜빡이던 원인 */
+/* ---------- 앱 셸(index.html) 안에서 열린 화면(.embedded): 화면 자체 헤더·로그인 숨김 ---------- */
 @media screen{
-  #loginScreen{ display:none; }
-  .pre-auth #app{ display:block !important; }
+  html.embedded body{ background:transparent !important; }
+  html.embedded #app, html.embedded #app:has(> header .brand){ display:block !important; padding:0; max-width:none; margin:0; }
+  html.embedded #app > header:has(.brand){ display:none !important; }
+  html.embedded #loginScreen{ display:none !important; }
+  /* 고객 상세처럼 .brand 없는 헤더는 슬림한 액션 바로 유지(뒤로가기·인쇄), 로그아웃·이메일만 숨김 */
+  html.embedded #app > header:not(:has(.brand)){ position:static; border-radius:20px; margin:0 0 16px; padding:10px 14px; }
+  html.embedded #signOutBtn, html.embedded #userEmail{ display:none !important; }
+  html.embedded header h2{ color:var(--ink); }
+}
+@media screen and (min-width:961px){
+  html.embedded #app > main{ padding-top:2px; padding-left:4px; padding-right:12px; padding-bottom:56px; }
+}
+@media screen and (max-width:960px){
+  html.embedded #app > header:not(:has(.brand)){ margin:10px 10px 0; }
 }

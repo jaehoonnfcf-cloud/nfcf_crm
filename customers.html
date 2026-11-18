@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>고객정보 관리</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="고객정보 관리" />
+<meta name="theme-color" content="#e04e18" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --ink:#16181d; --paper:#eceef3; --panel:#ffffff; --line:#eceef3; --line-strong:#dfe2ea;
+    --accent:#5b4bff; --accent-hover:#4636e0; --accent-soft:#eceaff; --danger:#e5484d; --muted:#8a90a0;
+    --green:#12a150; --green-soft:#e6f7ee;
+    --warn:#c77700; --warn-soft:#fff3dc;
+    --mint:#d1ede2; --peach:#fed2aa;
+    --chipbg:#f1f3f7; --field:#f5f6fa;
+    --shadow-sm:0 1px 2px rgba(20,24,40,.04), 0 10px 28px rgba(20,24,40,.07), inset 0 1px 0 #fff;
+    --shadow-md:0 1px 2px rgba(20,24,40,.05), 0 16px 38px rgba(20,24,40,.11), inset 0 1px 0 #fff;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:radial-gradient(1100px 480px at 50% -140px, #fff 0%, rgba(255,255,255,0) 70%), var(--paper);
+    color:var(--ink);
+    font-family:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    min-height:100vh;
+    letter-spacing:-0.01em;
+  }
+  button, input, select, textarea{ font-family:inherit; font-size:16px; color:var(--ink); }
+  .section-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; margin-right:9px; font-size:15px; flex-shrink:0; vertical-align:middle; }
+  .section-icon.blue{ background:var(--accent-soft); }
+  .section-icon.peach{ background:var(--peach); }
+  .section-icon.green{ background:var(--green-soft); }
+
+  /* ---------- 로그인 화면 ---------- */
+  .login-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .login-card{
+    background:var(--panel); border:none; border-radius:28px;
+    padding:40px 34px; width:100%; max-width:360px; text-align:center;
+    box-shadow:0 20px 60px rgba(20,24,40,.15);
+  }
+  .login-mark{
+    width:48px;height:48px;border-radius:16px; background:var(--accent-soft); margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center; font-size:24px;
+    box-shadow:var(--shadow-sm);
+  }
+  .login-card h1{ font-size:21px; margin:0 0 6px; letter-spacing:-.02em; }
+  .login-card p{ color:var(--muted); font-size:13.5px; margin:0 0 24px; line-height:1.5; }
+  #loginForm{ display:flex; flex-direction:column; gap:10px; }
+  .text-field{
+    width:100%; padding:10px 13px; border:1px solid transparent; border-radius:14px;
+    font-size:14px; font-family:inherit; background:var(--field);
+  }
+  .text-field:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+  .primary-btn{
+    width:100%; padding:11px 16px; border-radius:99px; border:none;
+    background:#16181d; color:#fff; font-size:14.5px; font-weight:700; cursor:pointer;
+    margin-top:2px; box-shadow:0 6px 16px rgba(20,24,40,.25);
+  }
+  .primary-btn:hover{ background:#000; }
+  .primary-btn:disabled{ opacity:.6; cursor:default; }
+  .google-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%; padding:11px 16px; border-radius:99px;
+    border:none; background:var(--field); color:var(--ink);
+    font-size:14.5px; font-weight:700; cursor:pointer;
+    transition:background .15s;
+  }
+  .google-btn:hover{ background:#eceef3; }
+  .google-btn:disabled{ opacity:.6; cursor:default; }
+  .login-error{ margin-top:16px; font-size:12.5px; color:var(--danger); display:none; }
+
+  /* ---------- 앱 화면 ---------- */
+  #app{ display:none; }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 36px; background:var(--panel); flex-wrap:wrap; gap:10px;
+    box-shadow:var(--shadow-sm);
+    position:sticky; top:0; z-index:20;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .login-mark{ margin:0; width:36px; height:36px; font-size:18px; border-radius:12px; box-shadow:none; }
+  .brand h2{ font-size:17px; margin:0; font-weight:800; letter-spacing:-0.02em; }
+  .nav-toggle-btn{ display:none; margin-left:auto; border:none; background:var(--chipbg); color:var(--ink); width:36px; height:36px; border-radius:99px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; }
+  .user-box{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .signout-btn{
+    border:none; background:var(--chipbg); color:var(--muted);
+    padding:8px 16px; border-radius:99px; font-size:13.5px; font-weight:700; cursor:pointer;
+    text-decoration:none; transition:background .12s ease, color .12s ease;
+  }
+  .signout-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .signout-btn.active{ background:#16181d; color:#fff; }
+  .signout-btn.active:hover{ background:#000; }
+
+  main{ max-width:1180px; margin:0 auto; padding:32px 32px 60px; }
+
+  .page-head{
+    display:flex; flex-direction:column; align-items:flex-start;
+    margin-bottom:18px; gap:12px;
+  }
+  .page-head h1{ font-size:20px; margin:0; letter-spacing:-0.01em; display:flex; align-items:center; font-weight:800; }
+  .page-head .count{ font-size:13px; color:var(--muted); margin-left:8px; font-weight:400; }
+
+  .greeting-row{ margin-bottom:20px; }
+  .greeting-title{ font-size:30px; font-weight:800; margin:0 0 4px; letter-spacing:-0.03em; }
+  .greeting-sub{ font-size:13.5px; color:var(--muted); margin:0; font-weight:500; }
+
+  .personal-stats{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:14px; margin-bottom:28px;
+  }
+  .pstat-card{
+    background:var(--panel); border:none; border-radius:20px;
+    padding:16px 18px; box-shadow:var(--shadow-sm); transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .pstat-card:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .pstat-label{ font-size:12.5px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .pstat-num{ font-size:26px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+  .pstat-card.streak .pstat-num{ color:var(--warn); }
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background:var(--panel); border-radius:20px; padding:14px 16px; box-shadow:var(--shadow-sm);
+  }
+  .toolbar > *{ flex-shrink:0; }
+  .toolbar input[type=text]{
+    padding:10px 16px; border:1px solid transparent; border-radius:99px;
+    font-size:15px; width:230px; background:var(--field);
+  }
+  .toolbar input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+  .add-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    border:none; background:#16181d; color:#fff;
+    padding:10px 20px; border-radius:99px; font-size:14.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap; box-shadow:0 6px 16px rgba(20,24,40,.25);
+    transition:background .12s ease, transform .1s ease;
+  }
+  .add-btn:hover{ background:#000; }
+  .add-btn:active{ transform:scale(.97); }
+  #openMembershipBtn:hover{ opacity:.9; }
+
+  .search-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--accent); color:#fff; border:none;
+    padding:10px 20px; border-radius:99px; font-size:14.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap; box-shadow:0 6px 16px rgba(91,75,255,.3);
+    transition:background .12s ease, transform .1s;
+  }
+  .search-btn:hover{ background:var(--accent-hover); }
+  .search-btn:active{ transform:scale(0.97); }
+
+  .member-filter-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--chipbg); color:var(--muted); border:none;
+    padding:10px 18px; border-radius:99px; font-size:14.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+  }
+  .member-filter-btn:hover{ background:#e6e9f0; color:var(--ink); }
+  .member-filter-btn.active{ background:#16181d; color:#fff; }
+
+  .reset-btn{
+    background:var(--chipbg); color:var(--danger); border:none;
+    padding:10px 18px; border-radius:99px; font-size:14.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap;
+  }
+  .reset-btn:hover{ background:var(--danger-soft); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel);
+    border:none; border-radius:22px; overflow:hidden; box-shadow:var(--shadow-sm); }
+  thead th{
+    text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); font-weight:700; padding:13px 16px; border-bottom:1px solid var(--line);
+    background:transparent; white-space:nowrap;
+  }
+  tbody td{ padding:13px 16px; border-bottom:1px solid var(--line); font-size:14.5px; vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#f6f8fc; }
+  td.no-col{ font-variant-numeric:tabular-nums; color:var(--muted); width:112px; font-weight:700; }
+  td.name-col{ width:190px; }
+  .name-cell-wrap{ display:flex; align-items:center; gap:6px; }
+  .name-cell-wrap .name-input{ flex:1; min-width:0; }
+  .member-badge{
+    flex-shrink:0; font-size:11px; font-weight:700; white-space:nowrap;
+    background:var(--accent-soft); color:var(--accent-hover); padding:3px 9px; border-radius:999px;
+  }
+  .pending-application-badge{
+    flex-shrink:0; font-size:11px; font-weight:700; white-space:nowrap;
+    background:var(--warn-soft); color:var(--warn); padding:3px 9px; border-radius:999px;
+  }
+  td.assign-col{ width:130px; }
+  .assign-select{
+    width:100%; border:1px solid transparent; border-radius:8px; padding:5px 6px;
+    font-size:13.5px; font-family:inherit; background:transparent; color:var(--ink); cursor:pointer;
+  }
+  .assign-select:hover{ border-color:var(--line-strong); background:var(--field); }
+  .assign-select:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .assign-select.unassigned{ color:var(--muted); }
+  .assignee-readonly{ font-size:13.5px; color:var(--ink); }
+  td input[type=text], td textarea{
+    display:block;
+    width:100%; border:1px solid transparent; border-radius:8px; padding:5px 7px;
+    font-size:14.5px; font-family:inherit; background:transparent; resize:vertical;
+    line-height:1.5; box-sizing:border-box;
+  }
+  td textarea{ overflow:hidden; min-height:26px; }
+  td input[type=text]:hover, td textarea:hover{ border-color:var(--line-strong); background:var(--field); }
+  td input[type=text]:focus, td textarea:focus{
+    outline:none; border-color:var(--accent); background:#fff;
+  }
+  .row-actions{ display:flex; gap:6px; white-space:nowrap; justify-content:flex-end; }
+  .icon-btn{
+    border:none; background:var(--chipbg); border-radius:99px;
+    padding:7px 15px; font-size:13px; cursor:pointer; color:var(--ink); font-weight:700;
+  }
+  .icon-btn.save{ background:var(--accent-soft); color:var(--accent); }
+  .icon-btn.save:disabled{ opacity:.4; cursor:default; }
+  .icon-btn.del{ color:var(--danger); background:var(--danger-soft); }
+  .icon-btn:hover{ background:#e6e9f0; }
+  .icon-btn.save:hover{ background:#ddd9ff; }
+  .icon-btn.del:hover{ background:#fbdcdc; }
+
+  .empty-state{ text-align:center; padding:48px 20px; color:var(--muted); font-size:14px; background:var(--panel); border-radius:22px; box-shadow:var(--shadow-sm); }
+  .deleted-meta{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+  .pagination{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin-top:18px; flex-wrap:wrap;
+  }
+  .pagination select{
+    padding:7px 14px; border:1px solid transparent; border-radius:99px;
+    font-size:13.5px; background:var(--field); color:var(--ink); font-family:inherit;
+  }
+  .pagination select:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+  .pagination .btn-secondary{ padding:7px 14px; font-size:13.5px; }
+  .pagination .btn-secondary:disabled{ opacity:.4; cursor:default; }
+  .page-indicator{ font-size:13.5px; color:var(--muted); min-width:90px; text-align:center; }
+  .status-line{ font-size:12.5px; color:var(--muted); margin-top:12px; min-height:16px; }
+  .saved-flash{ color:var(--accent); }
+  .err-flash{ color:var(--danger); }
+
+  /* ---- 추가 모달 ---- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(22,24,29,.55);
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background:var(--panel); border-radius:28px; width:100%; max-width:420px;
+    padding:28px; box-shadow:0 24px 70px rgba(20,24,40,.28);
+  }
+  .modal h2{ font-size:17px; margin:0 0 4px; display:flex; align-items:center; font-weight:800; letter-spacing:-.01em; }
+
+  .modal .sub{ font-size:12.5px; color:var(--muted); margin:0 0 20px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; color:var(--ink); }
+  .field input[type=text], .field input[type=number], .field textarea{
+    width:100%; padding:11px 14px; border:1px solid transparent; border-radius:14px;
+    font-size:15px; font-family:inherit; background:var(--field);
+  }
+  .field input:focus, .field textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; background:#fff; }
+  .field .hint{ font-size:12px; color:var(--danger); margin-top:4px; display:none; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .btn-secondary{
+    border:none; background:var(--chipbg); color:var(--ink);
+    padding:10px 18px; border-radius:99px; font-size:14.5px; font-weight:700; cursor:pointer;
+    white-space:nowrap; transition:background .12s ease;
+  }
+  .btn-secondary:hover{ background:#e6e9f0; }
+  .btn-primary{
+    border:none; background:#16181d; color:#fff;
+    padding:10px 22px; border-radius:99px; font-size:14.5px; font-weight:700; cursor:pointer;
+    box-shadow:0 6px 16px rgba(20,24,40,.25); transition:background .12s ease;
+  }
+  .btn-primary:hover{ background:#000; }
+  .btn-primary:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+
+  .history-item{
+    border:none; background:var(--chipbg); border-radius:16px; padding:12px 14px; margin-bottom:8px;
+  }
+  .history-item .h-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .history-item .h-action{
+    font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:999px;
+  }
+  .history-item .h-action.insert{ background:var(--accent-soft); color:var(--accent-hover); }
+  .history-item .h-action.update{ background:var(--green-soft); color:var(--green); }
+  .history-item .h-action.delete, .history-item .h-action.soft_delete{ background:var(--danger-soft); color:var(--danger); }
+  .history-item .h-action.restore{ background:var(--warn-soft); color:var(--warn); }
+  .history-item .h-action.hard_delete{ background:#16181d; color:#fff; }
+  .history-item .h-meta{ font-size:11.5px; color:var(--muted); }
+  .history-item .h-diff{ font-size:12.5px; line-height:1.6; }
+  .history-item .h-diff .field-name{ color:var(--muted); margin-right:4px; }
+  .history-item .h-diff del{ color:var(--danger); text-decoration:line-through; opacity:.75; margin-right:4px; }
+  .history-item .h-diff ins{ color:var(--accent); text-decoration:none; }
+
+  .table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* ---------- 모바일 대응 ---------- */
+  @media (max-width: 720px){
+    .login-card{ padding:32px 22px; border-radius:24px; }
+
+    header{ flex-wrap:wrap; gap:10px; padding:14px 16px; position:sticky; }
+    .brand{ flex:1; }
+    .brand h2{ font-size:14.5px; }
+    .nav-toggle-btn{ display:flex; }
+    .user-box{
+      display:none; width:100%; position:absolute; left:0; right:0; top:100%;
+      flex-direction:column; align-items:stretch; gap:8px; font-size:13px;
+      background:var(--panel); padding:12px 16px 16px; border-top:1px solid var(--line);
+      box-shadow:0 8px 20px rgba(20,24,40,.12); z-index:30;
+    }
+    header.nav-open .user-box{ display:flex; }
+    .user-box span#userEmail{ max-width:none; overflow:visible; text-overflow:clip; white-space:normal; font-weight:700; color:var(--ink); margin-bottom:2px; }
+    .user-box .signout-btn{ width:100%; box-sizing:border-box; }
+
+    main{ padding:18px 14px 40px; }
+
+    .page-head{ flex-direction:column; align-items:stretch; gap:10px; }
+    .page-head h1{ font-size:17px; }
+    .greeting-title{ font-size:23px; }
+    .personal-stats{ grid-template-columns:repeat(2, 1fr); gap:8px; margin-bottom:20px; }
+    .pstat-card{ padding:12px 14px; border-radius:16px; }
+    .pstat-num{ font-size:19px; }
+
+    .toolbar{ flex-wrap:wrap; gap:8px; border-radius:18px; }
+    .toolbar input[type=text]{ flex:1 1 100%; width:auto; order:1; }
+    .search-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    .member-filter-btn{ flex:1 1 calc(50% - 4px); justify-content:center; order:2; }
+    #showAllBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    #trashBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    #myCustomersBtn{ flex:1 1 calc(50% - 4px); order:3; }
+    .reset-btn{ flex:1 1 calc(50% - 4px); order:4; }
+    #downloadCsvBtn{ flex:1 1 calc(50% - 4px); order:5; }
+    .add-btn{ flex:1 1 100%; justify-content:center; order:6; }
+
+    .table-scroll{ overflow-x:visible; }
+
+    #customerTable{ background:transparent; border:none; border-radius:0; box-shadow:none; }
+    #customerTable thead{ display:none; }
+    #customerTable tbody{ display:block; }
+    #customerTable tr{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      grid-template-areas: "no name" "assign assign" "info info" "actions actions";
+      align-items:center;
+      gap:5px 10px;
+      background:var(--panel); border:none; border-radius:20px; box-shadow:var(--shadow-sm);
+      padding:14px 16px; margin-bottom:10px;
+    }
+    #customerTable tbody tr:nth-child(even){ background:var(--panel); } /* 줄무늬 배경 무효화 */
+    #customerTable tbody tr:hover{ background:var(--panel); }
+    #customerTable td{ border:none; padding:0; }
+    #customerTable td.no-col{ grid-area:no; font-size:12px; align-self:center; line-height:1; padding-top:1px; }
+    #customerTable td.name-col{ grid-area:name; width:auto; align-self:center; }
+    #customerTable td.name-col .name-input{ padding-top:6px; padding-bottom:6px; }
+    #customerTable td.assign-col{ grid-area:assign; }
+    #customerTable td.info-col{ grid-area:info; }
+    #customerTable td.actions-col{ grid-area:actions; margin-top:6px; }
+    #customerTable .row-actions{ justify-content:flex-start; flex-wrap:wrap; }
+    #customerTable .name-input, #customerTable .info-input{ width:100%; }
+
+    .modal{ max-width:94vw !important; padding:22px 18px; max-height:88vh; overflow-y:auto; border-radius:24px; }
+    .modal-actions{ flex-wrap:wrap; }
+    .modal-actions button{ flex:1 1 auto; }
+
+    .pagination{ gap:8px; }
+    .pagination select{ flex:1 1 100%; order:1; }
+    .page-indicator{ order:2; }
+  }
+
+  @media (max-width: 420px){
+    .search-btn, .member-filter-btn, #showAllBtn, #trashBtn, #myCustomersBtn, .reset-btn, #downloadCsvBtn{ flex:1 1 100%; }
+  }
+@media print{
+  @page{ margin: 20mm 16mm 14mm 16mm; }
+  body{ zoom:1; }
+  body.printing-membership > *:not(#membershipPrintView){ display:none !important; }
+  body.printing-membership #membershipPrintView{ display:block !important; }
+}
+#membershipPrintView{ font-family:'Pretendard Variable', Pretendard, sans-serif; color:#111; padding:10px 6px 6px; max-width:720px; margin:0 auto; font-size:13.5px; line-height:1.5; }
+#membershipPrintView table{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:4px; }
+#membershipPrintView td, #membershipPrintView th{ border:1px solid #333; padding:8px 12px; vertical-align:top; line-height:1.55; }
+#membershipPrintView .mp-title{ text-align:center; font-size:21px; font-weight:700; margin-bottom:8px; letter-spacing:0.02em; }
+#membershipPrintView .mp-sub{ text-align:center; font-size:12.5px; color:#444; margin-bottom:16px; }
+#membershipPrintView .mp-label{ width:122px; font-weight:600; background:#f7f7f5; }
+#membershipPrintView .mp-note-title{ text-align:center; font-weight:700; margin:18px 0 8px; font-size:14px; line-height:1.35; }
+#membershipPrintView .mp-note-body{ min-height:130px; white-space:pre-wrap; padding:12px; border:1px solid #333; font-size:13px; line-height:1.6; }
+#membershipPrintView .mp-signature{ text-align:right; margin-top:18px; font-size:13.5px; }
+</style>
+<script src="preauth.js?v=3"></script>
+<link rel="stylesheet" href="theme.css?v=4" />
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div class="login-wrap" id="loginScreen">
+    <div class="login-card">
+      <div class="login-mark">🗂️</div>
+      <h1>고객정보 관리</h1>
+      <p>🔒 승인된 Google 계정으로 로그인 후<br/>고객 정보를 조회하고 수정할 수 있습니다.</p>
+      <button class="google-btn" id="googleLoginBtn">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34 5.1 29.3 3 24 3 16 3 9.1 7.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.6 2.4-7.2 2.4-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9 40.4 15.9 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.2C40.9 36.3 45 30.7 45 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
+        Google 계정으로 로그인
+      </button>
+      <div class="login-error" id="loginError">로그인에 실패했습니다. 다시 시도해 주세요.</div>
+    </div>
+  </div>
+
+  <!-- 메인 앱 -->
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="login-mark">🗂️</div>
+        <h2>고객정보 관리</h2>
+        <button class="nav-toggle-btn" id="navToggleBtn" aria-label="메뉴 열기">☰</button>
+      </div>
+      <div class="user-box">
+        <span id="userEmail"></span>
+        <a href="home.html" class="signout-btn" style="text-decoration:none;">📊 내 고객 현황판</a>
+        <a href="customers.html" class="signout-btn active" style="text-decoration:none;">🗂️ 고객정보 관리</a>
+        <a href="staff-dashboard.html" class="signout-btn" style="text-decoration:none;">🙋 전담고객 관리</a>
+        <a href="managed-customers.html" class="signout-btn" style="text-decoration:none;">👥 전체 관리 고객</a>
+        <a href="customer-assignment.html" class="signout-btn" id="navAssignLink" style="display:none; text-decoration:none;">🗂️ 배정관리</a>
+        <a href="vip.html" class="signout-btn" style="text-decoration:none;">🏛️ 법인단체등 만기관리</a>
+        <a href="special-deposit.html" class="signout-btn" style="text-decoration:none;">🏦 특판 실적</a>
+        <a href="rates.html" class="signout-btn" style="text-decoration:none;">📈 타행금리조회</a>
+        <a href="admin.html" class="signout-btn" id="navAdminLink" style="display:none; text-decoration:none;">⚙️ 관리자</a>
+        <button class="signout-btn" id="signOutBtn">🚪 로그아웃</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="greeting-row">
+        <div>
+          <p class="greeting-title" id="greetingTitle">안녕하세요 👋</p>
+          <p class="greeting-sub">오늘의 활동 현황이에요</p>
+        </div>
+      </div>
+
+      <div class="personal-stats" id="personalStats">
+        <div class="pstat-card">
+          <div class="pstat-label">🆕 오늘 등록</div>
+          <div class="pstat-num" id="pstatInsert">-</div>
+        </div>
+        <div class="pstat-card">
+          <div class="pstat-label">✏️ 오늘 수정</div>
+          <div class="pstat-num" id="pstatUpdate">-</div>
+        </div>
+        <div class="pstat-card">
+          <div class="pstat-label">📊 이번 주 누적</div>
+          <div class="pstat-num" id="pstatWeek">-</div>
+        </div>
+        <div class="pstat-card streak">
+          <div class="pstat-label">🔥 연속 활동일</div>
+          <div class="pstat-num" id="pstatStreak">-</div>
+        </div>
+      </div>
+
+      <div class="page-head">
+        <h1><span class="section-icon blue">🗂️</span> 고객 목록 <span class="count" id="countLabel"></span></h1>
+        <div class="toolbar">
+          <input type="text" id="searchBox" placeholder="🔍 고객번호 · 성명 · 고객정보 검색" autocomplete="off" name="search-no-autofill-1" />
+          <button class="search-btn" id="searchBtn">🔍 검색</button>
+          <button class="member-filter-btn" id="membersOnlyBtn">🏅 조합원만 보기</button>
+          <button class="btn-secondary" id="myCustomersBtn">🙋 내 담당 고객</button>
+          <button class="btn-secondary" id="showAllBtn">📋 전체고객 보기</button>
+          <button class="btn-secondary" id="trashBtn">🗑️ 휴지통</button>
+          <button class="reset-btn" id="resetBtn">🧹 초기화</button>
+          <button class="btn-secondary" id="downloadCsvBtn">⬇️ 결과 다운로드</button>
+          <button class="add-btn" id="openAddBtn">➕ 고객 추가</button>
+          <button class="add-btn" id="openMembershipBtn" style="background:var(--warn); box-shadow:0 6px 16px rgba(199,119,0,.3);">🏅 조합원 추가</button>
+        </div>
+        <p style="font-size:12.5px; color:var(--muted); margin:8px 0 0;">담당자 배정·활동 기록은 <a href="staff-dashboard.html" style="color:var(--accent);">🙋 전담고객 관리</a>에서 합니다. 고객정보 CSV 업로드는 <a href="admin.html" style="color:var(--accent);">⚙️ 관리자 페이지 → 🗂️ 고객정보 CSV 업로드</a> 탭으로 옮겨졌습니다.</p>
+      </div>
+
+      <div class="empty-state" id="idleState">🔍 검색어를 입력해 검색하거나, "📋 전체고객 보기"를 눌러 전체 목록을 불러오세요.</div>
+
+      <div class="table-scroll">
+        <table id="customerTable" style="display:none;">
+          <thead>
+            <tr>
+              <th style="width:112px;">🔢 고객번호</th>
+              <th style="width:150px;">🙍 성명</th>
+              <th style="width:130px;">🙋 담당자</th>
+              <th>📝 고객정보</th>
+              <th style="width:190px;"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" id="emptyState" style="display:none;">📭 등록된 고객 정보가 없습니다.</div>
+
+      <div class="pagination" id="pagination" style="display:none;">
+        <select id="pageSizeSelect">
+          <option value="100">100명씩 보기</option>
+          <option value="500">500명씩 보기</option>
+          <option value="1000">1000명씩 보기</option>
+        </select>
+        <button class="btn-secondary" id="prevPageBtn">‹ 이전</button>
+        <span id="pageIndicator" class="page-indicator"></span>
+        <button class="btn-secondary" id="nextPageBtn">다음 ›</button>
+      </div>
+      <div class="status-line" id="statusLine"></div>
+    </main>
+  </div>
+
+  <!-- 고객 추가 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2><span class="section-icon blue">➕</span> 고객 추가</h2>
+      <p class="sub">고객번호 · 성명 · 고객정보를 입력하세요.</p>
+      <form id="addForm">
+        <div class="field">
+          <label for="inNo">🔢 고객번호</label>
+          <input type="number" id="inNo" placeholder="예: 1001" required />
+          <div class="hint" id="hintNo">이미 존재하는 고객번호입니다.</div>
+        </div>
+        <div class="field">
+          <label for="inName">🙍 성명</label>
+          <input type="text" id="inName" placeholder="예: 홍길동" required />
+        </div>
+        <div class="field">
+          <label for="inInfo">📝 고객정보</label>
+          <textarea id="inInfo" rows="3" placeholder="주소, 연락처, 메모 등"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelAddBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitAddBtn">➕ 추가</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 조합원 추가 모달 (가입 사유 및 상담일지) -->
+  <div class="modal-overlay" id="membershipModalOverlay">
+    <div class="modal" style="max-width:640px; max-height:88vh; overflow-y:auto;">
+      <h2><span class="section-icon peach">🏅</span> 조합원 추가 — 가입 사유 및 상담일지</h2>
+      <p class="sub">조합원 가입 신청자와 상담 후 아래 내용을 정리해 작성해주세요. 저장하면 고객 등록·조합원 등록·잔액·상담이력이 한 번에 반영됩니다.</p>
+      <form id="membershipForm">
+        <div class="field">
+          <label for="mNo">🔢 고객번호</label>
+          <input type="number" id="mNo" placeholder="예: 1001" required />
+          <div class="hint" id="mHintNo"></div>
+        </div>
+        <div class="field">
+          <label for="mName">🙍 성명</label>
+          <input type="text" id="mName" placeholder="예: 홍길동" required />
+        </div>
+
+        <div class="field">
+          <label>🌲 조합원의 자격</label>
+          <div style="display:flex; gap:16px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="radio" name="mQualification" id="mQualForestOwner" value="산림소유자" /> 산림소유자</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="radio" name="mQualification" id="mQualForestryWorker" value="임업인" /> 임업인</label>
+          </div>
+
+          <div id="mForestOwnerWrap" style="display:none; margin-top:10px; padding:12px; background:var(--paper); border-radius:8px;">
+            <label class="readonly-note" style="display:block; margin-bottom:4px;">산림소재지 (지번주소)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="mForestLocation" placeholder="예: 성남시 분당구 삼평동 624-1" style="flex:1;" />
+              <button type="button" class="btn-secondary" id="mForestSearchBtn" style="flex-shrink:0;">🔍 검색</button>
+            </div>
+            <div id="mForestSearchResults" style="display:none; margin-top:6px; border:1px solid var(--line); border-radius:8px; max-height:160px; overflow-y:auto;"></div>
+            <div style="display:flex; gap:10px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+              <input type="text" inputmode="numeric" class="money-input" id="mForestArea" placeholder="면적 (㎡)" style="flex:1; min-width:120px;" />
+              <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mForestShareOnly" /> 지분소유 (비고)</label>
+            </div>
+          </div>
+
+          <div id="mForestryWorkerWrap" style="display:none; flex-direction:column; gap:8px; margin-top:10px; padding:12px; background:var(--paper); border-radius:8px;">
+            <input type="text" id="mForestryQualification" placeholder="자격구분" />
+            <input type="text" id="mForestryBusiness" placeholder="경영내용" />
+            <input type="text" id="mForestryNote" placeholder="비고" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="mInfo">📝 특징</label>
+          <textarea id="mInfo" rows="2" placeholder="특이사항, 메모 등"></textarea>
+        </div>
+
+        <div class="field">
+          <label>💰 금융현황 (비과세한도)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="text" inputmode="numeric" class="money-input" id="mDeposit" placeholder="우리조합 수신" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mLoan" placeholder="우리조합 여신" style="flex:1; min-width:120px;" />
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+            <input type="text" inputmode="numeric" class="money-input" id="mOtherFinancial" placeholder="타금융 금액" style="flex:1; min-width:120px;" />
+            <input type="text" inputmode="numeric" class="money-input" id="mTaxFreeLimit" placeholder="잔여한도(비과세)" style="flex:1; min-width:120px;" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>🚪 가입경로 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinFinancial" /> 금융상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinForestry" /> 임업상담을 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mJoinReferral" /> 소개를 통한 가입</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mJoinOtherCheck" /> 기타
+              <input type="text" id="mJoinChannelOther" style="flex:1; display:none;" placeholder="내용" />
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>🔗 추천인 (있는 경우 — 가입경로와 무관하게 항상 연결됩니다)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="number" id="mReferrerNo" placeholder="추천인 고객번호" style="flex:1; min-width:120px;" />
+            <input type="text" id="mReferralRelation" placeholder="관계 (예: 형제, 지인, 직장동료 등)" style="flex:1; min-width:160px;" />
+          </div>
+          <div class="hint" id="mReferrerHint"></div>
+          <p style="font-size:12px; color:var(--warn); margin:6px 0 0;">⚠️ 추천인이 실제 가족(배우자·부모·자녀 등)이면, 아래 "가족 연결"에도 함께 등록해주세요. 이 "관계"는 서식 기록용 텍스트일 뿐, 가족관계로 자동 연결되지 않습니다.</p>
+        </div>
+
+        <div class="field">
+          <label>👪 가족 연결 (있는 경우)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="number" id="mFamilyNo" placeholder="가족 고객번호" style="flex:1; min-width:120px;" />
+            <select id="mFamilyRelType" style="flex:1; min-width:120px;">
+              <option value="배우자">배우자</option>
+              <option value="부모">부모</option>
+              <option value="자녀">자녀</option>
+              <option value="조부모">조부모</option>
+              <option value="손자녀">손자녀</option>
+              <option value="형제자매">형제자매</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="hint" id="mFamilyHint"></div>
+          <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">여기서 등록하면 상대방 화면에도 자동으로 반영됩니다 (양방향).</p>
+        </div>
+
+        <div class="field">
+          <label>⭐ 관심분야 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mInterestPlan" /> 산림경영계획 작성</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mInterestFinancial" /> 금융 사업 이용</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="checkbox" id="mInterestForestry" /> 임업 상담 및 정보수집</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mInterestOtherCheck" /> 기타
+              <input type="text" id="mInterestOther" style="flex:1;" placeholder="내용" />
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>💼 직업 및 소속처 (중복 가능)</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mOccEmployed" /> 직업
+              <input type="text" id="mWorkplace" style="flex:1;" placeholder="직장명" />
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mOccSelfEmployed" /> 자영업
+              <input type="text" id="mBusinessName" style="flex:1;" placeholder="상호명" />
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+              <input type="checkbox" id="mOccOrg" /> 단체(소속)
+              <input type="text" id="mOrgName" style="flex:1;" placeholder="소속명" />
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="mConsultNote">🗒️ 상담내용</label>
+          <textarea id="mConsultNote" rows="4" placeholder="조합원 가입신청자 상담을 통해 자유롭게 작성"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="mConsultantName">🖊️ 상담자</label>
+          <input type="text" id="mConsultantName" placeholder="상담자 이름" />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelMembershipBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitMembershipBtn">🏅 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 조합원 가입 사유 및 상담일지 - 인쇄용 -->
+  <div id="membershipPrintView" style="display:none;"></div>
+
+  <!-- 변경 이력 모달 -->
+  <div class="modal-overlay" id="historyModalOverlay">
+    <div class="modal" style="max-width:560px;">
+      <h2 id="historyTitle">🕘 변경 이력</h2>
+      <p class="sub">이 고객의 등록/수정/삭제 기록입니다.</p>
+      <div id="historyList" style="max-height:420px; overflow-y:auto; margin:-4px 0 4px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="closeHistoryBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 접점 활동 기록 모달 -->
+  <div class="modal-overlay" id="activityModalOverlay">
+    <div class="modal" style="max-width:560px;">
+      <h2 id="activityTitle">🤝 접점 활동</h2>
+      <p class="sub">이 고객과의 접점 활동을 기록하고 확인합니다.</p>
+
+      <form id="activityForm" style="border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div class="field">
+          <label for="activityType">활동 유형</label>
+          <input type="text" id="activityType" placeholder="예: 전화, 방문, 문자/카톡, 마케팅 등" required />
+        </div>
+        <div class="field">
+          <label for="activityDate">활동 일자</label>
+          <input type="date" id="activityDate" required />
+        </div>
+        <div class="field">
+          <label for="activityContent">내용</label>
+          <textarea id="activityContent" rows="3" placeholder="어떤 이야기를 나눴는지, 결과는 어땠는지 등"></textarea>
+        </div>
+        <div class="modal-actions" style="margin-top:0;">
+          <button type="submit" class="btn-primary" id="submitActivityBtn">➕ 기록 추가</button>
+        </div>
+      </form>
+
+      <div id="activityList" style="max-height:320px; overflow-y:auto; margin:-4px 0 4px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="closeActivityBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  if (typeof supabase === 'undefined') {
+    document.body.innerHTML = '<div style="padding:24px;color:#a4443a;font-family:sans-serif;">Supabase 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.</div>';
+    throw new Error('supabase-js not loaded');
+  }
+
+  // ==== Supabase 연결 설정 ====
+  const SUPABASE_URL = "https://neepcdiumutjjwuxzjyt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
+  const TABLE_NAME = "customers";
+  const VIEW_NAME = "customers_with_membership"; // 조합원 여부까지 포함된 조회 전용 뷰
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---- DOM ----
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginError = document.getElementById('loginError');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const navAdminLink = document.getElementById('navAdminLink');
+  const navAssignLink = document.getElementById('navAssignLink');
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  navToggleBtn.addEventListener('click', () => {
+    const isOpen = navToggleBtn.closest('header').classList.toggle('nav-open');
+    navToggleBtn.textContent = isOpen ? '✕' : '☰';
+  });
+  const greetingTitle = document.getElementById('greetingTitle');
+  const pstatInsert = document.getElementById('pstatInsert');
+  const pstatUpdate = document.getElementById('pstatUpdate');
+  const pstatWeek = document.getElementById('pstatWeek');
+  const pstatStreak = document.getElementById('pstatStreak');
+  const userEmail = document.getElementById('userEmail');
+
+  const tableBody = document.getElementById('tableBody');
+  const customerTable = document.getElementById('customerTable');
+  const idleState = document.getElementById('idleState');
+  const emptyState = document.getElementById('emptyState');
+  const statusLine = document.getElementById('statusLine');
+  const countLabel = document.getElementById('countLabel');
+  const searchBox = document.getElementById('searchBox');
+  const searchBtn = document.getElementById('searchBtn');
+  const membersOnlyBtn = document.getElementById('membersOnlyBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
+  const myCustomersBtn = document.getElementById('myCustomersBtn');
+  const trashBtn = document.getElementById('trashBtn');
+  const pagination = document.getElementById('pagination');
+  const pageSizeSelect = document.getElementById('pageSizeSelect');
+  const prevPageBtn = document.getElementById('prevPageBtn');
+  const nextPageBtn = document.getElementById('nextPageBtn');
+  const pageIndicator = document.getElementById('pageIndicator');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const modalOverlay = document.getElementById('modalOverlay');
+  const historyModalOverlay = document.getElementById('historyModalOverlay');
+  const historyTitle = document.getElementById('historyTitle');
+  const historyList = document.getElementById('historyList');
+  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+
+  const activityModalOverlay = document.getElementById('activityModalOverlay');
+  const activityTitle = document.getElementById('activityTitle');
+  const activityForm = document.getElementById('activityForm');
+  const activityType = document.getElementById('activityType');
+  const activityDate = document.getElementById('activityDate');
+  const activityContent = document.getElementById('activityContent');
+  const submitActivityBtn = document.getElementById('submitActivityBtn');
+  const activityList = document.getElementById('activityList');
+  const closeActivityBtn = document.getElementById('closeActivityBtn');
+  let activityCustomerNo = null;
+
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+  const openAddBtn = document.getElementById('openAddBtn');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const addForm = document.getElementById('addForm');
+  const inNo = document.getElementById('inNo');
+  const inName = document.getElementById('inName');
+  const inInfo = document.getElementById('inInfo');
+  const hintNo = document.getElementById('hintNo');
+  const submitAddBtn = document.getElementById('submitAddBtn');
+
+  let currentRows = [];
+  let currentMode = 'none'; // 'none' | 'search' | 'all'
+  let currentKeyword = '';
+  let currentPage = 1;
+  let pageSize = 100;
+  let totalCount = 0;
+  let membersOnly = false; // "조합원만 보기" 필터 상태
+
+  // ---- 로그인 / 로그아웃 ----
+  googleLoginBtn.addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    googleLoginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error){
+      googleLoginBtn.disabled = false;
+      loginError.textContent = '로그인 실패: ' + error.message;
+      loginError.style.display = 'block';
+    }
+    // 성공 시에는 구글 로그인 화면으로 리디렉션되므로 별도 처리 불필요
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut();
+    showLogin();
+  });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    // 토큰 자동 갱신은 세션 유지 목적일 뿐 화면은 그대로 둬야 함 (안 그러면 작업 중 화면이 초기화됨)
+    if (event === 'TOKEN_REFRESHED') return;
+    if (session) handleSession(session, event === 'SIGNED_IN'); else showLogin();
+  });
+
+  // 로그인은 됐지만 allowed_emails에 없는 계정은 즉시 로그아웃 처리
+  // shouldLog: 실제 "방금 로그인"한 경우에만 true (세션 복원/토큰 갱신 시에는 기록 안 남김)
+  async function handleSession(session, shouldLog){
+    // Google 로그인 후 주소에 남는 #access_token=... 같은 조각 제거
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    const { data: allowed, error } = await sb.rpc('is_allowed_email');
+    if (error || !allowed){
+      if (shouldLog){
+        const { error: logErr } = await sb.rpc('log_login', { p_success: false, p_reason: 'not_allowed' }); // 접속이력에 비인가 시도 기록
+        if (logErr) console.error('log_login(실패기록) 오류:', logErr);
+      }
+      await sb.auth.signOut();
+      showLogin();
+      loginError.textContent = '이 Google 계정은 접근이 허용되지 않았습니다. 관리자에게 문의해주세요.';
+      loginError.style.display = 'block';
+      return;
+    }
+    if (shouldLog){
+      const { error: logErr2 } = await sb.rpc('log_login', { p_success: true }); // 접속이력에 정상 로그인 기록
+      if (logErr2) console.error('log_login(성공기록) 오류:', logErr2);
+    }
+    showApp(session);
+  }
+
+  function showLogin(){
+    if (window.location.hash){
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+    googleLoginBtn.disabled = false;
+  }
+  let currentUserName = '';
+  let currentUserEmail = '';
+  let directoryUsers = []; // [{email, name}] - 담당자 배정 드롭박스용
+
+  async function loadDirectory(){
+    const { data, error } = await sb.from('allowed_emails').select('email, name').order('name', { ascending: true });
+    if (!error) directoryUsers = data || [];
+  }
+
+  async function showApp(session){
+    loginScreen.style.display = 'none';
+    app.style.display = 'block';
+    currentUserEmail = session.user.email;
+    userEmail.textContent = session.user.email; // 이름을 못 불러올 경우를 대비한 임시 표시
+    const { data: name } = await sb.rpc('current_user_name');
+    currentUserName = name || session.user.email;
+    userEmail.textContent = currentUserName;
+    greetingTitle.textContent = `안녕하세요, ${currentUserName}님 👋`;
+
+    const { data: admin } = await sb.rpc('is_admin');
+    navAdminLink.style.display = admin ? 'inline-flex' : 'none';
+    navAssignLink.style.display = admin ? 'inline-flex' : 'none';
+
+    loadDirectory();
+    showIdle();
+    loadPersonalStats();
+    // 상단 검색(다른 화면)에서 넘어온 검색어 처리
+    try { const q = new URLSearchParams(location.search).get('q'); if (q){ searchBox.value = q; runSearch(); history.replaceState(null, '', location.pathname); } } catch (e) {}
+  }
+
+  function setStatus(text, cls){
+    statusLine.textContent = text;
+    statusLine.className = 'status-line ' + (cls || '');
+  }
+  function escapeHtml(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function autoResize(el){
+    requestAnimationFrame(() => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    });
+  }
+
+  // ---- 개인 활동 통계 ----
+  function dayKey(d){
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dayRange(offsetDays){
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - offsetDays);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { startIso: start.toISOString(), endIso: end.toISOString() };
+  }
+  function weekStartIso(){
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay(); // 0=일 ... 6=토
+    const diffToMonday = (day === 0 ? 6 : day - 1);
+    d.setDate(d.getDate() - diffToMonday);
+    return d.toISOString();
+  }
+  function computeStreak(dateKeySet){
+    let cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    if (!dateKeySet.has(dayKey(cursor))){
+      cursor.setDate(cursor.getDate() - 1); // 오늘 활동이 없으면 어제부터 확인
+    }
+    let streak = 0;
+    while (dateKeySet.has(dayKey(cursor))){
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  async function loadPersonalStats(){
+    if (!currentUserName) return;
+    const today = dayRange(0);
+    const weekStart = weekStartIso();
+    const streakLookback = new Date();
+    streakLookback.setDate(streakLookback.getDate() - 60);
+
+    const [insertRes, updateRes, weekRes, streakRes] = await Promise.all([
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName).eq('action', 'insert')
+        .gte('changed_at', today.startIso).lt('changed_at', today.endIso),
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName).eq('action', 'update')
+        .gte('changed_at', today.startIso).lt('changed_at', today.endIso),
+      sb.from('customer_history').select('*', { count: 'exact', head: true })
+        .eq('changed_by', currentUserName)
+        .gte('changed_at', weekStart),
+      sb.from('customer_history').select('changed_at')
+        .eq('changed_by', currentUserName)
+        .gte('changed_at', streakLookback.toISOString())
+    ]);
+
+    pstatInsert.textContent = `${(insertRes.count ?? 0).toLocaleString()}건`;
+    pstatUpdate.textContent = `${(updateRes.count ?? 0).toLocaleString()}건`;
+    pstatWeek.textContent = `${(weekRes.count ?? 0).toLocaleString()}건`;
+
+    const dateSet = new Set((streakRes.data || []).map(r => dayKey(new Date(r.changed_at))));
+    const streak = computeStreak(dateSet);
+    pstatStreak.textContent = streak > 0 ? `${streak}일째` : '오늘 시작해요';
+  }
+
+  // ---- 화면 상태 전환 ----
+  function showIdle(){
+    currentMode = 'none';
+    currentRows = [];
+    currentKeyword = '';
+    tableBody.innerHTML = '';
+    idleState.style.display = 'block';
+    emptyState.style.display = 'none';
+    customerTable.style.display = 'none';
+    pagination.style.display = 'none';
+    countLabel.textContent = '';
+    setStatus('', '');
+  }
+
+  function showResultView(){
+    idleState.style.display = 'none';
+  }
+
+  // ---- 전체 고객 조회 (페이지 단위) ----
+  async function loadAllCustomers(page){
+    page = page || 1;
+    showResultView();
+    setStatus('불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    let query = sb
+      .from(VIEW_NAME)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .order('customer_no', { ascending: false })
+      .range(from, to);
+    if (membersOnly) query = query.eq('membership', '조합원');
+    const { data, error, count } = await query;
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다. 관리자에게 문의하세요.';
+      return;
+    }
+    currentMode = 'all';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `📊 총 ${totalCount}건 (전체${membersOnly ? ' · 조합원만' : ''})`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
+  }
+
+  // ---- 내 담당 고객 조회 ----
+  async function loadMyCustomers(page){
+    page = page || 1;
+    showResultView();
+    setStatus('불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    let query = sb
+      .from(VIEW_NAME)
+      .select('*', { count: 'exact' })
+      .eq('assigned_to', currentUserEmail)
+      .order('customer_no', { ascending: true })
+      .range(from, to);
+    if (membersOnly) query = query.eq('membership', '조합원');
+    const { data, error, count } = await query;
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '🔒 접근 권한이 없거나 데이터를 불러올 수 없습니다. 관리자에게 문의하세요.';
+      return;
+    }
+    currentMode = 'mine';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `🙋 총 ${totalCount}건 (내 담당${membersOnly ? ' · 조합원만' : ''})`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
+  }
+
+  function updatePagination(){
+    if ((currentMode !== 'all' && currentMode !== 'trash' && currentMode !== 'mine') || totalCount === 0){
+      pagination.style.display = 'none';
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    pagination.style.display = 'flex';
+    pageIndicator.textContent = `📄 ${currentPage} / ${totalPages} 페이지`;
+    prevPageBtn.disabled = currentPage <= 1;
+    nextPageBtn.disabled = currentPage >= totalPages;
+  }
+
+  // ---- 휴지통(삭제된 고객) 조회 ----
+  async function loadTrash(page){
+    page = page || 1;
+    showResultView();
+    setStatus('휴지통을 불러오는 중...', '');
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await sb
+      .from(TABLE_NAME)
+      .select('*', { count: 'exact' })
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false })
+      .range(from, to);
+    if (error){
+      setStatus('불러오기 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '휴지통을 불러올 수 없습니다.';
+      return;
+    }
+    currentMode = 'trash';
+    currentPage = page;
+    totalCount = count || 0;
+    currentRows = data || [];
+    countLabel.textContent = `🗑️ 총 ${totalCount}건 (휴지통)`;
+    renderTable(currentRows);
+    updatePagination();
+    setStatus('', '');
+  }
+
+  // ---- 검색 ----
+  async function searchCustomers(rawKeyword){
+    const keyword = (rawKeyword || '').trim();
+    if (!keyword){
+      setStatus('검색어를 입력해주세요', 'err-flash');
+      return;
+    }
+    showResultView();
+    setStatus('검색 중...', '');
+
+    // 필터 문법에 영향을 주는 특수문자는 제거
+    const safe = keyword.replace(/[,()%]/g, '');
+    let query = sb.from(VIEW_NAME).select('*').order('customer_no', { ascending: true }).limit(1000);
+
+    if (/^\d+$/.test(safe)){
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%,customer_no.eq.${safe}`);
+    } else {
+      query = query.or(`name.ilike.%${safe}%,customer_info.ilike.%${safe}%`);
+    }
+    if (membersOnly) query = query.eq('membership', '조합원');
+
+    const { data, error } = await query;
+    if (error){
+      setStatus('검색 실패: ' + error.message, 'err-flash');
+      customerTable.style.display = 'none';
+      pagination.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '검색 중 오류가 발생했습니다.';
+      return;
+    }
+    currentMode = 'search';
+    currentKeyword = keyword;
+    currentRows = data || [];
+    countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${keyword}"${membersOnly ? ' · 조합원만' : ''})`;
+    renderTable(currentRows);
+    pagination.style.display = 'none';
+    setStatus('', '');
+  }
+
+  // ---- 변경 후 현재 보던 화면 다시 불러오기 ----
+  function refreshCurrentView(){
+    if (currentMode === 'all') return loadAllCustomers(currentPage);
+    if (currentMode === 'trash') return loadTrash(currentPage);
+    if (currentMode === 'mine') return loadMyCustomers(currentPage);
+    if (currentMode === 'search') return searchCustomers(currentKeyword);
+    return Promise.resolve();
+  }
+
+  // ---- 현재 화면 결과 CSV 다운로드 ----
+  function csvEscape(val){
+    const s = String(val ?? '');
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function assigneeDisplayName(email){
+    if (!email) return '';
+    const u = directoryUsers.find(x => x.email === email);
+    return u ? (u.name || u.email) : email;
+  }
+  function downloadCurrentResultsCsv(){
+    if (!currentRows || currentRows.length === 0){
+      setStatus('다운로드할 목록이 없습니다. 먼저 검색하거나 목록을 불러와주세요.', 'err-flash');
+      return;
+    }
+    const headers = ['고객번호', '성명', '조합원여부', '담당자', '고객정보'];
+    const lines = [headers.join(',')];
+    currentRows.forEach(r => {
+      const line = [
+        r.customer_no,
+        r.name,
+        r.membership || '',
+        assigneeDisplayName(r.assigned_to),
+        r.customer_info || ''
+      ].map(csvEscape).join(',');
+      lines.push(line);
+    });
+    const csvContent = '\uFEFF' + lines.join('\r\n'); // BOM 추가로 엑셀에서 한글 안 깨지게
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `고객정보_${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus(`${currentRows.length}건 다운로드했습니다`, 'saved-flash');
+  }
+  downloadCsvBtn.addEventListener('click', downloadCurrentResultsCsv);
+
+  function renderTable(rows){
+    tableBody.innerHTML = '';
+    customerTable.style.display = rows.length === 0 ? 'none' : 'table';
+    emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+    if (rows.length === 0){
+      emptyState.textContent = currentMode === 'trash' ? '🗑️ 휴지통이 비어 있습니다.' : '📭 조건에 맞는 고객 정보가 없습니다.';
+    }
+
+    const isTrash = currentMode === 'trash';
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+
+      if (isTrash){
+        tr.innerHTML = `
+          <td class="no-col">${row.customer_no}</td>
+          <td class="name-col">${escapeHtml(row.name)}</td>
+          <td class="info-col">
+            ${escapeHtml(row.customer_info)}
+            <div class="deleted-meta">🗑️ 삭제됨: ${fmtDate(row.deleted_at)} · ${escapeHtml(row.deleted_by || '알 수 없음')}</div>
+          </td>
+          <td class="actions-col">
+            <div class="row-actions">
+              <button class="icon-btn hist">🕘 이력</button>
+              <button class="icon-btn restore">♻️ 복구</button>
+            </div>
+          </td>`;
+
+        tr.querySelector('.hist').addEventListener('click', () => openHistory(row.customer_no, row.name));
+        tr.querySelector('.restore').addEventListener('click', async () => {
+          if (!confirm(`고객번호 ${row.customer_no} (${row.name})을(를) 복구할까요?`)) return;
+          const { data, error } = await sb
+            .from(TABLE_NAME)
+            .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+            .eq('customer_no', row.customer_no)
+            .select();
+          if (error){
+            setStatus('복구 실패: ' + error.message, 'err-flash');
+          } else if (!data || data.length === 0){
+            setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          } else {
+            setStatus(`고객번호 ${row.customer_no} 복구 완료`, 'saved-flash');
+            refreshCurrentView();
+            loadPersonalStats();
+          }
+        });
+
+        tableBody.appendChild(tr);
+        return;
+      }
+
+      tr.innerHTML = `
+        <td class="no-col"><a href="customer-detail.html?customer_no=${row.customer_no}" style="color:inherit; text-decoration:none; border-bottom:1px dotted var(--muted);" title="전담고객 관리 페이지로 이동">${row.customer_no}</a></td>
+        <td class="name-col">
+          <div class="name-cell-wrap">
+            <input type="text" class="name-input" value="${escapeHtml(row.name)}" />
+            ${row.membership === '조합원' ? '<span class="member-badge">🏅조합원</span>' : ''}
+            ${row.membership === '가입신청' ? '<span class="pending-application-badge">📝가입신청</span>' : ''}
+          </div>
+        </td>
+        <td class="assign-col">
+          <span class="assignee-readonly">${row.assigned_to ? escapeHtml(directoryUsers.find(u => u.email === row.assigned_to)?.name || row.assigned_to) : '미배정'}</span>
+        </td>
+        <td class="info-col"><textarea class="info-input" rows="1">${escapeHtml(row.customer_info)}</textarea></td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-btn hist">🕘 이력</button>
+            <button class="icon-btn save" disabled>💾 저장</button>
+            <button class="icon-btn del">🗑️ 삭제</button>
+          </div>
+        </td>`;
+
+      const nameInput = tr.querySelector('.name-input');
+      const infoInput = tr.querySelector('.info-input');
+      const saveBtn = tr.querySelector('.save');
+      const delBtn = tr.querySelector('.del');
+      const histBtn = tr.querySelector('.hist');
+      const markDirty = () => { saveBtn.disabled = false; };
+      nameInput.addEventListener('input', markDirty);
+      infoInput.addEventListener('input', () => { markDirty(); autoResize(infoInput); });
+
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ 저장중';
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ name: nameInput.value, customer_info: infoInput.value })
+          .eq('customer_no', row.customer_no)
+          .select();
+        saveBtn.textContent = '💾 저장';
+        if (error){
+          setStatus('저장 실패: ' + error.message, 'err-flash');
+          saveBtn.disabled = false;
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+          saveBtn.disabled = false;
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 저장 완료`, 'saved-flash');
+          row.name = nameInput.value;
+          row.customer_info = infoInput.value;
+          loadPersonalStats();
+        }
+      });
+
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`고객번호 ${row.customer_no} (${row.name}) 정보를 삭제할까요?\n(휴지통으로 이동하며, 나중에 복구할 수 있습니다)`)) return;
+        const { data, error } = await sb
+          .from(TABLE_NAME)
+          .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: currentUserName })
+          .eq('customer_no', row.customer_no)
+          .select();
+        if (error){
+          setStatus('삭제 실패: ' + error.message, 'err-flash');
+        } else if (!data || data.length === 0){
+          setStatus('0건 반영됨 - 접근 권한을 확인해주세요', 'err-flash');
+        } else {
+          setStatus(`고객번호 ${row.customer_no} 삭제 완료 (휴지통으로 이동)`, 'saved-flash');
+          // 전체를 다시 불러오지 않고, 이 행만 화면/목록에서 제거 (다른 행 편집 중인 내용 보존)
+          tr.remove();
+          currentRows = currentRows.filter(r => r.customer_no !== row.customer_no);
+          if (currentMode === 'all'){
+            totalCount = Math.max(0, totalCount - 1);
+            countLabel.textContent = `📊 총 ${totalCount}건 (전체)`;
+            updatePagination();
+          } else if (currentMode === 'mine'){
+            totalCount = Math.max(0, totalCount - 1);
+            countLabel.textContent = `🙋 총 ${totalCount}건 (내 담당)`;
+            updatePagination();
+          } else if (currentMode === 'search'){
+            countLabel.textContent = `🔍 총 ${currentRows.length}건 (검색: "${currentKeyword}")`;
+          }
+          if (currentRows.length === 0){
+            customerTable.style.display = 'none';
+            emptyState.style.display = 'block';
+            emptyState.textContent = '📭 조건에 맞는 고객 정보가 없습니다.';
+          }
+          loadPersonalStats();
+        }
+      });
+
+      histBtn.addEventListener('click', () => openHistory(row.customer_no, row.name));
+
+      tableBody.appendChild(tr);
+      autoResize(infoInput);
+    });
+  }
+
+  function runSearch(){ searchCustomers(searchBox.value); }
+  searchBtn.addEventListener('click', runSearch);
+  searchBox.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  membersOnlyBtn.addEventListener('click', () => {
+    membersOnly = !membersOnly;
+    membersOnlyBtn.classList.toggle('active', membersOnly);
+    if (currentMode === 'all') loadAllCustomers(1);
+    else if (currentMode === 'mine') loadMyCustomers(1);
+    else if (currentMode === 'search') searchCustomers(currentKeyword);
+  });
+  showAllBtn.addEventListener('click', () => { searchBox.value = ''; loadAllCustomers(1); });
+  myCustomersBtn.addEventListener('click', () => { searchBox.value = ''; loadMyCustomers(1); });
+  trashBtn.addEventListener('click', () => { searchBox.value = ''; loadTrash(1); });
+  resetBtn.addEventListener('click', () => {
+    searchBox.value = '';
+    membersOnly = false;
+    membersOnlyBtn.classList.remove('active');
+    showIdle();
+  });
+
+  pageSizeSelect.value = String(pageSize);
+  pageSizeSelect.addEventListener('change', () => {
+    pageSize = Number(pageSizeSelect.value);
+    if (currentMode === 'all') loadAllCustomers(1);
+    else if (currentMode === 'mine') loadMyCustomers(1);
+  });
+  prevPageBtn.addEventListener('click', () => { if (currentPage > 1) loadAllCustomers(currentPage - 1); });
+  nextPageBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    if (currentPage < totalPages) loadAllCustomers(currentPage + 1);
+  });
+
+  // ---- 추가 모달 ----
+  function openModal(){
+    addForm.reset();
+    hintNo.style.display = 'none';
+    modalOverlay.classList.add('open');
+    setTimeout(() => inNo.focus(), 50);
+  }
+  function closeModal(){ modalOverlay.classList.remove('open'); }
+
+  // ---- 변경 이력 모달 ----
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+  const ACTION_LABEL = {
+    insert: '🆕 등록',
+    update: '✏️ 수정',
+    delete: '🗑️ 삭제',
+    soft_delete: '🗑️ 삭제',
+    restore: '♻️ 복구',
+    hard_delete: '💥 영구삭제'
+  };
+
+  function displayAssigneeName(email){
+    if (!email) return '미배정';
+    const u = directoryUsers.find(x => x.email === email);
+    return u ? (u.name || u.email) : email;
+  }
+
+  function renderHistoryItem(row){
+    const wrap = document.createElement('div');
+    wrap.className = 'history-item';
+
+    let diffHtml = '';
+    if (row.action === 'insert'){
+      const d = row.new_data || {};
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
+    } else if (row.action === 'delete' || row.action === 'soft_delete' || row.action === 'hard_delete'){
+      const d = row.old_data || {};
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
+    } else if (row.action === 'restore'){
+      const d = row.new_data || {};
+      diffHtml = `<div class="h-diff">
+        <span class="field-name">성명:</span> ${escapeHtml(d.name)}<br/>
+        <span class="field-name">고객정보:</span> ${escapeHtml(d.customer_info)}
+      </div>`;
+    } else {
+      const o = row.old_data || {}, n = row.new_data || {};
+      const parts = [];
+      if (o.name !== n.name){
+        parts.push(`<div><span class="field-name">성명:</span> <del>${escapeHtml(o.name)}</del> <ins>${escapeHtml(n.name)}</ins></div>`);
+      }
+      if (o.customer_info !== n.customer_info){
+        parts.push(`<div><span class="field-name">고객정보:</span> <del>${escapeHtml(o.customer_info)}</del> <ins>${escapeHtml(n.customer_info)}</ins></div>`);
+      }
+      if (o.assigned_to !== n.assigned_to){
+        parts.push(`<div><span class="field-name">담당자:</span> <del>${escapeHtml(displayAssigneeName(o.assigned_to))}</del> <ins>${escapeHtml(displayAssigneeName(n.assigned_to))}</ins></div>`);
+      }
+      diffHtml = `<div class="h-diff">${parts.join('') || '<span class="h-meta">변경된 값 없음</span>'}</div>`;
+    }
+
+    wrap.innerHTML = `
+      <div class="h-top">
+        <span class="h-action ${row.action}">${ACTION_LABEL[row.action] || row.action}</span>
+        <span class="h-meta">${fmtDate(row.changed_at)} · ${escapeHtml(row.changed_by || '알 수 없음')}</span>
+      </div>
+      ${diffHtml}
+    `;
+    return wrap;
+  }
+
+  async function openHistory(customerNo, name){
+    historyTitle.textContent = `변경 이력 - ${customerNo} (${name})`;
+    historyList.innerHTML = '<div class="h-meta">불러오는 중...</div>';
+    historyModalOverlay.classList.add('open');
+
+    const { data, error } = await sb
+      .from('customer_history')
+      .select('*')
+      .eq('customer_no', customerNo)
+      .order('changed_at', { ascending: false });
+
+    if (error){
+      historyList.innerHTML = `<div class="h-meta" style="color:var(--danger)">이력을 불러오지 못했습니다: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (!data || data.length === 0){
+      historyList.innerHTML = '<div class="h-meta">기록된 이력이 없습니다.</div>';
+      return;
+    }
+    historyList.innerHTML = '';
+    data.forEach(row => historyList.appendChild(renderHistoryItem(row)));
+  }
+
+  function closeHistory(){ historyModalOverlay.classList.remove('open'); }
+  closeHistoryBtn.addEventListener('click', closeHistory);
+  historyModalOverlay.addEventListener('click', (e) => { if (e.target === historyModalOverlay) closeHistory(); });
+
+  // ==================== 접점 활동 기록 ====================
+  function renderActivityItem(row){
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="h-top">
+        <span class="h-action update">${escapeHtml(row.activity_type)}</span>
+        <span class="h-meta">${escapeHtml(row.activity_date)} · ${escapeHtml(row.created_by || '알 수 없음')}</span>
+      </div>
+      <div class="h-diff">${escapeHtml(row.content || '')}</div>
+    `;
+    return div;
+  }
+
+  async function loadActivities(customerNo){
+    activityList.innerHTML = '<div class="h-meta">불러오는 중...</div>';
+    const { data, error } = await sb
+      .from('customer_activities')
+      .select('*')
+      .eq('customer_no', customerNo)
+      .order('activity_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error){
+      activityList.innerHTML = `<div class="h-meta" style="color:var(--danger)">불러오지 못했습니다: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (!data || data.length === 0){
+      activityList.innerHTML = '<div class="h-meta">기록된 접점 활동이 없습니다.</div>';
+      return;
+    }
+    activityList.innerHTML = '';
+    data.forEach(row => activityList.appendChild(renderActivityItem(row)));
+  }
+
+  function openActivity(customerNo, name){
+    activityCustomerNo = customerNo;
+    activityTitle.textContent = `🤝 접점 활동 - ${customerNo} (${name})`;
+    activityType.value = '';
+    activityContent.value = '';
+    activityDate.value = new Date().toISOString().slice(0, 10);
+    activityModalOverlay.classList.add('open');
+    loadActivities(customerNo);
+  }
+  function closeActivity(){ activityModalOverlay.classList.remove('open'); activityCustomerNo = null; }
+  closeActivityBtn.addEventListener('click', closeActivity);
+  activityModalOverlay.addEventListener('click', (e) => { if (e.target === activityModalOverlay) closeActivity(); });
+
+  activityForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!activityCustomerNo) return;
+    submitActivityBtn.disabled = true;
+    submitActivityBtn.textContent = '⏳ 추가 중...';
+    const { error } = await sb.from('customer_activities').insert({
+      customer_no: activityCustomerNo,
+      activity_type: activityType.value.trim(),
+      content: activityContent.value.trim(),
+      activity_date: activityDate.value,
+      created_by: currentUserName,
+      created_by_email: currentUserEmail
+    });
+    submitActivityBtn.disabled = false;
+    submitActivityBtn.textContent = '➕ 기록 추가';
+    if (error){
+      setStatus('접점 기록 추가 실패: ' + error.message, 'err-flash');
+      return;
+    }
+    activityType.value = '';
+    activityContent.value = '';
+    loadActivities(activityCustomerNo);
+  });
+
+  openAddBtn.addEventListener('click', openModal);
+  cancelAddBtn.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+  inNo.addEventListener('blur', async () => {
+    hintNo.style.display = 'none';
+    const no = Number(inNo.value);
+    if (!no) return;
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, is_deleted').eq('customer_no', no).maybeSingle();
+    if (dup){
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
+      hintNo.style.display = 'block';
+    }
+  });
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hintNo.style.display = 'none';
+
+    const no = Number(inNo.value);
+    const name = inName.value.trim();
+    const info = inInfo.value.trim();
+
+    if (!no || !name){
+      setStatus('고객번호와 성명은 필수입니다', 'err-flash');
+      return;
+    }
+
+    submitAddBtn.disabled = true;
+    submitAddBtn.textContent = '⏳ 확인 중...';
+
+    const { data: dup, error: dupError } = await sb
+      .from(TABLE_NAME)
+      .select('customer_no, is_deleted')
+      .eq('customer_no', no)
+      .maybeSingle();
+
+    if (dupError){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '➕ 추가';
+      setStatus('중복 확인 실패: ' + dupError.message, 'err-flash');
+      return;
+    }
+    if (dup){
+      submitAddBtn.disabled = false;
+      submitAddBtn.textContent = '➕ 추가';
+      hintNo.textContent = dup.is_deleted
+        ? '휴지통에 있는 고객번호입니다. 새로 추가하는 대신 휴지통에서 복구해주세요.'
+        : '이미 존재하는 고객번호입니다.';
+      hintNo.style.display = 'block';
+      inNo.focus();
+      return;
+    }
+
+    submitAddBtn.textContent = '⏳ 추가 중...';
+
+    const { data, error } = await sb
+      .from(TABLE_NAME)
+      .insert({ customer_no: no, name, customer_info: info })
+      .select();
+
+    submitAddBtn.disabled = false;
+    submitAddBtn.textContent = '➕ 추가';
+
+    if (error){
+      if (error.code === '23505'){
+        hintNo.style.display = 'block';
+        inNo.focus();
+      } else {
+        setStatus('추가 실패: ' + error.message, 'err-flash');
+      }
+      return;
+    }
+    closeModal();
+    if (currentMode === 'none'){
+      showIdle();
+    } else {
+      await refreshCurrentView();
+    }
+    setStatus(`고객번호 ${no} 추가 완료`, 'saved-flash');
+    loadPersonalStats();
+  });
+
+  // ---- 조합원 추가 (가입 사유 및 상담일지) ----
+  const openMembershipBtn = document.getElementById('openMembershipBtn');
+  const membershipModalOverlay = document.getElementById('membershipModalOverlay');
+  const membershipForm = document.getElementById('membershipForm');
+  const cancelMembershipBtn = document.getElementById('cancelMembershipBtn');
+  const submitMembershipBtn = document.getElementById('submitMembershipBtn');
+  const mNo = document.getElementById('mNo');
+  const mHintNo = document.getElementById('mHintNo');
+  const mJoinOtherCheck = document.getElementById('mJoinOtherCheck');
+  const mJoinChannelOther = document.getElementById('mJoinChannelOther');
+  const mReferrerHint = document.getElementById('mReferrerHint');
+  const mFamilyHint = document.getElementById('mFamilyHint');
+
+  document.querySelectorAll('.money-input').forEach(el => {
+    el.addEventListener('input', () => {
+      const raw = el.value.replace(/[^\d]/g, '');
+      el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+    });
+  });
+  function parseMoneyInput(el){
+    const raw = el.value.replace(/[^\d]/g, '');
+    return raw ? Number(raw) : null;
+  }
+
+  function openMembershipModal(){
+    membershipForm.reset();
+    mHintNo.innerHTML = '';
+    mHintNo.style.display = 'none';
+    mReferrerHint.style.display = 'none';
+    mFamilyHint.style.display = 'none';
+    mJoinChannelOther.style.display = 'none';
+    mForestOwnerWrap.style.display = 'none';
+    mForestryWorkerWrap.style.display = 'none';
+    submitMembershipBtn.disabled = false;
+    document.getElementById('mConsultantName').value = currentUserName;
+    membershipModalOverlay.classList.add('open');
+  }
+  function closeMembershipModal(){ membershipModalOverlay.classList.remove('open'); }
+
+  openMembershipBtn.addEventListener('click', openMembershipModal);
+  cancelMembershipBtn.addEventListener('click', closeMembershipModal);
+  membershipModalOverlay.addEventListener('click', (e) => { if (e.target === membershipModalOverlay) closeMembershipModal(); });
+
+  // ---- 조합원 자격: 산림소유자 / 임업인 ----
+  const mForestOwnerWrap = document.getElementById('mForestOwnerWrap');
+  const mForestryWorkerWrap = document.getElementById('mForestryWorkerWrap');
+  document.getElementById('mQualForestOwner').addEventListener('change', () => {
+    mForestOwnerWrap.style.display = 'block';
+    mForestryWorkerWrap.style.display = 'none';
+  });
+  document.getElementById('mQualForestryWorker').addEventListener('change', () => {
+    mForestOwnerWrap.style.display = 'none';
+    mForestryWorkerWrap.style.display = 'flex';
+  });
+
+  // ---- 브이월드 지번주소 검색 (오타 방지용) ----
+  // 브이월드(vworld.kr)에서 발급받은 인증키로 교체하세요. 키 발급 시 이 사이트의
+  // GitHub Pages 도메인을 "사용할 도메인"으로 등록해야 정상 동작합니다.
+  const VWORLD_API_KEY = '77A8D989-2D72-4900-A553-C5CF92742E9C';
+
+  function vworldJibunSearch(query, onResult, onError){
+    if (!query) return;
+    if (VWORLD_API_KEY === 'YOUR_VWORLD_API_KEY'){
+      onError('브이월드 API 키가 아직 설정되지 않았습니다. (관리자에게 문의)');
+      return;
+    }
+    const cbName = 'vworldCb_' + Date.now();
+    window[cbName] = (data) => {
+      delete window[cbName];
+      script.remove();
+      onResult(data);
+    };
+    const script = document.createElement('script');
+    script.src = `https://map.vworld.kr/search.do?category=jibun&q=${encodeURIComponent(query)}&pageunit=5&output=json&pageindex=1&callback=${cbName}&apiKey=${VWORLD_API_KEY}`;
+    script.onerror = () => { onError('검색 요청에 실패했습니다.'); delete window[cbName]; };
+    document.body.appendChild(script);
+  }
+
+  function extractVworldItems(data){
+    // 브이월드 응답 구조가 API 버전/설정에 따라 달라질 수 있어 여러 형태를 모두 시도
+    const candidates = [
+      data?.response?.result?.items,
+      data?.response?.result?.item,
+      data?.response?.items,
+      data?.response?.LIST?.item,
+      data?.LIST?.item,
+      data?.LIST,
+      data?.result?.items,
+      data?.result?.item,
+      data?.items
+    ];
+    for (const c of candidates){
+      if (!c) continue;
+      const arr = Array.isArray(c) ? c : [c];
+      if (arr.length) return arr;
+    }
+    return [];
+  }
+  function extractVworldAddr(item){
+    return item.JUSO || item.juso || item.address || item.nameFull || item.roadAddr || item.jibunAddr || '';
+  }
+
+  function wireForestSearch(inputId, btnId, resultsId){
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    const results = document.getElementById(resultsId);
+    function runSearch(){
+      const q = input.value.trim();
+      if (!q) return;
+      results.style.display = 'block';
+      results.innerHTML = `<div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 중...</div>`;
+      vworldJibunSearch(q, (data) => {
+        const list = extractVworldItems(data);
+        if (!list.length){
+          results.innerHTML = `
+            <div style="padding:8px 10px; color:var(--muted); font-size:12.5px;">검색 결과가 없습니다.</div>
+            <div style="padding:8px 10px; border-top:1px dashed var(--line);">
+              <button type="button" class="debug-toggle" style="font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; padding:0;">🔧 디버그: 응답 원본 보기</button>
+              <pre style="display:none; white-space:pre-wrap; font-size:11px; margin-top:6px; max-height:200px; overflow:auto;">${JSON.stringify(data, null, 2).replace(/</g,'&lt;')}</pre>
+            </div>
+          `;
+          const toggle = results.querySelector('.debug-toggle');
+          const pre = results.querySelector('pre');
+          toggle.addEventListener('click', () => { pre.style.display = pre.style.display === 'none' ? 'block' : 'none'; });
+          return;
+        }
+        results.innerHTML = list.map(item => {
+          const addr = extractVworldAddr(item);
+          return `<div class="forest-search-item" data-addr="${addr}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--line); font-size:13px;">${addr}</div>`;
+        }).join('');
+        results.querySelectorAll('.forest-search-item').forEach(el => {
+          el.addEventListener('mouseenter', () => { el.style.background = 'var(--accent-soft)'; });
+          el.addEventListener('mouseleave', () => { el.style.background = ''; });
+          el.addEventListener('click', () => {
+            input.value = el.dataset.addr;
+            results.style.display = 'none';
+            results.innerHTML = '';
+          });
+        });
+      }, (errMsg) => {
+        results.innerHTML = `<div style="padding:8px 10px; color:var(--danger); font-size:12.5px;">${errMsg}</div>`;
+      });
+    }
+    btn.addEventListener('click', runSearch);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); runSearch(); } });
+  }
+  wireForestSearch('mForestLocation', 'mForestSearchBtn', 'mForestSearchResults');
+
+  mJoinOtherCheck.addEventListener('change', () => {
+    mJoinChannelOther.style.display = mJoinOtherCheck.checked ? 'block' : 'none';
+  });
+
+  mNo.addEventListener('blur', async () => {
+    mHintNo.innerHTML = '';
+    mHintNo.style.display = 'none';
+    submitMembershipBtn.disabled = false;
+    const no = Number(mNo.value);
+    if (!no) return;
+    const { data: dup } = await sb.from(TABLE_NAME).select('customer_no, name, is_deleted').eq('customer_no', no).maybeSingle();
+    if (dup){
+      if (dup.is_deleted){
+        mHintNo.textContent = '휴지통에 있는 고객번호입니다. 먼저 복구해주세요.';
+        mHintNo.style.display = 'block';
+        submitMembershipBtn.disabled = true;
+        return;
+      }
+      const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', no).maybeSingle();
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${dup.name || ''} · 고객번호 ${no})${memberRow ? ' — 이미 조합원입니다.' : ''}<br>조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요 (기존 특징·가족 정보를 그대로 활용할 수 있습니다).`;
+      mHintNo.style.display = 'block';
+      submitMembershipBtn.disabled = true;
+    }
+  });
+
+  function todayDateStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function checkMark(checked){ return checked ? '☑' : '☐'; }
+
+  function renderMembershipPrintView(v){
+    const view = document.getElementById('membershipPrintView');
+    const joinRows = {
+      '금융상담': `${checkMark(v.joinFinancial)} 금융상담을 통한 가입`,
+      '임업상담': `${checkMark(v.joinForestry)} 임업상담을 통한 가입`,
+      '소개': `${checkMark(v.joinReferral)} 소개를 통한 가입`,
+      '기타': `${checkMark(v.joinOtherCheck)} 기타 ${v.joinOtherCheck ? `(${v.joinChannelOther||''})` : ''}`
+    };
+    const referrerLine = v.referrerNo ? `<br>🔗 추천인: ${v.referrerNo}번 (관계: ${v.referralRelation||'-'})` : '';
+    const qualLine = v.qualificationType === '산림소유자'
+      ? `산림소재지: ${v.forestLocation||'-'} / 면적: ${v.forestArea ? Number(v.forestArea).toLocaleString('ko-KR')+' ㎡' : '-'} ${v.forestShareOnly ? '(비고: 지분소유)' : ''}`
+      : v.qualificationType === '임업인'
+      ? `자격구분: ${v.forestryQualification||'-'} / 경영내용: ${v.forestryBusiness||'-'} / 비고: ${v.forestryNote||'-'}`
+      : '-';
+    view.innerHTML = `
+      <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
+      <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
+      <table>
+        <tr><td class="mp-label">성명</td><td>${v.name} (고객번호 ${v.no})</td></tr>
+        <tr><td class="mp-label">조합원의 자격</td><td>
+          ${checkMark(v.qualificationType==='산림소유자')} 산림소유자 &nbsp;&nbsp; ${checkMark(v.qualificationType==='임업인')} 임업인<br>
+          ${qualLine}
+        </td></tr>
+        <tr><td class="mp-label">금융현황<br>(비과세한도)</td><td>
+          수신: ${v.deposit ? Number(v.deposit).toLocaleString('ko-KR') : '-'} &nbsp;&nbsp; 여신: ${v.loan ? Number(v.loan).toLocaleString('ko-KR') : '-'}<br>
+          (우리조합 기준 / 타금융: ${v.otherFinancial ? Number(v.otherFinancial).toLocaleString('ko-KR') : '-'} / 잔여한도: ${v.taxFreeLimit ? Number(v.taxFreeLimit).toLocaleString('ko-KR') : '-'})
+        </td></tr>
+        <tr><td class="mp-label">가입경로</td><td>${joinRows['금융상담']}<br>${joinRows['임업상담']}<br>${joinRows['소개']}<br>${joinRows['기타']}${referrerLine}</td></tr>
+        <tr><td class="mp-label">관심분야</td><td>
+          ${checkMark(v.interestPlan)} 산림경영계획 작성 &nbsp;&nbsp; ${checkMark(v.interestFinancial)} 금융 사업 이용<br>
+          ${checkMark(v.interestForestry)} 임업 상담 및 정보수집 &nbsp;&nbsp; ${checkMark(v.interestOtherCheck)} 기타 ${v.interestOtherCheck ? `(${v.interestOther||''})` : ''}
+        </td></tr>
+        <tr><td class="mp-label">직업 및 소속처<br>(중복가능)</td><td>
+          ${checkMark(v.occEmployed)} 직업 ${v.occEmployed ? `(직장: ${v.workplace||''})` : ''}<br>
+          ${checkMark(v.occSelfEmployed)} 자영업 ${v.occSelfEmployed ? `(상호명: ${v.businessName||''})` : ''}<br>
+          ${checkMark(v.occOrg)} 단체(소속) ${v.occOrg ? `(${v.orgName||''})` : ''}
+        </td></tr>
+      </table>
+      <div class="mp-note-title">상담내용<br><span style="font-size:11px; font-weight:400;">(조합원 가입신청자 상담을 통해 자유롭게 작성)</span></div>
+      <div class="mp-note-body">${(v.consultNote || '').replace(/</g,'&lt;')}</div>
+      <div class="mp-signature">상담자: ${v.consultantName} (인)</div>
+    `;
+  }
+
+  membershipForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    mHintNo.style.display = 'none';
+    mReferrerHint.style.display = 'none';
+
+    const no = Number(mNo.value);
+    const name = document.getElementById('mName').value.trim();
+    const info = document.getElementById('mInfo').value.trim();
+    const deposit = parseMoneyInput(document.getElementById('mDeposit'));
+    const loan = parseMoneyInput(document.getElementById('mLoan'));
+    const otherFinancial = parseMoneyInput(document.getElementById('mOtherFinancial'));
+    const taxFreeLimit = parseMoneyInput(document.getElementById('mTaxFreeLimit'));
+    const joinFinancial = document.getElementById('mJoinFinancial').checked;
+    const joinForestry = document.getElementById('mJoinForestry').checked;
+    const joinReferral = document.getElementById('mJoinReferral').checked;
+    const joinOtherCheck = mJoinOtherCheck.checked;
+    const joinChannelOther = mJoinChannelOther.value.trim();
+    const referrerNo = document.getElementById('mReferrerNo').value ? Number(document.getElementById('mReferrerNo').value) : null;
+    const referralRelation = document.getElementById('mReferralRelation').value.trim();
+    const interestPlan = document.getElementById('mInterestPlan').checked;
+    const interestFinancial = document.getElementById('mInterestFinancial').checked;
+    const interestForestry = document.getElementById('mInterestForestry').checked;
+    const interestOtherCheck = document.getElementById('mInterestOtherCheck').checked;
+    const interestOther = document.getElementById('mInterestOther').value.trim();
+    const occEmployed = document.getElementById('mOccEmployed').checked;
+    const workplace = document.getElementById('mWorkplace').value.trim();
+    const occSelfEmployed = document.getElementById('mOccSelfEmployed').checked;
+    const businessName = document.getElementById('mBusinessName').value.trim();
+    const occOrg = document.getElementById('mOccOrg').checked;
+    const orgName = document.getElementById('mOrgName').value.trim();
+    const consultNote = document.getElementById('mConsultNote').value.trim();
+    const consultantName = document.getElementById('mConsultantName').value.trim();
+    const qualificationType = document.querySelector('input[name="mQualification"]:checked')?.value || null;
+    const forestLocation = document.getElementById('mForestLocation').value.trim();
+    const forestArea = parseMoneyInput(document.getElementById('mForestArea'));
+    const forestShareOnly = document.getElementById('mForestShareOnly').checked;
+    const forestryQualification = document.getElementById('mForestryQualification').value.trim();
+    const forestryBusiness = document.getElementById('mForestryBusiness').value.trim();
+    const forestryNote = document.getElementById('mForestryNote').value.trim();
+    const familyNo = document.getElementById('mFamilyNo').value ? Number(document.getElementById('mFamilyNo').value) : null;
+    const familyRelType = document.getElementById('mFamilyRelType').value;
+
+    if (!no || !name){
+      setStatus('고객번호와 성명은 필수입니다', 'err-flash');
+      return;
+    }
+    if (referrerNo === no){
+      mReferrerHint.textContent = '본인을 추천인으로 지정할 수 없습니다.';
+      mReferrerHint.style.display = 'block';
+      return;
+    }
+    if (familyNo === no){
+      mFamilyHint.textContent = '본인을 가족으로 등록할 수 없습니다.';
+      mFamilyHint.style.display = 'block';
+      return;
+    }
+
+    submitMembershipBtn.disabled = true;
+    submitMembershipBtn.textContent = '⏳ 확인 중...';
+
+    if (referrerNo){
+      const { data: refRow } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', referrerNo).maybeSingle();
+      if (!refRow){
+        submitMembershipBtn.disabled = false;
+        submitMembershipBtn.textContent = '🏅 저장';
+        mReferrerHint.textContent = `추천인 고객번호 ${referrerNo}를 찾을 수 없습니다.`;
+        mReferrerHint.style.display = 'block';
+        return;
+      }
+    }
+    if (familyNo){
+      const { data: famRow } = await sb.from(TABLE_NAME).select('customer_no').eq('customer_no', familyNo).maybeSingle();
+      if (!famRow){
+        submitMembershipBtn.disabled = false;
+        submitMembershipBtn.textContent = '🏅 저장';
+        mFamilyHint.textContent = `가족 고객번호 ${familyNo}를 찾을 수 없습니다.`;
+        mFamilyHint.style.display = 'block';
+        return;
+      }
+    }
+
+    const { data: existingCustomer } = await sb.from(TABLE_NAME).select('customer_no, name, customer_info').eq('customer_no', no).maybeSingle();
+
+    if (existingCustomer){
+      submitMembershipBtn.disabled = false;
+      submitMembershipBtn.textContent = '🏅 저장';
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${existingCustomer.name || ''} · 고객번호 ${no}). 조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요.`;
+      mHintNo.style.display = 'block';
+      return;
+    }
+
+    submitMembershipBtn.textContent = '⏳ 저장 중...';
+
+    const payload = { customer_no: no, name, customer_info: info || null };
+    if (referrerNo) payload.referred_by = referrerNo;
+    const { error: custError } = await sb.from(TABLE_NAME).insert(payload);
+    if (custError){
+      submitMembershipBtn.disabled = false;
+      submitMembershipBtn.textContent = '🏅 저장';
+      setStatus('고객 등록 실패: ' + custError.message, 'err-flash');
+      return;
+    }
+
+    if (familyNo){
+      await sb.from('customer_family_links').insert({
+        customer_no: no,
+        related_customer_no: familyNo,
+        relationship_type: familyRelType,
+        created_by: currentUserName
+      });
+    }
+
+    // 조합원 자격은 상담일지 작성만으로 확정되지 않고, 실제 가입 승인 후
+    // 조합원 명단(관리자 CSV 업로드)에 반영되어야 조합원으로 인정됩니다.
+    // 여기서는 members 테이블에 반영하지 않고, membership_applications 기록만 남깁니다.
+
+    if (deposit || loan){
+      await sb.from('balance_snapshots').insert({
+        customer_no: no,
+        snapshot_date: todayDateStr(),
+        deposit_balance: deposit ? Number(deposit) : null,
+        loan_balance: loan ? Number(loan) : null,
+        uploaded_by: currentUserEmail
+      });
+    }
+
+    if (consultNote){
+      await sb.from('customer_activities').insert({
+        customer_no: no,
+        activity_type: '가입상담',
+        activity_date: todayDateStr(),
+        content: consultNote,
+        created_by: currentUserName,
+        created_by_email: currentUserEmail
+      });
+    }
+
+    const { error: appError } = await sb.from('membership_applications').insert({
+      customer_no: no,
+      other_financial_amount: otherFinancial ? Number(otherFinancial) : null,
+      remaining_tax_free_limit: taxFreeLimit ? Number(taxFreeLimit) : null,
+      join_financial: joinFinancial,
+      join_forestry: joinForestry,
+      join_referral: joinReferral,
+      join_other: joinOtherCheck,
+      join_other_text: joinOtherCheck ? joinChannelOther : null,
+      referral_relation: referralRelation || null,
+      qualification_type: qualificationType,
+      forest_location: qualificationType === '산림소유자' ? (forestLocation || null) : null,
+      forest_area: qualificationType === '산림소유자' ? forestArea : null,
+      forest_share_only: qualificationType === '산림소유자' ? forestShareOnly : false,
+      forestry_qualification: qualificationType === '임업인' ? (forestryQualification || null) : null,
+      forestry_business_content: qualificationType === '임업인' ? (forestryBusiness || null) : null,
+      forestry_note: qualificationType === '임업인' ? (forestryNote || null) : null,
+      interest_forest_plan: interestPlan,
+      interest_financial: interestFinancial,
+      interest_forestry_info: interestForestry,
+      interest_other: interestOtherCheck ? interestOther : null,
+      occ_employed: occEmployed,
+      occ_workplace: occEmployed ? workplace : null,
+      occ_self_employed: occSelfEmployed,
+      occ_business_name: occSelfEmployed ? businessName : null,
+      occ_org: occOrg,
+      occ_org_name: occOrg ? orgName : null,
+      consultation_note: consultNote || null,
+      consultant_email: currentUserEmail,
+      consultant_name: consultantName || currentUserName
+    });
+
+    submitMembershipBtn.disabled = false;
+    submitMembershipBtn.textContent = '🏅 저장';
+
+    if (appError){
+      setStatus('상담일지 저장 실패: ' + appError.message, 'err-flash');
+      return;
+    }
+
+    renderMembershipPrintView({
+      no, name, deposit, loan, otherFinancial, taxFreeLimit,
+      joinFinancial, joinForestry, joinReferral, joinOtherCheck, joinChannelOther, referrerNo, referralRelation,
+      qualificationType, forestLocation, forestArea, forestShareOnly, forestryQualification, forestryBusiness, forestryNote,
+      interestPlan, interestFinancial, interestForestry, interestOtherCheck, interestOther,
+      occEmployed, workplace, occSelfEmployed, businessName, occOrg, orgName,
+      consultNote, consultantName: consultantName || currentUserName
+    });
+
+    closeMembershipModal();
+    if (currentMode === 'none'){
+      showIdle();
+    } else {
+      await refreshCurrentView();
+    }
+    setStatus(`고객번호 ${no} 조합원 등록 및 상담일지 저장 완료`, 'saved-flash');
+    loadPersonalStats();
+
+    document.body.classList.add('printing-membership');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-membership'), 500);
+  });
+
+  // ---- 시작: 세션 확인 (기존 세션 복원이므로 접속이력에는 기록 안 함) ----
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleSession(session, false); else showLogin();
+  });
+</script>
+</body>
+</html>
