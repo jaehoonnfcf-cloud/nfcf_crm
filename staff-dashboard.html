@@ -286,6 +286,8 @@
     <section class="card" id="unionReportSection">
       <h1><span class="section-icon blue">📊</span> 조합활동별 고객 보고서</h1>
       <p class="desc">등록된 조합활동을 선택하면 참여 고객의 담당자·잔액증감·최근 마케팅활동을 한 번에 확인할 수 있습니다. 증감은 "기준월" 대비 최근월 잔액 기준입니다.</p>
+      <h2 style="font-size:15px; margin:14px 0 6px;">2026 활동 종합</h2>
+      <div id="unionSummaryTable" style="margin-bottom:16px;"><p class="empty">불러오는 중...</p></div>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
         <select id="unionReportSelect" style="min-width:220px;">
           <option value="">조합활동 선택...</option>
@@ -679,6 +681,110 @@
     unionReportBaselineSelect.innerHTML = `<option value="">기준월: 자동 (참여일 기준 직전월)</option>` +
       months.map(m => `<option value="${m}">기준월: ${m}로 고정</option>`).join('');
     if (months.includes(currentBaseline)) unionReportBaselineSelect.value = currentBaseline;
+
+    renderUnionSummary();
+  }
+
+  // ---- 2026 활동 종합 (활동별 여수신 증감 한눈에) ----
+  const UNION_SUMMARY_YEAR = 2026;
+  const unionSummaryTable = document.getElementById('unionSummaryTable');
+
+  async function fetchAllRows(buildQuery){
+    const rows = [];
+    for (let from = 0; ; from += 1000){
+      const { data, error } = await buildQuery().range(from, from + 999);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    return rows;
+  }
+
+  const eok = (n) => (n / 1e8).toFixed(2);
+  function eokCell(n){
+    if (n === null) return `<span class="diff-flat">-</span>`;
+    const s = eok(n);
+    if (n > 0) return `<span class="diff-up">+${s}억</span>`;
+    if (n < 0) return `<span class="diff-down">${s}억</span>`;
+    return `<span class="diff-flat">0</span>`;
+  }
+
+  async function renderUnionSummary(){
+    unionSummaryTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
+    try {
+      const acts = await fetchAllRows(() => sb.from('customer_activities')
+        .select('id, customer_no, content, activity_date')
+        .eq('activity_type', '조합활동')
+        .gte('activity_date', `${UNION_SUMMARY_YEAR}-01-01`)
+        .lt('activity_date', `${UNION_SUMMARY_YEAR + 1}-01-01`)
+        .order('id', { ascending: true }));
+      if (!acts.length){ unionSummaryTable.innerHTML = `<p class="empty">${UNION_SUMMARY_YEAR}년 조합활동이 없습니다.</p>`; return; }
+
+      // 활동별 고객(중복 등록은 가장 늦은 참여일)
+      const byActivity = {};
+      for (const a of acts){
+        const m = byActivity[a.content] || (byActivity[a.content] = {});
+        if (!(a.customer_no in m) || a.activity_date > m[a.customer_no]) m[a.customer_no] = a.activity_date;
+      }
+      const allNos = Array.from(new Set(acts.map(a => a.customer_no)));
+      const snapshotsByCustomer = {};
+      for (let i = 0; i < allNos.length; i += 200){
+        const chunk = allNos.slice(i, i + 200);
+        const rows = await fetchAllRows(() => sb.from('balance_snapshots')
+          .select('id, customer_no, snapshot_date, deposit_balance, loan_balance')
+          .in('customer_no', chunk).order('id', { ascending: true }));
+        for (const s of rows) (snapshotsByCustomer[s.customer_no] ||= []).push(s);
+      }
+      for (const no in snapshotsByCustomer) snapshotsByCustomer[no].sort((a, b) => a.snapshot_date < b.snapshot_date ? -1 : 1);
+
+      const list = Object.entries(byActivity).map(([name, members]) => {
+        let withData = 0, dep = 0, loan = 0, up = 0, down = 0, minDate = null;
+        const nos = Object.keys(members);
+        for (const no of nos){
+          const snaps = snapshotsByCustomer[no] || [];
+          const latest = snaps.length ? snaps[snaps.length - 1] : null;
+          const base = pickAutoBaseline(snaps, members[no]);
+          if (!base || !latest) continue;
+          withData++;
+          if (base.deposit_balance != null && latest.deposit_balance != null){
+            const d = latest.deposit_balance - base.deposit_balance;
+            dep += d; if (d > 0) up++; else if (d < 0) down++;
+          }
+          if (base.loan_balance != null && latest.loan_balance != null) loan += latest.loan_balance - base.loan_balance;
+        }
+        for (const d of Object.values(members)) if (!minDate || d < minDate) minDate = d;
+        return { name, date: minDate, total: nos.length, withData, dep, loan, up, down };
+      }).sort((a, b) => a.date < b.date ? -1 : 1);
+
+      const sum = list.reduce((t, r) => ({ total: t.total + r.total, withData: t.withData + r.withData, dep: t.dep + r.dep, loan: t.loan + r.loan }),
+        { total: 0, withData: 0, dep: 0, loan: 0 });
+
+      let html = `<table><thead><tr>
+        <th>조합활동</th><th>참여일</th><th class="num">참여(자료有)</th>
+        <th class="num">수신증감</th><th class="num">여신증감</th><th class="num">수신 증가/감소 고객</th>
+      </tr></thead><tbody>`;
+      for (const r of list){
+        html += `<tr class="clickable" data-activity="${r.name.replace(/"/g, '&quot;')}">
+          <td>${r.name}</td><td>${r.date}</td><td class="num">${r.total}명 (${r.withData})</td>
+          <td class="num">${eokCell(r.dep)}</td><td class="num">${eokCell(r.loan)}</td>
+          <td class="num">${r.up} / ${r.down}</td></tr>`;
+      }
+      html += `<tr><td><strong>합계</strong></td><td></td><td class="num"><strong>${sum.total}건 (${sum.withData})</strong></td>
+        <td class="num"><strong>${eokCell(sum.dep)}</strong></td><td class="num"><strong>${eokCell(sum.loan)}</strong></td><td></td></tr>`;
+      html += `</tbody></table>
+        <p class="desc" style="margin-top:6px;">증감은 참여일 직전 월말 → 최근월 잔액 기준(활동별 기간이 달라 단순 비교는 주의). 여러 활동에 참여한 고객은 활동마다 포함됩니다. 행을 클릭하면 아래에 고객별 상세가 표시됩니다.</p>`;
+      unionSummaryTable.innerHTML = html;
+
+      unionSummaryTable.querySelectorAll('tr.clickable').forEach(row => {
+        row.addEventListener('click', () => {
+          unionReportSelect.value = row.dataset.activity;
+          renderUnionReport();
+          unionReportTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    } catch (e){
+      unionSummaryTable.innerHTML = `<p class="empty">불러오기 실패: ${e.message}</p>`;
+    }
   }
 
   // 참여일 기준으로, 참여일보다 늦지 않은 가장 최근 스냅샷을 기준월로 고른다.
