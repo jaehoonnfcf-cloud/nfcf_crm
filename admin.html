@@ -2061,7 +2061,7 @@
       html += `<p class="status-line err-flash" style="margin:0 0 6px;">⚠️ 오류가 있는 행 ${invalidSpecialDepositRows.length}건 — CSV를 수정한 뒤 다시 업로드해주세요 (업로드 버튼은 오류가 없을 때만 활성화됩니다).</p>`;
       html += `<table><thead><tr><th>행</th><th>오류</th></tr></thead><tbody>`;
       for (const r of invalidSpecialDepositRows.slice(0, 30)){
-        html += `<tr><td>${r.rowNo}</td><td>${r.errors.join(', ')}</td></tr>`;
+        html += `<tr><td>${r.rowNo}</td><td>${escapeHtml(r.errors.join(', '))}</td></tr>`;
       }
       html += `</tbody></table>`;
       if (invalidSpecialDepositRows.length > 30) html += `<p class="empty-note">외 ${invalidSpecialDepositRows.length - 30}건</p>`;
@@ -2071,8 +2071,8 @@
       html += `<p class="status-line" style="margin:14px 0 6px;">정상 인식된 ${parsedSpecialDepositRows.length}건 (미리보기 50건)</p>`;
       html += `<table><thead><tr><th>날짜</th><th>지점</th><th>상품</th><th class="num">전체금액</th><th class="num">신규금액</th><th class="num">재예치금액</th><th>고객</th></tr></thead><tbody>`;
       for (const r of parsedSpecialDepositRows.slice(0, 50)){
-        const custLabel = r.customer_name || r.customer_no ? `${r.customer_name || ''}${r.customer_no ? ` (${r.customer_no})` : ''}` : '-';
-        html += `<tr><td>${r.entry_date}</td><td>${r.branch}</td><td>${r.product_type}</td><td class="num">${Number(r.total_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.new_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.total_amount - r.new_amount).toLocaleString('ko-KR')}</td><td>${custLabel}</td></tr>`;
+        const custLabel = r.customer_name || r.customer_no ? `${escapeHtml(r.customer_name || '')}${r.customer_no ? ` (${r.customer_no})` : ''}` : '-';
+        html += `<tr><td>${escapeHtml(r.entry_date)}</td><td>${escapeHtml(r.branch)}</td><td>${escapeHtml(r.product_type)}</td><td class="num">${Number(r.total_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.new_amount).toLocaleString('ko-KR')}</td><td class="num">${Number(r.total_amount - r.new_amount).toLocaleString('ko-KR')}</td><td>${custLabel}</td></tr>`;
       }
       html += `</tbody></table>`;
       if (parsedSpecialDepositRows.length > 50) html += `<p class="empty-note">외 ${parsedSpecialDepositRows.length - 50}건</p>`;

@@ -350,6 +350,8 @@
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // XSS 방지: 사용자 입력을 HTML 에 넣을 때 반드시 esc() 를 거친다.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const loginScreen = document.getElementById('loginScreen');
   const app = document.getElementById('app');
@@ -455,7 +457,7 @@
       .eq('assigned_to', currentUserEmail)
       .order('current_deposit_balance', { ascending: false, nullsFirst: false });
 
-    if (error){ myCustomerTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ myCustomerTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     const rows = data || [];
 
     let unionMap = {};
@@ -499,9 +501,9 @@
     for (const c of rows){
       html += `<tr>
         <td class="clickable" data-customer="${c.customer_no}" data-label="고객번호"><span class="v">${c.customer_no}</span></td>
-        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${c.name||''}${c.isMember ? '<span class="member-badge">🏅조합원</span>' : (c.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</span></td>
-        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="특징" title="${(c.customer_info||'').replace(/"/g,'&quot;')}"><span class="v">${c.customer_info||''}</span></td>
-        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="조합활동" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}"><span class="v">${c.unionActivity}</span></td>
+        <td class="clickable" data-customer="${c.customer_no}" data-label="성명"><span class="v">${esc(c.name||'')}${c.isMember ? '<span class="member-badge">🏅조합원</span>' : (c.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</span></td>
+        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="특징" title="${(c.customer_info||'').replace(/"/g,'&quot;')}"><span class="v">${esc(c.customer_info||'')}</span></td>
+        <td class="clickable ellipsis" data-customer="${c.customer_no}" data-label="조합활동" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}"><span class="v">${esc(c.unionActivity)}</span></td>
         <td class="clickable num" data-customer="${c.customer_no}" data-label="수신잔액"><span class="v">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</span></td>
         <td class="clickable num" data-customer="${c.customer_no}" data-label="여신잔액"><span class="v">${balanceCell(c.current_loan_balance, c.loan_diff)}</span></td>
         <td class="unassign-cell"><button class="small-btn unassign-btn" data-customer="${c.customer_no}" title="해제">🗑️</button></td>
@@ -567,7 +569,7 @@
       .is('assigned_to', null)
       .order('created_at', { ascending: false });
 
-    if (error){ unassignedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ unassignedTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     unassignedRows = data || [];
     updateUnassignedToggleLabel();
     renderUnassignedTable(unassignedRows);
@@ -579,8 +581,8 @@
     for (const c of rows){
       html += `<tr>
         <td class="clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
-        <td class="clickable" data-customer="${c.customer_no}">${c.name||'<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
-        <td class="clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${c.name ? esc(c.name) : '<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
+        <td class="clickable" data-customer="${c.customer_no}">${esc(c.customer_info||'')}</td>
         <td><button class="small-btn primary" data-customer="${c.customer_no}">🙋 담당자 지정</button></td>
       </tr>`;
     }
@@ -631,13 +633,13 @@
       .eq('requested_by', currentUserEmail)
       .order('requested_at', { ascending: false });
 
-    if (error){ myRequestsTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ myRequestsTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!data.length){ myRequestsTable.innerHTML = `<p class="empty">신청 내역이 없습니다.</p>`; return; }
 
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>신청일</th><th>상태</th></tr></thead><tbody>`;
     for (const r of data){
       html += `<tr>
-        <td>${r.customer_no}</td><td>${r.customers?.name||''}</td>
+        <td>${r.customer_no}</td><td>${esc(r.customers?.name||'')}</td>
         <td>${new Date(r.requested_at).toLocaleDateString('ko-KR')}</td>
         <td><span class="badge ${r.status}">${statusLabel[r.status] || r.status}</span></td>
       </tr>`;
@@ -670,7 +672,7 @@
     const names = Array.from(new Set((data || []).map(r => r.content))).sort();
     const currentValue = unionReportSelect.value;
     unionReportSelect.innerHTML = `<option value="">조합활동 선택...</option>` +
-      names.map(n => `<option value="${n}">${n}</option>`).join('');
+      names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if (names.includes(currentValue)) unionReportSelect.value = currentValue;
 
     const { data: snapshotDates } = await sb.from('balance_snapshots').select('snapshot_date');
@@ -709,7 +711,7 @@
       .eq('content', activityName)
       .order('activity_date', { ascending: false });
 
-    if (error){ unionReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ unionReportTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!participants.length){ unionReportTable.innerHTML = `<p class="empty">참여 고객이 없습니다.</p>`; return; }
 
     const participationDate = {};
@@ -769,13 +771,13 @@
     </tr></thead><tbody>`;
     for (const { no, c, m, baselineLabel, depositDiff, loanDiff } of reportRows){
       html += `<tr class="clickable" data-customer="${no}">
-        <td>${no}</td><td>${c.name||''}</td>
+        <td>${no}</td><td>${esc(c.name||'')}</td>
         <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
         <td>${participationDate[no]}</td>
         <td>${baselineLabel}</td>
         <td class="num">${diffCell(depositDiff)}</td>
         <td class="num">${diffCell(loanDiff)}</td>
-        <td>${m ? `${m.activity_date} · ${m.content}` : '-'}</td>
+        <td>${m ? `${m.activity_date} · ${esc(m.content)}` : '-'}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -811,7 +813,7 @@
     const names = Array.from(new Set((data || []).map(r => r.content))).sort();
     const currentValue = giftReportSelect.value;
     giftReportSelect.innerHTML = `<option value="">사은품명 선택...</option>` +
-      names.map(n => `<option value="${n}">${n}</option>`).join('');
+      names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if (names.includes(currentValue)) giftReportSelect.value = currentValue;
   }
 
@@ -830,7 +832,7 @@
       .eq('content', giftName)
       .order('activity_date', { ascending: false });
 
-    if (error){ giftReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ giftReportTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!recipients.length){ giftReportTable.innerHTML = `<p class="empty">지급받은 고객이 없습니다.</p>`; return; }
 
     const customerNos = Array.from(new Set(recipients.map(r => r.customer_no)));
@@ -844,7 +846,7 @@
     for (const r of recipients){
       const c = custMap[r.customer_no] || {};
       html += `<tr class="clickable" data-customer="${r.customer_no}">
-        <td>${r.customer_no}</td><td>${c.name||''}</td>
+        <td>${r.customer_no}</td><td>${esc(c.name||'')}</td>
         <td>${c.assigned_to ? (staffNameMap[c.assigned_to] || c.assigned_to) : '미배정'}</td>
         <td>${r.activity_date}</td>
       </tr>`;
@@ -874,7 +876,7 @@
       .select('customer_no, created_at, qualification_type, consultant_name')
       .order('created_at', { ascending: false });
 
-    if (error){ membershipDocReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ membershipDocReportTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!appRows.length){ membershipDocReportTable.innerHTML = `<p class="empty">작성된 상담일지가 없습니다.</p>`; return; }
 
     // 고객당 가장 최근 상담일지 한 건만 표시
@@ -909,11 +911,11 @@
     for (const r of rows){
       html += `<tr class="clickable" data-customer="${r.customer_no}">
         <td>${r.customer_no}</td>
-        <td>${r.name || ''}${r.isMember ? '<span class="member-badge">🏅조합원</span>' : (r.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</td>
-        <td>${r.qualification_type || '-'}</td>
+        <td>${esc(r.name || '')}${r.isMember ? '<span class="member-badge">🏅조합원</span>' : (r.isPendingApplication ? '<span class="pending-application-badge">📝가입신청</span>' : '')}</td>
+        <td>${esc(r.qualification_type || '-')}</td>
         <td>${r.assigned_to ? (staffNameMapCache?.[r.assigned_to] || r.assigned_to) : '미배정'}</td>
         <td>${(r.created_at || '').slice(0, 10)}</td>
-        <td>${r.consultant_name || '-'}</td>
+        <td>${esc(r.consultant_name || '-')}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -945,7 +947,7 @@
     familyReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
 
     const { data: links, error } = await sb.from('customer_family_links').select('customer_no, related_customer_no');
-    if (error){ familyReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ familyReportTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!links.length){ familyReportTable.innerHTML = `<p class="empty">등록된 가족관계가 없습니다.</p>`; return; }
 
     // Union-Find로 사슬 연결된 사람들을 하나의 그룹으로 묶기
@@ -1073,10 +1075,10 @@
     </tr></thead><tbody>`;
     for (const g of groups){
       const memberLinks = g.members.map(m =>
-        `<a href="customer-detail.html?customer_no=${m.customer_no}">${m.name || '(이름없음)'}(${m.customer_no})</a>`
+        `<a href="customer-detail.html?customer_no=${m.customer_no}">${esc(m.name || '(이름없음)')}(${m.customer_no})</a>`
       ).join(', ');
       html += `<tr>
-        <td>${g.repCandidate.name || '(이름없음)'}(${g.repCandidate.customer_no})</td>
+        <td>${esc(g.repCandidate.name || '(이름없음)')}(${g.repCandidate.customer_no})</td>
         <td>${memberLinks}</td>
         <td>${g.members.length}명</td>
         <td class="num">${fmtNum(g.depositSum)}</td>

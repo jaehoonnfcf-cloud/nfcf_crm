@@ -1821,7 +1821,7 @@
         return;
       }
       const { data: memberRow } = await sb.from('members').select('customer_no').eq('customer_no', no).maybeSingle();
-      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${dup.name || ''} · 고객번호 ${no})${memberRow ? ' — 이미 조합원입니다.' : ''}<br>조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요 (기존 특징·가족 정보를 그대로 활용할 수 있습니다).`;
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${escapeHtml(dup.name || '')} · 고객번호 ${no})${memberRow ? ' — 이미 조합원입니다.' : ''}<br>조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요 (기존 특징·가족 정보를 그대로 활용할 수 있습니다).`;
       mHintNo.style.display = 'block';
       submitMembershipBtn.disabled = true;
     }
@@ -1842,7 +1842,7 @@
       '소개': `${checkMark(v.joinReferral)} 소개를 통한 가입`,
       '기타': `${checkMark(v.joinOtherCheck)} 기타 ${v.joinOtherCheck ? `(${v.joinChannelOther||''})` : ''}`
     };
-    const referrerLine = v.referrerNo ? `<br>🔗 추천인: ${v.referrerNo}번 (관계: ${v.referralRelation||'-'})` : '';
+    const referrerLine = v.referrerNo ? `<br>🔗 추천인: ${v.referrerNo}번 (관계: ${escapeHtml(v.referralRelation||'-')})` : '';
     const qualLine = v.qualificationType === '산림소유자'
       ? `산림소재지: ${v.forestLocation||'-'} / 면적: ${v.forestArea ? Number(v.forestArea).toLocaleString('ko-KR')+' ㎡' : '-'} ${v.forestShareOnly ? '(비고: 지분소유)' : ''}`
       : v.qualificationType === '임업인'
@@ -1852,7 +1852,7 @@
       <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
       <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
       <table>
-        <tr><td class="mp-label">성명</td><td>${v.name} (고객번호 ${v.no})</td></tr>
+        <tr><td class="mp-label">성명</td><td>${escapeHtml(v.name)} (고객번호 ${v.no})</td></tr>
         <tr><td class="mp-label">조합원의 자격</td><td>
           ${checkMark(v.qualificationType==='산림소유자')} 산림소유자 &nbsp;&nbsp; ${checkMark(v.qualificationType==='임업인')} 임업인<br>
           ${qualLine}
@@ -1867,14 +1867,14 @@
           ${checkMark(v.interestForestry)} 임업 상담 및 정보수집 &nbsp;&nbsp; ${checkMark(v.interestOtherCheck)} 기타 ${v.interestOtherCheck ? `(${v.interestOther||''})` : ''}
         </td></tr>
         <tr><td class="mp-label">직업 및 소속처<br>(중복가능)</td><td>
-          ${checkMark(v.occEmployed)} 직업 ${v.occEmployed ? `(직장: ${v.workplace||''})` : ''}<br>
-          ${checkMark(v.occSelfEmployed)} 자영업 ${v.occSelfEmployed ? `(상호명: ${v.businessName||''})` : ''}<br>
+          ${checkMark(v.occEmployed)} 직업 ${v.occEmployed ? `(직장: ${escapeHtml(v.workplace||'')})` : ''}<br>
+          ${checkMark(v.occSelfEmployed)} 자영업 ${v.occSelfEmployed ? `(상호명: ${escapeHtml(v.businessName||'')})` : ''}<br>
           ${checkMark(v.occOrg)} 단체(소속) ${v.occOrg ? `(${v.orgName||''})` : ''}
         </td></tr>
       </table>
       <div class="mp-note-title">상담내용<br><span style="font-size:11px; font-weight:400;">(조합원 가입신청자 상담을 통해 자유롭게 작성)</span></div>
       <div class="mp-note-body">${(v.consultNote || '').replace(/</g,'&lt;')}</div>
-      <div class="mp-signature">상담자: ${v.consultantName} (인)</div>
+      <div class="mp-signature">상담자: ${escapeHtml(v.consultantName)} (인)</div>
     `;
   }
 
@@ -1964,7 +1964,7 @@
     if (existingCustomer){
       submitMembershipBtn.disabled = false;
       submitMembershipBtn.textContent = '🏅 저장';
-      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${existingCustomer.name || ''} · 고객번호 ${no}). 조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요.`;
+      mHintNo.innerHTML = `⚠️ 이미 등록된 고객입니다 (${escapeHtml(existingCustomer.name || '')} · 고객번호 ${no}). 조합원 상담일지는 <a href="customer-detail.html?customer_no=${no}" target="_blank" style="color:var(--warn); text-decoration:underline; font-weight:600;">🔗 고객 상세 화면으로 이동</a>해서 추가해주세요.`;
       mHintNo.style.display = 'block';
       return;
     }

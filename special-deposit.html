@@ -351,6 +351,8 @@
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // XSS 방지: 사용자 입력을 HTML 에 넣을 때 반드시 esc() 를 거친다.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const loginScreen = document.getElementById('loginScreen');
   const app = document.getElementById('app');
@@ -432,13 +434,13 @@
   function fmtMillion(n){ if (n === null || n === undefined) return '-'; return Math.round(Number(n) / 1000000).toLocaleString('ko-KR') + '백만원'; }
 
   function branchBadge(branch){
-    if (branch !== '본점' && branch !== '지점') return branch || '-';
+    if (branch !== '본점' && branch !== '지점') return esc(branch || '-');
     const cls = branch === '본점' ? 'branch-hq' : 'branch-br';
     return `<span class="branch-badge ${cls}">${branch === '본점' ? '🏢' : '🏬'} ${branch}</span>`;
   }
 
   function productBadge(productType){
-    if (productType !== '예금' && productType !== '적금') return productType || '-';
+    if (productType !== '예금' && productType !== '적금') return esc(productType || '-');
     const cls = productType === '예금' ? 'product-deposit' : 'product-savings';
     return `<span class="product-badge ${cls}">${productType === '예금' ? '🏦' : '🐷'} ${productType}</span>`;
   }
@@ -576,7 +578,7 @@
       .order('created_at', { ascending: false });
 
     if (error){
-      document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`;
+      document.getElementById('branchSummaryTable').innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`;
       document.getElementById('dailyTableDeposit').innerHTML = '';
       document.getElementById('dailyTableSavings').innerHTML = '';
       document.getElementById('entryListTable').innerHTML = '';
@@ -621,7 +623,7 @@
     return `
       <div class="goal-progress-box">
         <div class="goal-progress-header">
-          <span class="goal-progress-title">🎯 ${title}<span class="goal-progress-note">(${note})</span></span>
+          <span class="goal-progress-title">🎯 ${title}<span class="goal-progress-note">(${esc(note)})</span></span>
           <span class="goal-progress-pct">${pctLabel}%</span>
         </div>
         <div class="goal-progress-track"><div class="goal-progress-fill" style="width:${barWidth}%"></div></div>
@@ -846,8 +848,8 @@
     for (const r of rows){
       const canDelete = isAdmin || r.created_by_email === currentUserEmail;
       const custLabel = r.customer_no
-        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${r.customer_name || ''} (${r.customer_no})</a>${membershipBadgeHtml(r.customer_no)}${newCustomerBadge(r.customer_no)}`
-        : (r.customer_name || '-');
+        ? `<a href="customer-detail.html?customer_no=${r.customer_no}">${esc(r.customer_name || '')} (${r.customer_no})</a>${membershipBadgeHtml(r.customer_no)}${newCustomerBadge(r.customer_no)}`
+        : esc(r.customer_name || '-');
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       html += `<tr data-id="${r.id}">
         <td data-label="날짜"><span class="v">${r.entry_date}</span></td>
@@ -857,7 +859,7 @@
         <td class="num" data-label="전체금액"><span class="v">${fmtNum(r.total_amount)}</span></td>
         <td class="num" data-label="신규금액"><span class="v">${fmtNum(r.new_amount)}</span></td>
         <td class="num" data-label="재예치금액"><span class="v">${fmtNum(r.total_amount - r.new_amount)}</span></td>
-        <td class="ellipsis" data-label="비고" title="${note.replace(/"/g, '&quot;')}"><span class="v">${note}</span></td>
+        <td class="ellipsis" data-label="비고" title="${note.replace(/"/g, '&quot;')}"><span class="v">${esc(note)}</span></td>
         <td class="action-cell"><button class="small-btn link-entry-btn" data-id="${r.id}" title="고객번호 연결">🔗</button>${canDelete ? `<button class="small-btn del-entry-btn" data-id="${r.id}">🗑️</button>` : ''}</td>
       </tr>`;
     }
@@ -1007,12 +1009,12 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = (r.customer_name || '-') + (r.customer_no ? ' ' + membershipBadgeHtml(r.customer_no) : '') + ' ' + newCustomerBadge(r.customer_no);
+      const custLabel = esc(r.customer_name || '-') + (r.customer_no ? ' ' + membershipBadgeHtml(r.customer_no) : '') + ' ' + newCustomerBadge(r.customer_no);
       const note = r.customer_no ? (customerInfoMap[r.customer_no] || '') : '';
       return `<tr>
         <td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
         <td class="num">${fmtNum(r.total_amount)}</td><td class="num">${fmtNum(r.new_amount)}</td><td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
-        <td>${note}</td>
+        <td>${esc(note)}</td>
       </tr>`;
     }).join('');
     if (!sortedRows.length) entryRowsHtml = `<tr><td colspan="7" style="text-align:center; color:#777;">데이터 없음</td></tr>`;
@@ -1055,12 +1057,12 @@
 
     const sortedRows = sortByBranchThenAmount(rows);
     let entryRowsHtml = sortedRows.map(r => {
-      const custLabel = (r.customer_name || '-') + ` (${r.customer_no})` + ' ' + membershipBadgeHtml(r.customer_no);
+      const custLabel = esc(r.customer_name || '-') + ` (${r.customer_no})` + ' ' + membershipBadgeHtml(r.customer_no);
       const note = customerInfoMap[r.customer_no] || '';
       return `<tr>
         <td>${r.entry_date}</td><td>${branchBadge(r.branch)}</td><td>${custLabel}</td><td>${productBadge(r.product_type)}</td>
         <td class="num">${fmtNum(r.total_amount)}</td><td class="num">${fmtNum(r.new_amount)}</td><td class="num">${fmtNum(r.total_amount - r.new_amount)}</td>
-        <td>${note}</td>
+        <td>${esc(note)}</td>
       </tr>`;
     }).join('');
     if (!sortedRows.length) entryRowsHtml = `<tr><td colspan="8" style="text-align:center; color:#777;">데이터 없음</td></tr>`;

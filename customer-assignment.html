@@ -271,6 +271,8 @@
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // XSS 방지: 사용자 입력을 HTML 에 넣을 때 반드시 esc() 를 거친다.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const loginScreen = document.getElementById('loginScreen');
   const app = document.getElementById('app');
@@ -386,7 +388,7 @@
   function staffOptions(selected){
     let html = `<option value="">미배정</option>`;
     for (const s of staffList){
-      html += `<option value="${s.email}" ${s.email === selected ? 'selected' : ''}>${s.name || s.email}</option>`;
+      html += `<option value="${esc(s.email)}" ${s.email === selected ? 'selected' : ''}>${esc(s.name || s.email)}</option>`;
     }
     return html;
   }
@@ -428,7 +430,7 @@
 
         let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>특징</th><th>추천인고객번호</th></tr></thead><tbody>`;
         for (const r of parsedCsvRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no||''}</td><td>${r.name||''}</td><td>${r.customer_info||''}</td><td>${r.referred_by||''}</td></tr>`;
+          html += `<tr><td>${r.customer_no||''}</td><td>${esc(r.name||'')}</td><td>${esc(r.customer_info||'')}</td><td>${r.referred_by||''}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedCsvRows.length > 50) html += `<p class="empty">외 ${parsedCsvRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -677,7 +679,7 @@
 
         let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>이력</th></tr></thead><tbody>`;
         for (const r of parsedUnionActivityRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no}</td><td>${r.name||''}</td><td>${r.content}</td></tr>`;
+          html += `<tr><td>${r.customer_no}</td><td>${esc(r.name||'')}</td><td>${esc(r.content)}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedUnionActivityRows.length > 50) html += `<p class="empty">외 ${parsedUnionActivityRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -808,7 +810,7 @@
 
         let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>사은품명</th></tr></thead><tbody>`;
         for (const r of parsedGiftRows.slice(0, 50)){
-          html += `<tr><td>${r.customer_no}</td><td>${r.name||''}</td><td>${r.content}</td></tr>`;
+          html += `<tr><td>${r.customer_no}</td><td>${esc(r.name||'')}</td><td>${esc(r.content)}</td></tr>`;
         }
         html += `</tbody></table>`;
         if (parsedGiftRows.length > 50) html += `<p class="empty">외 ${parsedGiftRows.length - 50}건 (미리보기는 50건까지)</p>`;
@@ -912,7 +914,7 @@
       .is('assigned_to', null)
       .order('created_at', { ascending: false });
 
-    if (error){ assignTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ assignTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     unassignedRows = data || [];
     renderAssignTable(unassignedRows);
   }
@@ -923,8 +925,8 @@
     for (const c of rows){
       html += `<tr>
         <td class="assign-clickable" data-customer="${c.customer_no}">${c.customer_no}</td>
-        <td class="assign-clickable" data-customer="${c.customer_no}">${c.name||'<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
-        <td class="assign-clickable" data-customer="${c.customer_no}">${c.customer_info||''}</td>
+        <td class="assign-clickable" data-customer="${c.customer_no}">${c.name ? esc(c.name) : '<span style=\"color:var(--muted)\">(이름 미등록)</span>'}</td>
+        <td class="assign-clickable" data-customer="${c.customer_no}">${esc(c.customer_info||'')}</td>
         <td><select data-customer="${c.customer_no}" class="assign-select">${staffOptions(pendingAssignChanges[c.customer_no] || '')}</select></td>
       </tr>`;
     }
@@ -988,14 +990,14 @@
       .eq('status', 'pending')
       .order('requested_at');
 
-    if (error){ requestTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ requestTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!data.length){ requestTable.innerHTML = `<p class="empty">대기 중인 신청이 없습니다.</p>`; return; }
 
     let html = `<table><thead><tr><th>고객번호</th><th>성명</th><th>신청자</th><th>신청일</th><th>메모</th><th>처리</th></tr></thead><tbody>`;
     for (const r of data){
       html += `<tr>
-        <td>${r.customer_no}</td><td>${r.customers?.name||''}</td><td>${r.requested_by}</td>
-        <td>${new Date(r.requested_at).toLocaleDateString('ko-KR')}</td><td>${r.note||''}</td>
+        <td>${r.customer_no}</td><td>${esc(r.customers?.name||'')}</td><td>${esc(r.requested_by)}</td>
+        <td>${new Date(r.requested_at).toLocaleDateString('ko-KR')}</td><td>${esc(r.note||'')}</td>
         <td>
           <button class="small-btn approve" data-id="${r.id}" data-action="approve">✅ 승인</button>
           <button class="small-btn reject" data-id="${r.id}" data-action="reject">❌ 반려</button>

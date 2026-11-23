@@ -504,6 +504,8 @@
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // XSS 방지: 사용자 입력을 HTML 에 넣을 때 반드시 esc() 를 거친다.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const params = new URLSearchParams(window.location.search);
   const customerNo = Number(params.get('customer_no'));
@@ -710,12 +712,12 @@
     const referralCount = countRow?.referral_count || 0;
     const referrerText = referrerRow ? `${referrerRow.name || '(이름없음)'} (${referrerRow.customer_no})` : (data.referred_by ? `고객번호 ${data.referred_by}` : '없음');
     document.getElementById('referrerDisplay').innerHTML =
-      `👤 추천인: ${referrerText} &nbsp;·&nbsp; 🌟 추천인수: <strong>${referralCount}명</strong>`;
+      `👤 추천인: ${esc(referrerText)} &nbsp;·&nbsp; 🌟 추천인수: <strong>${referralCount}명</strong>`;
 
     const referredListEl = document.getElementById('referredList');
     if (referredList && referredList.length){
       referredListEl.innerHTML = referredList.map(r =>
-        `<a href="customer-detail.html?customer_no=${r.customer_no}" style="margin-right:10px;">${r.name || '(이름없음)'}(${r.customer_no})</a>`
+        `<a href="customer-detail.html?customer_no=${r.customer_no}" style="margin-right:10px;">${esc(r.name || '(이름없음)')}(${r.customer_no})</a>`
       ).join('');
     } else {
       referredListEl.innerHTML = `<span class="readonly-note">추천한 조합원이 없습니다.</span>`;
@@ -759,7 +761,7 @@
       <div class="mp-title">「조합원 가입 사유 및 상담일지」</div>
       <div class="mp-sub">※ 조합원 가입 신청자와 상담 후 상담내용을 정리하여 작성해주시기 바랍니다.</div>
       <table class="mp-doc-table">
-        <tr><td class="mp-label">성명</td><td>${v.name} (고객번호 ${v.customer_no})</td></tr>
+        <tr><td class="mp-label">성명</td><td>${esc(v.name)} (고객번호 ${v.customer_no})</td></tr>
         <tr><td class="mp-label">조합원의 자격</td><td>
           ${checkMark(v.qualification_type==='산림소유자')} 산림소유자 &nbsp;&nbsp; ${checkMark(v.qualification_type==='임업인')} 임업인<br>
           ${qualLine}
@@ -773,21 +775,21 @@
           ${checkMark(v.join_forestry)} 임업상담을 통한 가입<br>
           ${checkMark(v.join_referral)} 소개를 통한 가입<br>
           ${checkMark(v.join_other)} 기타 ${v.join_other ? `(${v.join_other_text||''})` : ''}
-          ${v.customerSummaryReferredBy ? `<br>🔗 추천인: ${v.referrerLabel||''} (관계: ${v.referral_relation||'-'})` : ''}
+          ${v.customerSummaryReferredBy ? `<br>🔗 추천인: ${esc(v.referrerLabel||'')} (관계: ${esc(v.referral_relation||'-')})` : ''}
         </td></tr>
         <tr><td class="mp-label">관심분야</td><td>
           ${checkMark(v.interest_forest_plan)} 산림경영계획 작성 &nbsp;&nbsp; ${checkMark(v.interest_financial)} 금융 사업 이용<br>
           ${checkMark(v.interest_forestry_info)} 임업 상담 및 정보수집 &nbsp;&nbsp; ${checkMark(!!v.interest_other)} 기타 ${v.interest_other ? `(${v.interest_other})` : ''}
         </td></tr>
         <tr><td class="mp-label">직업 및 소속처<br>(중복가능)</td><td>
-          ${checkMark(v.occ_employed)} 직업 ${v.occ_employed ? `(직장: ${v.occ_workplace||''})` : ''}<br>
-          ${checkMark(v.occ_self_employed)} 자영업 ${v.occ_self_employed ? `(상호명: ${v.occ_business_name||''})` : ''}<br>
+          ${checkMark(v.occ_employed)} 직업 ${v.occ_employed ? `(직장: ${esc(v.occ_workplace||'')})` : ''}<br>
+          ${checkMark(v.occ_self_employed)} 자영업 ${v.occ_self_employed ? `(상호명: ${esc(v.occ_business_name||'')})` : ''}<br>
           ${checkMark(v.occ_org)} 단체(소속) ${v.occ_org ? `(${v.occ_org_name||''})` : ''}
         </td></tr>
       </table>
       <div class="mp-note-title">상담내용<br><span style="font-size:11px; font-weight:400;">(조합원 가입신청자 상담을 통해 자유롭게 작성)</span></div>
       <div class="mp-note-body">${(v.consultation_note || '').replace(/</g,'&lt;')}</div>
-      <div class="mp-signature">상담자: ${v.consultant_name || ''} (인)</div>
+      <div class="mp-signature">상담자: ${esc(v.consultant_name || '')} (인)</div>
     `;
   }
 
@@ -1043,7 +1045,7 @@
         }
         results.innerHTML = list.map(item => {
           const addr = extractVworldAddr(item);
-          return `<div class="forest-search-item" data-addr="${addr}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--line); font-size:13px;">${addr}</div>`;
+          return `<div class="forest-search-item" data-addr="${esc(addr)}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--line); font-size:13px;">${esc(addr)}</div>`;
         }).join('');
         results.querySelectorAll('.forest-search-item').forEach(el => {
           el.addEventListener('mouseenter', () => { el.style.background = 'var(--accent-soft)'; });
@@ -1055,7 +1057,7 @@
           });
         });
       }, (errMsg) => {
-        results.innerHTML = `<div style="padding:8px 10px; color:var(--danger); font-size:12.5px;">${errMsg}</div>`;
+        results.innerHTML = `<div style="padding:8px 10px; color:var(--danger); font-size:12.5px;">${esc(errMsg)}</div>`;
       });
     }
     btn.addEventListener('click', runSearch);
@@ -1292,7 +1294,7 @@
       .select('customer_no, related_customer_no, relationship_type')
       .or(`customer_no.eq.${customerNo},related_customer_no.eq.${customerNo}`);
 
-    if (error){ familyList.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ familyList.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
 
     // 사슬로 연결된 가족 전체를 묶어서 수신/여신 합산 (Union-Find)
     const { data: allLinks } = await sb.from('customer_family_links').select('customer_no, related_customer_no');
@@ -1352,8 +1354,8 @@
       return `
       <div style="padding:8px 0; border-bottom:1px solid var(--line);">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span style="flex:0 0 52px; color:var(--muted); font-size:12px; font-weight:600;">${e.relation}</span>
-          <a href="customer-detail.html?customer_no=${e.otherNo}" class="family-name-link" style="flex:1; min-width:0;">${r?.name || '(이름없음)'} (${e.otherNo})</a>
+          <span style="flex:0 0 52px; color:var(--muted); font-size:12px; font-weight:600;">${esc(e.relation)}</span>
+          <a href="customer-detail.html?customer_no=${e.otherNo}" class="family-name-link" style="flex:1; min-width:0;">${esc(r?.name || '(이름없음)')} (${e.otherNo})</a>
           ${badgeHtml}
           <button class="nav-btn family-delete-btn" data-cno="${e.linkCustomerNo}" data-rno="${e.linkRelatedNo}">삭제</button>
         </div>
@@ -1456,11 +1458,11 @@
       .eq('activity_type', '마케팅활동')
       .order('activity_date', { ascending: false });
 
-    if (error){ activityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ activityTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!data.length){ activityTable.innerHTML = `<p class="empty">등록된 마케팅활동이 없습니다.</p>`; return; }
 
     let html = `<table class="mobile-card-table"><thead><tr><th style="width:110px">날짜</th><th>내용</th><th style="width:120px">작성자</th></tr></thead><tbody>`;
-    for (const a of data) html += `<tr><td data-label="날짜">${a.activity_date}</td><td data-label="내용">${a.content}</td><td data-label="작성자">${a.created_by||''}</td></tr>`;
+    for (const a of data) html += `<tr><td data-label="날짜">${a.activity_date}</td><td data-label="내용">${esc(a.content)}</td><td data-label="작성자">${esc(a.created_by||'')}</td></tr>`;
     html += `</tbody></table>`;
     activityTable.innerHTML = html;
   }
@@ -1474,11 +1476,11 @@
       .eq('activity_type', '조합활동')
       .order('activity_date', { ascending: false });
 
-    if (error){ unionActivityTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ unionActivityTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!data.length){ unionActivityTable.innerHTML = `<p class="empty">등록된 조합활동이 없습니다.</p>`; return; }
 
     let html = `<table class="mobile-card-table"><thead><tr><th style="width:110px">날짜</th><th>이력</th></tr></thead><tbody>`;
-    for (const a of data) html += `<tr><td data-label="날짜">${a.activity_date}</td><td data-label="이력">${a.content}</td></tr>`;
+    for (const a of data) html += `<tr><td data-label="날짜">${a.activity_date}</td><td data-label="이력">${esc(a.content)}</td></tr>`;
     html += `</tbody></table>`;
     unionActivityTable.innerHTML = html;
   }
@@ -1582,7 +1584,7 @@
       html += `<div class="gift-row" data-id="${g.id}">
         <div class="gift-row-top">
           <span class="gift-date">${g.activity_date}</span>
-          <span class="gift-content">${g.content}</span>
+          <span class="gift-content">${esc(g.content)}</span>
           <div class="gift-actions">${canEdit ? `<button class="nav-btn gift-edit-btn" data-id="${g.id}">✏️</button><button class="nav-btn gift-delete-btn" data-id="${g.id}">🗑️</button>` : ''}</div>
         </div>
         ${showRecipient ? `<div class="gift-row-sub">🎁 수령자: ${recipientHtml}</div>` : ''}
@@ -1615,7 +1617,7 @@
       .eq('customer_no', customerNo)
       .order('snapshot_date', { ascending: true });
 
-    if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ snapshotTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
 
     const chrono = (data || []).map(s => ({
       label: s.snapshot_date, deposit: s.deposit_balance, loan: s.loan_balance

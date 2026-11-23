@@ -190,6 +190,8 @@
   const SUPABASE_ANON_KEY = "sb_publishable_V3QNk17RFVKkJcSYq6ny0Q_QJ56FpOX";
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // XSS 방지: 사용자 입력을 HTML 에 넣을 때 반드시 esc() 를 거친다.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const loginScreen = document.getElementById('loginScreen');
   const app = document.getElementById('app');
@@ -291,12 +293,12 @@
       .not('assigned_to', 'is', null)
       .order('current_deposit_balance', { ascending: false, nullsFirst: false });
 
-    if (error){ managedTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ managedTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     const rows = data || [];
 
     const usedEmails = Array.from(new Set(rows.map(r => r.assigned_to))).sort((a, b) => (staffNameMap[a]||a).localeCompare(staffNameMap[b]||b));
     staffFilterSelect.innerHTML = `<option value="">전체 담당자</option>` +
-      usedEmails.map(email => `<option value="${email}">${staffNameMap[email] || email}</option>`).join('');
+      usedEmails.map(email => `<option value="${esc(email)}">${esc(staffNameMap[email] || email)}</option>`).join('');
 
     let unionMap = {}, marketingMap = {}, referralMap = {};
     if (rows.length){
@@ -333,14 +335,14 @@
     for (const c of rows){
       html += `<tr class="clickable" data-customer="${c.customer_no}">
         <td>${c.customer_no}</td>
-        <td>${c.name||''}</td>
-        <td class="ellipsis" title="${(c.customer_info||'').replace(/"/g,'&quot;')}">${c.customer_info||''}</td>
-        <td class="ellipsis" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}">${c.unionActivity}</td>
-        <td class="ellipsis" title="${(c.marketing||'').replace(/"/g,'&quot;')}">${c.marketing}</td>
+        <td>${esc(c.name||'')}</td>
+        <td class="ellipsis" title="${(c.customer_info||'').replace(/"/g,'&quot;')}">${esc(c.customer_info||'')}</td>
+        <td class="ellipsis" title="${(c.unionActivity||'').replace(/"/g,'&quot;')}">${esc(c.unionActivity)}</td>
+        <td class="ellipsis" title="${(c.marketing||'').replace(/"/g,'&quot;')}">${esc(c.marketing)}</td>
         <td class="num">${balanceCell(c.current_deposit_balance, c.deposit_diff)}</td>
         <td class="num">${balanceCell(c.current_loan_balance, c.loan_diff)}</td>
         <td class="num">${c.referralCount}명</td>
-        <td class="ellipsis">${staffNameMap[c.assigned_to] || c.assigned_to || ''}</td>
+        <td class="ellipsis">${esc(staffNameMap[c.assigned_to] || c.assigned_to || '')}</td>
       </tr>`;
     }
     html += `</tbody></table>`;
@@ -381,7 +383,7 @@
     familyReportTable.innerHTML = `<p class="empty">불러오는 중...</p>`;
 
     const { data: links, error } = await sb.from('customer_family_links').select('customer_no, related_customer_no');
-    if (error){ familyReportTable.innerHTML = `<p class="empty">불러오기 실패: ${error.message}</p>`; return; }
+    if (error){ familyReportTable.innerHTML = `<p class="empty">불러오기 실패: ${esc(error.message)}</p>`; return; }
     if (!links.length){ familyReportTable.innerHTML = `<p class="empty">등록된 가족관계가 없습니다.</p>`; return; }
 
     const parent = {};
@@ -505,10 +507,10 @@
     </tr></thead><tbody>`;
     for (const g of groups){
       const memberLinks = g.members.map(m =>
-        `<a href="customer-detail.html?customer_no=${m.customer_no}">${m.name || '(이름없음)'}(${m.customer_no})</a>`
+        `<a href="customer-detail.html?customer_no=${m.customer_no}">${esc(m.name || '(이름없음)')}(${m.customer_no})</a>`
       ).join(', ');
       html += `<tr>
-        <td>${g.repCandidate.name || '(이름없음)'}(${g.repCandidate.customer_no})</td>
+        <td>${esc(g.repCandidate.name || '(이름없음)')}(${g.repCandidate.customer_no})</td>
         <td>${memberLinks}</td>
         <td>${g.members.length}명</td>
         <td class="num">${fmtNum(g.depositSum)}</td>
